@@ -1,0 +1,28 @@
+# Local PostgreSQL on the project-specific port. Never use this configuration in production.
+[server]
+host = "127.0.0.1"
+port = 3000
+workers = 2
+temp_dir = "data/.tmp"
+
+[database]
+url = "postgres://teacher_oa:teacher_oa_local@127.0.0.1:55432/teacher_oa"
+pool_size = 5
+retry_count = 2
+
+[auth]
+environment = "development"
+mock_enabled = true
+mock_seed = true
+cookie_secure = false
+public_origin = "http://127.0.0.1:3000"
+session_ttl_seconds = 28800
+store = "memory"
+
+[logging]
+level = "info"
+format = "text"
+
+[storage]
+backend = "local"
+root = "data/private-files"

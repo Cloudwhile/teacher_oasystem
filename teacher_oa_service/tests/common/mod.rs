@@ -1,0 +1,45 @@
+//! Integration test helpers.
+
+use aster_forge_cache::CacheConfig;
+use aster_forge_test::temp::SqliteTestDatabase;
+
+/// Builds a clean test [`AppState`](crate::runtime::AppState).
+pub async fn setup() -> (teacher_oa_service::runtime::AppState, SqliteTestDatabase) {
+    let database = SqliteTestDatabase::new("service-state");
+    let mut config = teacher_oa_service::config::AppConfig::default();
+    config.database.url = database.url().into();
+    config.cache = CacheConfig::default();
+    config.logging.file = String::new();
+    config.storage.backend = "memory".into();
+
+    let state = teacher_oa_service::runtime::assembly::prepare_state(config)
+        .await
+        .expect("runtime state should prepare");
+    (state, database)
+}
+
+/// Creates the standard test Actix app.
+#[macro_export]
+macro_rules! create_test_app {
+    ($state:expr) => {{
+        use actix_web::{App, test, web};
+
+        let state = $state;
+        let app = App::new();
+        let app = match state.metrics.provider() {
+            Some(provider) => app.app_data(web::Data::new(provider)),
+            None => app,
+        };
+        test::init_service(
+            app.wrap(actix_web::middleware::Compress::default())
+                .wrap(actix_web::middleware::Logger::new("%a %m %U %s %b %T"))
+                .wrap(aster_forge_middleware::actix::request_id::RequestIdMiddleware)
+                .wrap(aster_forge_middleware::actix::security_headers::default_headers())
+                .wrap(aster_forge_middleware::actix::metrics::MetricsMiddleware)
+                .app_data(web::Data::new(state.clone()))
+                .app_data(web::Data::from(state.metrics.clone()))
+                .configure(teacher_oa_service::api::configure),
+        )
+        .await
+    }};
+}

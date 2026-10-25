@@ -1,0 +1,11 @@
+{
+	"brandLabel": "TeacherOA",
+	"navigationLabel": "主导航",
+	"nav": {
+		"dashboard": "工作台",
+		"achievements": "我的成果",
+		"profile": "个人档案",
+		"files": "文件资料"
+	},
+	"status": "教师工作空间"
+}

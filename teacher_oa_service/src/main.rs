@@ -1,0 +1,81 @@
+//! Binary entrypoint.
+#![deny(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unimplemented,
+        clippy::todo
+    )
+)]
+
+#[cfg(feature = "jemalloc")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+#[cfg(all(feature = "jemalloc", not(target_env = "msvc"), target_os = "linux"))]
+#[expect(
+    non_upper_case_globals,
+    reason = "jemalloc requires this exact lower-case exported symbol name."
+)]
+#[unsafe(export_name = "_rjem_malloc_conf")]
+pub static malloc_conf: Option<&'static std::ffi::c_char> = Some(unsafe {
+    union Conf {
+        bytes: &'static u8,
+        ptr: &'static std::ffi::c_char,
+    }
+
+    Conf {
+        bytes: &b"narenas:1,dirty_decay_ms:1000,muzzy_decay_ms:1000,background_thread:true\0"[0],
+    }
+    .ptr
+});
+
+#[cfg(all(
+    feature = "jemalloc",
+    not(target_env = "msvc"),
+    any(
+        target_os = "macos",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )
+))]
+#[expect(
+    non_upper_case_globals,
+    reason = "jemalloc requires this exact lower-case exported symbol name."
+)]
+#[unsafe(export_name = "_rjem_malloc_conf")]
+pub static malloc_conf: Option<&'static std::ffi::c_char> = Some(unsafe {
+    union Conf {
+        bytes: &'static u8,
+        ptr: &'static std::ffi::c_char,
+    }
+
+    Conf {
+        bytes: &b"narenas:1,dirty_decay_ms:1000,muzzy_decay_ms:1000\0"[0],
+    }
+    .ptr
+});
+
+#[cfg(all(debug_assertions, not(feature = "jemalloc")))]
+#[global_allocator]
+static GLOBAL: aster_forge_alloc::TrackingAlloc = aster_forge_alloc::TrackingAlloc;
+
+fn main() -> std::io::Result<()> {
+    // Load before the async runtime starts any worker threads.
+    match dotenvy::dotenv() {
+        Ok(_) => {}
+        Err(dotenvy::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "无法读取 .env，请检查文件权限和格式",
+            ));
+        }
+    }
+    actix_web::rt::System::new().block_on(teacher_oa_service::runtime::entrypoint::run())
+}

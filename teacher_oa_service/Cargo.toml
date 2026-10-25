@@ -1,0 +1,203 @@
+[package]
+name = "teacher_oa_service"
+version.workspace = true
+description = "TeacherOA"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository = ""
+build = "build.rs"
+
+[workspace]
+members = [".", "crates/teacher_oa_service_migration"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99.1"
+license = "MIT"
+
+[workspace.dependencies]
+actix-web = "4.17.0"
+actix-multipart = "0.8.5"
+futures-util = "0.3"
+object_store = { version = "0.14.2", default-features = false, features = ["aws", "fs"] }
+rust_decimal = "1.43"
+sha2 = "0.11"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+lopdf = { version = "0.39", default-features = false }
+async-trait = "0.1"
+aster_forge_alloc = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_alloc" }
+aster_forge_api = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_api" }
+aster_forge_api_docs_macros = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_api_docs_macros" }
+aster_forge_audit = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_audit" }
+aster_forge_cache = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_cache" }
+aster_forge_config = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_config" }
+aster_forge_db = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_db" }
+aster_forge_db_migration = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_db_migration" }
+aster_forge_logging = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_logging" }
+aster_forge_mail = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_mail" }
+aster_forge_metrics = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_metrics" }
+aster_forge_middleware = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_middleware" }
+aster_forge_observability = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_observability" }
+aster_forge_panic = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_panic" }
+aster_forge_runtime = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_runtime" }
+aster_forge_tasks = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_tasks" }
+aster_forge_test = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_test" }
+aster_forge_utils = { git = "https://github.com/AsterCommunity/AsterForge", package = "aster_forge_utils" }
+chrono = "0.4.45"
+config = { version = "0.15", default-features = false }
+dotenvy = "0.15.7"
+rand = "0.10.3"
+redis = { version = "1.8.0", features = ["tokio-comp", "tokio-rustls-comp"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls"] }
+subtle = "2"
+url = "2"
+rust-embed = "8"
+sea-orm = { version = "2.0.4", default-features = false }
+sea-orm-migration = { version = "2.0.4", default-features = false }
+serde = "1.0.229"
+serde_json = "1.0.154"
+testcontainers = "0.28"
+thiserror = "2"
+tikv-jemallocator = "0.7"
+tokio = "1"
+tokio-util = "0.7"
+toml = "1.1"
+tracing = "0.1.44"
+utoipa = "6.0.0"
+utoipa-swagger-ui = "10.0.2"
+teacher_oa_service_migration = { path = "crates/teacher_oa_service_migration" }
+
+[workspace.lints.clippy]
+# Keep lint suppressions explicit and detect stale expectations during Clippy runs.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+metrics = [
+    "aster_forge_observability/prometheus",
+    "aster_forge_metrics/allocator-metrics",
+    "aster_forge_metrics/backend-prometheus",
+    "aster_forge_metrics/runtime-health",
+]
+openapi = [
+    "dep:utoipa",
+    "dep:utoipa-swagger-ui",
+    "aster_forge_api/openapi",
+    "aster_forge_api_docs_macros/openapi",
+    "aster_forge_config/openapi",
+    "aster_forge_mail/openapi",
+    "aster_forge_runtime/openapi",
+    "aster_forge_tasks/openapi",
+]
+full = ["metrics", "openapi"]
+jemalloc = ["dep:tikv-jemallocator", "aster_forge_alloc/jemalloc"]
+jemalloc-stats = [
+    "jemalloc",
+    "aster_forge_alloc/jemalloc-stats",
+]
+jemalloc-profiling = ["jemalloc-stats", "tikv-jemallocator/profiling"]
+
+# Development builds prioritize short edit-compile-test feedback. Workspace code stays at O0 so
+# local changes do not repeatedly pay optimization cost, while third-party dependencies use O1 to
+# keep crypto, compression, and other dependency-heavy debug/test paths usable.
+[profile.dev]
+opt-level = 0
+lto = false
+codegen-units = 256
+debug = 1
+panic = "unwind"
+strip = false
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 1
+debug = false
+
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Profiling profile: close to release, but keeps symbols and disables LTO so profilers can expand
+# stacks. Frame pointers must be enabled through RUSTFLAGS:
+# RUSTFLAGS="-C force-frame-pointers=yes" cargo build --profile profiling
+[profile.profiling]
+inherits = "release"
+opt-level = 2
+codegen-units = 1
+debug = true
+strip = false
+lto = false
+panic = "abort"
+
+[profile.release-performance]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+actix-web.workspace = true
+actix-multipart.workspace = true
+futures-util.workspace = true
+object_store.workspace = true
+rust_decimal.workspace = true
+sha2.workspace = true
+image.workspace = true
+lopdf.workspace = true
+aster_forge_alloc.workspace = true
+aster_forge_api.workspace = true
+aster_forge_api_docs_macros.workspace = true
+aster_forge_audit = { workspace = true, features = ["db-writer", "mail-outbox-dependency"] }
+aster_forge_cache = { workspace = true, features = ["memory", "redis", "runtime-component"] }
+aster_forge_config = { workspace = true, features = ["redis-pubsub"] }
+aster_forge_db = { workspace = true, features = ["runtime-component", "mail-outbox"] }
+aster_forge_logging.workspace = true
+aster_forge_mail = { workspace = true, features = ["runtime-component"] }
+aster_forge_metrics.workspace = true
+aster_forge_middleware = { workspace = true, features = ["metrics"] }
+aster_forge_observability.workspace = true
+aster_forge_panic.workspace = true
+aster_forge_runtime.workspace = true
+aster_forge_tasks = { workspace = true, features = ["runtime-component"] }
+aster_forge_utils.workspace = true
+config = { workspace = true, features = ["toml"] }
+dotenvy.workspace = true
+async-trait.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+rand.workspace = true
+redis.workspace = true
+reqwest.workspace = true
+subtle.workspace = true
+url.workspace = true
+rust-embed = { workspace = true, features = ["interpolate-folder-path"] }
+sea-orm = { workspace = true, features = ["sqlx-postgres", "sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono", "with-json", "with-rust_decimal"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tikv-jemallocator = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread", "time"] }
+tokio-util.workspace = true
+toml.workspace = true
+tracing.workspace = true
+utoipa = { workspace = true, features = ["actix_extras", "chrono"], optional = true }
+utoipa-swagger-ui = { workspace = true, features = ["actix-web", "vendored"], optional = true }
+teacher_oa_service_migration.workspace = true
+
+[dev-dependencies]
+aster_forge_test.workspace = true
+sea-orm-migration = { workspace = true, features = ["sqlx-mysql", "sqlx-postgres", "sqlx-sqlite", "runtime-tokio-rustls"] }
+testcontainers = { workspace = true, features = ["reusable-containers"] }
+
+[build-dependencies]
+chrono.workspace = true

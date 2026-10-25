@@ -1,0 +1,55 @@
+# Static service configuration.
+#
+# Copy this file to data/config.toml for local deployment-specific values. Relative filesystem
+# paths and sqlite:// relative database paths are resolved from the config file directory.
+
+[server]
+host = "127.0.0.1"
+port = 3000
+workers = 0
+temp_dir = ".tmp"
+
+[database]
+# Complete URL example below. To inject raw credentials instead, use:
+# url = { base_url = "postgres://127.0.0.1:5432/app", username = "RAW_USERNAME", password = "RAW_PASSWORD" }
+url = "postgres://teacher_oa:CHANGE_ME@127.0.0.1:55432/teacher_oa"
+pool_size = 10
+retry_count = 3
+
+[cache]
+# Supported backends in this template: "memory", "redis".
+backend = "memory"
+# Redis examples: "redis://127.0.0.1:6379/0" or
+# { base_url = "redis://127.0.0.1:6379/0", username = "", password = "RAW_PASSWORD" }.
+endpoint = ""
+default_ttl = 3600
+
+[config_sync]
+# Supported backends in this template: "disabled", "redis".
+backend = "disabled"
+# Redis pubsub examples: "redis://127.0.0.1:6379/0" or
+# { base_url = "redis://127.0.0.1:6379/0", username = "", password = "RAW_PASSWORD" }.
+endpoint = ""
+topic = "teacher_oa_service.config_reload"
+
+[logging]
+# level examples: "info", "debug", "warn", "error", "tower_http=debug,teacher_oa_service=debug".
+level = "info"
+# format examples: "text", "json".
+format = "text"
+file = ""
+enable_rotation = false
+max_backups = 5
+
+[auth]
+environment = "production"
+mock_enabled = false
+mock_seed = false
+cookie_secure = true
+public_origin = "https://oa.example.edu.cn"
+session_ttl_seconds = 28800
+store = "memory"
+wecom_corp_id = ""
+wecom_agent_id = ""
+wecom_redirect_uri = "https://oa.example.edu.cn/api/v1/auth/wecom/callback"
+# AUTH_REDIS_URL and WECOM_CORP_SECRET may be configured in .env.

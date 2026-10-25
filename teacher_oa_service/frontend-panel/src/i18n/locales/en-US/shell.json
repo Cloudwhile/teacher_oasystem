@@ -1,0 +1,11 @@
+{
+	"brandLabel": "TeacherOA",
+	"navigationLabel": "Main navigation",
+	"nav": {
+		"dashboard": "Dashboard",
+		"achievements": "My achievements",
+		"profile": "My profile",
+		"files": "Materials"
+	},
+	"status": "Teacher workspace"
+}
