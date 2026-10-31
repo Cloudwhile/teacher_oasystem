@@ -1,6 +1,7 @@
-import { LuDownload, LuEye, LuTrash2 } from "react-icons/lu";
+import { Download, Eye, Trash } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import type { FileMetadata } from "@/features/achievements/api";
+import { MaterialAssociation } from "./MaterialAssociation";
 
 export function MaterialList({
 	files,
@@ -18,6 +19,7 @@ export function MaterialList({
 						<small>
 							{file.mime_type === "application/pdf" ? "PDF" : "图片"} ·{" "}
 							{(file.size_bytes / 1024).toFixed(1)} KB
+							<MaterialAssociation file={file} />
 						</small>
 					</div>
 					<div className="row-actions">
@@ -29,7 +31,7 @@ export function MaterialList({
 							aria-label={`预览${file.filename}`}
 							title="预览"
 						>
-							<LuEye />
+							<Eye />
 						</a>
 						<a
 							className="icon-button"
@@ -37,14 +39,14 @@ export function MaterialList({
 							aria-label={`下载${file.filename}`}
 							title="下载"
 						>
-							<LuDownload />
+							<Download />
 						</a>
 						{onRemove && (
 							<IconButton
 								label={`移除${file.filename}`}
 								onClick={() => onRemove(file.id)}
 							>
-								<LuTrash2 />
+								<Trash />
 							</IconButton>
 						)}
 					</div>

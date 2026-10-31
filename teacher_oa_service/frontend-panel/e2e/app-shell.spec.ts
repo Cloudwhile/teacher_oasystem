@@ -1,12 +1,12 @@
 import { expect, test } from "playwright/test";
+import { fixtureLogin } from "./fixture-login";
 
-test("测试身份登录、读取档案、刷新会话并退出", async ({ page }) => {
+test("会话、读取档案、刷新并退出", async ({ page }) => {
 	await page.goto("/dashboard");
 	await expect(page).toHaveURL(/\/login$/);
-	await page.getByLabel("测试身份").selectOption("teacher");
-	await page.getByRole("button", { name: "登录", exact: true }).click();
+	await fixtureLogin(page, "teacher");
 	await expect(
-		page.getByRole("heading", { name: "你好，测试教师" }),
+		page.getByRole("heading", { name: "工作台", exact: true }),
 	).toBeVisible();
 	await page.getByRole("link", { name: "个人档案", exact: true }).click();
 	await expect(
@@ -25,10 +25,9 @@ test("测试身份登录、读取档案、刷新会话并退出", async ({ page 
 test("移动端导航不遮挡工作区", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/login");
-	await page.getByLabel("测试身份").selectOption("leader");
-	await page.getByRole("button", { name: "登录", exact: true }).click();
+	await fixtureLogin(page, "leader");
 	await expect(
-		page.getByRole("heading", { name: "你好，测试组长" }),
+		page.getByRole("heading", { name: "工作台", exact: true }),
 	).toBeVisible();
 	await page.getByRole("button", { name: "展开导航" }).click();
 	await page.getByRole("link", { name: "个人档案", exact: true }).click();

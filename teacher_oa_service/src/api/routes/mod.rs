@@ -3,11 +3,16 @@
 use actix_web::web;
 
 pub mod achievements;
+pub mod admin;
 pub mod auth;
 pub mod catalog;
+pub mod dashboard;
 pub mod files;
 pub mod frontend;
 pub mod health;
+pub mod login_page;
+pub mod management;
+pub mod reviews;
 pub mod teachers;
 
 /// Versioned product API prefix used by generated services.
@@ -38,9 +43,14 @@ pub fn configure_api(cfg: &mut web::ServiceConfig) {
             .into()
     }));
     cfg.configure(auth::configure)
+        .configure(admin::configure)
+        .configure(login_page::configure)
+        .configure(management::configure)
+        .route("/dashboard", web::get().to(dashboard::dashboard))
         .configure(teachers::configure)
         .configure(catalog::configure)
         .configure(achievements::configure)
+        .configure(reviews::configure)
         .configure(files::configure);
     cfg.default_service(web::to(crate::api::common::api_not_found));
 }

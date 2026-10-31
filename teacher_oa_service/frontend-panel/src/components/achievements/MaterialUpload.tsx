@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { LuUpload } from "react-icons/lu";
+import { FolderOpen, Upload } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import {
 	achievementApi,
@@ -7,6 +7,7 @@ import {
 	type FileMetadata,
 } from "@/features/achievements/api";
 import { HttpError } from "@/services/httpClient";
+import { ExistingMaterials } from "./ExistingMaterials";
 import { MaterialList } from "./MaterialList";
 
 export function MaterialUpload({
@@ -30,6 +31,7 @@ export function MaterialUpload({
 }) {
 	const input = useRef<HTMLInputElement>(null);
 	const [error, setError] = useState("");
+	const [picking, setPicking] = useState(false);
 	const [uploading, setUploading] = useState(false);
 	const pending = useRef(false);
 	const upload = async (selection: FileList | null) => {
@@ -72,15 +74,25 @@ export function MaterialUpload({
 				<h2>
 					证明材料<span className="required-mark"> *</span>
 				</h2>
-				<IconButton
-					label="上传证明材料"
-					aria-invalid={Boolean(fieldError)}
-					aria-describedby={fieldError ? "proofs-error" : undefined}
-					disabled={disabled || uploading || files.length >= 20}
-					onClick={() => input.current?.click()}
-				>
-					<LuUpload />
-				</IconButton>
+				<div className="row-actions">
+					<IconButton
+						label="选择已有材料"
+						aria-expanded={picking}
+						disabled={disabled || uploading}
+						onClick={() => setPicking(!picking)}
+					>
+						<FolderOpen />
+					</IconButton>
+					<IconButton
+						label="上传证明材料"
+						aria-invalid={Boolean(fieldError)}
+						aria-describedby={fieldError ? "proofs-error" : undefined}
+						disabled={disabled || uploading || files.length >= 20}
+						onClick={() => input.current?.click()}
+					>
+						<Upload />
+					</IconButton>
+				</div>
 			</div>
 			<input
 				ref={input}
@@ -109,6 +121,13 @@ export function MaterialUpload({
 				<p className="field-error" id="proofs-error" role="alert">
 					{fieldError}
 				</p>
+			)}
+			{picking && (
+				<ExistingMaterials
+					selected={files}
+					onAdd={onAdd}
+					disabled={disabled || uploading}
+				/>
 			)}
 			{files.length ? (
 				<MaterialList

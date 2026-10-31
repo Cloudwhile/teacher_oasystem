@@ -19,6 +19,8 @@ pub struct Session {
     pub user_id: i64,
     pub csrf_token: String,
     pub expires_at: i64,
+    #[serde(default)]
+    pub credential_version: Option<i32>,
 }
 
 pub fn random_token() -> String {
@@ -108,6 +110,21 @@ pub async fn authenticate(
     let session = load_session(request, state).await?;
     // Use the writer so a disabled account or changed permission is effective immediately.
     let user = identity::current_user(state.db_handles.writer(), session.user_id).await?;
+    let credentials =
+        super::account_service::credential_for(state.db_handles.writer(), user.id).await?;
+    if credentials.as_ref().map(|c| c.version) != session.credential_version {
+        return Err(ApiError::Unauthorized);
+    }
+    if credentials.is_some_and(|c| c.must_change)
+        && ![
+            "/api/v1/auth/me",
+            "/api/v1/auth/password",
+            "/api/v1/auth/logout",
+        ]
+        .contains(&request.path())
+    {
+        return Err(ApiError::Forbidden);
+    }
     Ok((session, user))
 }
 
@@ -148,6 +165,12 @@ pub async fn create_session(
     let ttl = state.config.auth.session_ttl_seconds;
     let session = Session {
         user_id: user.id,
+        credential_version: super::account_service::credential_for(
+            state.db_handles.writer(),
+            user.id,
+        )
+        .await?
+        .map(|c| c.version),
         csrf_token: random_token(),
         expires_at: Utc::now().timestamp() + i64::try_from(ttl).map_err(|_| ApiError::Internal)?,
     };

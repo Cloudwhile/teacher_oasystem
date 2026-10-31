@@ -1,0 +1,16 @@
+import { LineEdit } from "std-widgets.slint";
+
+export component Field inherits VerticalLayout {
+    in property <string> label;
+    in property <bool> enabled: true;
+    in-out property <string> value;
+    callback edited;
+    spacing: 7px;
+    Text { text: root.label; color: #536479; font-size: 13px; }
+    LineEdit {
+        text <=> root.value;
+        enabled: root.enabled;
+        accessible-label: root.label;
+        edited => { root.edited(); }
+    }
+}

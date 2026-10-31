@@ -153,6 +153,7 @@ export interface OperationsPart1 {
                 status?: string;
                 level_code?: string;
                 sort?: string;
+                scope?: string;
             };
             header?: never;
             path?: never;
@@ -374,51 +375,6 @@ export interface OperationsPart1 {
                 };
             };
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Failure"];
-                };
-            };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Failure"];
-                };
-            };
-        };
-    };
-    achievement_revisions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Success_AchievementRevisions"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Failure"];
-                };
-            };
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

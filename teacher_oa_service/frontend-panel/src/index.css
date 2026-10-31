@@ -1,6 +1,10 @@
 @import "@fontsource-variable/geist";
 @import "tailwindcss";
 @import "./styles/achievements.css";
+@import "./styles/accounts.css";
+@import "./styles/forms.css";
+@import "./styles/actions.css";
+@import "./styles/login-page.css";
 
 @theme {
 	--font-sans:
@@ -22,6 +26,11 @@
 	body {
 		margin: 0;
 		min-width: 320px;
+	}
+	.reicon {
+		width: 1em;
+		height: 1em;
+		flex-shrink: 0;
 	}
 	button,
 	input,
@@ -107,8 +116,8 @@
 .brand small {
 	display: block;
 	margin-top: 3px;
-	color: #8894a8;
-	font-size: 10px;
+	color: #627089;
+	font-size: 12px;
 	font-weight: 500;
 	letter-spacing: 1px;
 }
@@ -117,38 +126,55 @@
 }
 .nav-group-label {
 	padding: 0 12px 12px;
-	font-size: 11px;
-	color: #8894a8;
+	font-size: 12px;
+	color: #627089;
 }
 .nav-group-label:not(:first-child) {
 	padding-top: 28px;
 }
 .nav-link {
+	--nav-accent: #8a93a6;
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	min-height: 44px;
-	margin: 4px 0;
-	padding: 10px 12px;
+	gap: 11px;
+	min-height: 42px;
+	margin: 3px 0;
+	padding: 9px 12px;
 	color: #627089;
 	font-size: 13px;
-	border-left: 2px solid transparent;
+	border-radius: 10px;
+	transition:
+		color 150ms ease-out,
+		background-color 150ms ease-out;
 }
 .nav-link svg {
 	width: 18px;
 	height: 18px;
 	flex-shrink: 0;
+	color: var(--nav-accent);
+	transition:
+		color 150ms ease-out,
+		background-color 150ms ease-out;
 }
 .nav-link.active {
-	color: #5149dc;
-	background: #f1efff;
-	border-left-color: #5149dc;
+	--nav-accent: #4b43c4;
+	color: #3b3596;
+	background: #eef0ff;
 	font-weight: 600;
 }
-a.nav-link:hover {
-	background: #f5f6fa;
+@media (hover: hover) {
+	a.nav-link:hover {
+		--nav-accent: #6a63cf;
+		color: #3b3596;
+		background: #f5f6fb;
+	}
+	a.nav-link.active:hover {
+		--nav-accent: #4b43c4;
+		background: #e7eaff;
+	}
 }
 .nav-link.disabled {
+	--nav-accent: #a1aabc;
 	color: #a1aabc;
 	cursor: default;
 }
@@ -185,9 +211,12 @@ a.nav-link:hover {
 	font-weight: 600;
 }
 .account-label small {
-	color: #8894a8;
-	font-size: 10px;
+	color: #627089;
+	font-size: 12px;
 	margin-top: 4px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .workspace {
 	min-width: 0;
@@ -210,7 +239,7 @@ a.nav-link:hover {
 	align-items: center;
 	flex-wrap: wrap;
 	gap: 12px;
-	color: #8894a8;
+	color: #627089;
 	font-size: 12px;
 }
 .breadcrumb strong {
@@ -219,7 +248,7 @@ a.nav-link:hover {
 }
 .topbar time {
 	font-size: 12px;
-	color: #8894a8;
+	color: #627089;
 }
 .page-content {
 	width: 100%;
@@ -236,7 +265,7 @@ a.nav-link:hover {
 	margin-bottom: 28px;
 }
 .eyebrow {
-	color: #8894a8;
+	color: #627089;
 	font-size: 12px;
 	line-height: 1.8;
 	margin-bottom: 6px;
@@ -306,7 +335,7 @@ a.nav-link:hover {
 .summary-item > span {
 	grid-column: 1;
 	grid-row: 1;
-	color: #7d8ba2;
+	color: #627089;
 	font-size: 12px;
 }
 .summary-item strong {
@@ -316,7 +345,7 @@ a.nav-link:hover {
 	overflow-wrap: anywhere;
 }
 .success-text {
-	color: #198554;
+	color: #16714a;
 }
 .workspace-grid {
 	display: grid;
@@ -345,8 +374,8 @@ a.nav-link:hover {
 	height: 18px;
 }
 .section-meta {
-	font-size: 11px;
-	color: #8894a8;
+	font-size: 12px;
+	color: #627089;
 }
 .table-scroll {
 	overflow-x: auto;
@@ -359,9 +388,9 @@ table {
 }
 th {
 	font-weight: 500;
-	color: #8894a8;
+	color: #627089;
 	background: #fafbfd;
-	font-size: 11px;
+	font-size: 12px;
 }
 th,
 td {
@@ -372,7 +401,7 @@ tbody tr:last-child td {
 	border-bottom: 0;
 }
 .scope-label {
-	font-size: 11px;
+	font-size: 12px;
 	padding: 4px 10px;
 	border-radius: 20px;
 	color: #5149dc;
@@ -380,11 +409,11 @@ tbody tr:last-child td {
 	white-space: nowrap;
 }
 .scope-department {
-	color: #ad711b;
+	color: #8a5a12;
 	background: #fff5e5;
 }
 .scope-all {
-	color: #198554;
+	color: #16714a;
 	background: #eaf6ef;
 }
 .profile-overview {
@@ -411,8 +440,8 @@ tbody tr:last-child td {
 }
 .muted,
 .profile-overview p.muted {
-	color: #8894a8;
-	font-size: 11px;
+	color: #627089;
+	font-size: 12px;
 }
 .action-row {
 	display: flex;
@@ -439,7 +468,7 @@ tbody tr:last-child td {
 	border-top: 1px solid #edf0f5;
 }
 .profile-fields dt {
-	color: #8894a8;
+	color: #627089;
 	font-size: 12px;
 	margin-bottom: 12px;
 }
@@ -449,7 +478,7 @@ tbody tr:last-child td {
 	overflow-wrap: anywhere;
 }
 .status-badge {
-	color: #198554;
+	color: #16714a;
 	background: #eaf6ef;
 	padding: 4px 12px;
 	font-size: 12px;
@@ -459,9 +488,9 @@ tbody tr:last-child td {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	color: #a2abba;
+	color: #627089;
 	padding: 18px 30px;
-	font-size: 10px;
+	font-size: 12px;
 	border-top: 1px solid #edf0f5;
 }
 .feedback {
@@ -472,7 +501,7 @@ tbody tr:last-child td {
 	gap: 12px;
 	min-height: 160px;
 	padding: 24px;
-	color: #7d8ba2;
+	color: #627089;
 	font-size: 13px;
 }
 .feedback > svg {
@@ -488,41 +517,9 @@ tbody tr:last-child td {
 }
 .empty-message {
 	font-size: 13px;
-	color: #8894a8;
+	color: #627089;
 	padding: 24px 0;
 	line-height: 1.8;
-}
-.login-page {
-	min-height: 100dvh;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	padding: 40px 24px;
-	gap: 32px;
-}
-.login-panel {
-	width: 100%;
-	max-width: 400px;
-	padding: 40px;
-	background: #fff;
-	border: 1px solid #e2e6ef;
-	border-radius: 12px;
-}
-.login-panel .brand {
-	padding: 0;
-	margin-bottom: 48px;
-}
-.login-panel h1 {
-	margin-bottom: 28px;
-}
-.login-panel .feedback {
-	min-height: 80px;
-	padding: 12px 0;
-}
-.login-page > footer {
-	color: #8894a8;
-	font-size: 11px;
 }
 .login-methods {
 	display: grid;
@@ -553,7 +550,7 @@ tbody tr:last-child td {
 .identity-form label {
 	display: block;
 	font-size: 12px;
-	color: #8894a8;
+	color: #627089;
 	margin-bottom: 12px;
 }
 .identity-input {
@@ -627,7 +624,7 @@ tbody tr:last-child td {
 		gap: 12px;
 	}
 	.topbar time {
-		font-size: 11px;
+		font-size: 12px;
 	}
 	.page-content {
 		order: 2;
@@ -654,7 +651,7 @@ tbody tr:last-child td {
 		padding: 18px 20px;
 	}
 	.login-panel {
-		padding: 32px 24px;
+		padding: 28px 22px;
 	}
 }
 @media (prefers-reduced-motion: reduce) {
@@ -663,5 +660,12 @@ tbody tr:last-child td {
 	}
 	.icon-button {
 		transition: none;
+	}
+	.primary-button,
+	.nav-link {
+		transition: none;
+	}
+	.primary-button:active:not(:disabled) {
+		transform: none;
 	}
 }

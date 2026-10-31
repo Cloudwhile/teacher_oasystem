@@ -110,6 +110,15 @@ pub struct VersionRequest {
     pub version: i32,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct ReviewRequest {
+    pub version: i32,
+    #[serde(default)]
+    pub opinion: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct DictionaryItem {
@@ -142,6 +151,17 @@ pub struct FileMetadata {
     pub uploaded_by: i64,
     pub upload_status: String,
     pub created_at: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub association: Option<FileAssociation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub enum FileAssociation {
+    Linked,
+    Historical,
+    Unlinked,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,6 +188,8 @@ pub struct AchievementItem {
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct ReviewEvent {
     pub id: i64,
+    pub reviewer_id: i64,
+    pub reviewer_name: String,
     pub action: String,
     pub old_status: String,
     pub new_status: String,
@@ -184,11 +206,14 @@ pub struct AchievementDetail {
     pub files: Vec<FileMetadata>,
     pub events: Vec<ReviewEvent>,
     pub can_edit: bool,
+    pub can_review: bool,
+    pub can_archive: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct RevisionItem {
+    pub files: Vec<FileMetadata>,
     pub version: i32,
     pub schema_version: i32,
     pub snapshot: AchievementSnapshot,

@@ -312,6 +312,7 @@ async fn disabled_accounts_inactive_teachers_expired_sessions_and_rotation_revok
     );
     let token = auth_service::random_token();
     let expired = auth_service::Session {
+        credential_version: None,
         user_id: 91004,
         csrf_token: auth_service::random_token(),
         expires_at: 0,

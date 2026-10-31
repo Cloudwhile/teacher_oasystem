@@ -1,0 +1,28 @@
+[package]
+name = "teacher_oa_desktop"
+description = "TeacherOA Windows 桌面服务管理器"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[dependencies]
+management_protocol = { path = "../management_protocol" }
+slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "accessibility", "compat-1-2"] }
+reqwest = { workspace = true, features = ["blocking"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+rand.workspace = true
+url.workspace = true
+chrono.workspace = true
+tempfile = "3"
+webbrowser = "1"
+rfd = { version = "0.17", default-features = false, features = ["common-controls-v6", "xdg-portal"] }
+image.workspace = true
+strip-ansi-escapes = "0.2"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[lints]
+workspace = true

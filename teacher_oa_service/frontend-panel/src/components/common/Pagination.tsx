@@ -1,4 +1,4 @@
-import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { ChevronLeft, ChevronRight } from "reicon-react";
 import { IconButton } from "./IconButton";
 export function Pagination({
 	page,
@@ -23,14 +23,14 @@ export function Pagination({
 					disabled={page <= 1}
 					onClick={() => onChange(page - 1)}
 				>
-					<LuChevronLeft />
+					<ChevronLeft />
 				</IconButton>
 				<IconButton
 					label="下一页"
 					disabled={page * pageSize >= total}
 					onClick={() => onChange(page + 1)}
 				>
-					<LuChevronRight />
+					<ChevronRight />
 				</IconButton>
 			</div>
 		</div>

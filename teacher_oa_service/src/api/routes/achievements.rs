@@ -25,6 +25,7 @@ pub struct ListQuery {
     pub status: Option<String>,
     pub level_code: Option<String>,
     pub sort: Option<String>,
+    pub scope: Option<String>,
 }
 pub fn pagination(page: Option<u64>, size: Option<u64>) -> Result<(u64, u64), ApiError> {
     let page = page.unwrap_or(1);
@@ -35,7 +36,7 @@ pub fn pagination(page: Option<u64>, size: Option<u64>) -> Result<(u64, u64), Ap
     Ok((page, size))
 }
 
-#[aster_forge_api_docs_macros::path(get,path="/api/v1/achievements",operation_id="achievements_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query),("search"=Option<String>,Query),("type_code"=Option<String>,Query),("academic_term_id"=Option<i64>,Query),("status"=Option<String>,Query),("level_code"=Option<String>,Query),("sort"=Option<String>,Query)),security(("session"=[])),responses((status=200,body=Success<AchievementPage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
+#[aster_forge_api_docs_macros::path(get,path="/api/v1/achievements",operation_id="achievements_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query),("search"=Option<String>,Query),("type_code"=Option<String>,Query),("academic_term_id"=Option<i64>,Query),("status"=Option<String>,Query),("level_code"=Option<String>,Query),("sort"=Option<String>,Query),("scope"=Option<String>,Query)),security(("session"=[])),responses((status=200,body=Success<AchievementPage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
 pub async fn list(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -48,6 +49,11 @@ pub async fn list(
         }
         let (page, page_size) = pagination(query.page, query.page_size)?;
         let mut select = achievement::Entity::find().filter(repo::scope(&user));
+        match query.scope.as_deref().unwrap_or("all") {
+            "mine" => select = select.filter(repo::personal_scope(&user)),
+            "all" => {}
+            _ => return Err(ApiError::Invalid("成果范围无效")),
+        }
         if let Some(search) = &query.search {
             if search.chars().count() > 100 {
                 return Err(ApiError::Invalid("搜索内容过长"));
@@ -210,23 +216,26 @@ pub async fn revisions(
             Some(*id),
         )
         .await?;
-        success(
-            &request,
-            AchievementRevisions(
-                rows.into_iter()
-                    .map(|r| {
-                        Ok(RevisionItem {
-                            version: r.version,
-                            schema_version: r.schema_version,
-                            snapshot: serde_json::from_value(r.snapshot)
-                                .map_err(|_| ApiError::Internal)?,
-                            modified_by: r.modified_by,
-                            created_at: r.created_at,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, ApiError>>()?,
-            ),
-        )
+        let mut revisions = Vec::new();
+        for r in rows {
+            let snapshot: AchievementSnapshot =
+                serde_json::from_value(r.snapshot).map_err(|_| ApiError::Internal)?;
+            let mut files = Vec::new();
+            for file_id in &snapshot.data.file_ids {
+                files.push(repo::metadata(
+                    repo::file_access(state.db_handles.writer(), &user, *file_id).await?,
+                ));
+            }
+            revisions.push(RevisionItem {
+                version: r.version,
+                schema_version: r.schema_version,
+                snapshot,
+                files,
+                modified_by: r.modified_by,
+                created_at: r.created_at,
+            });
+        }
+        success(&request, AchievementRevisions(revisions))
     }
     .await;
     result.map_err(|e: ApiError| e.at(&request))

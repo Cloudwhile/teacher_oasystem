@@ -265,6 +265,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -568,6 +576,279 @@
         ]
       }
     },
+    "/api/v1/achievements/{id}/approve": {
+      "post": {
+        "tags": [
+          "crate::api::routes::reviews"
+        ],
+        "operationId": "achievement_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AchievementDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/achievements/{id}/archive": {
+      "post": {
+        "tags": [
+          "crate::api::routes::reviews"
+        ],
+        "operationId": "achievement_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AchievementDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/achievements/{id}/return": {
+      "post": {
+        "tags": [
+          "crate::api::routes::reviews"
+        ],
+        "operationId": "achievement_return",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AchievementDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/achievements/{id}/revisions": {
       "get": {
         "tags": [
@@ -728,6 +1009,592 @@
             "session": []
           }
         ]
+      }
+    },
+    "/api/v1/admin/accounts": {
+      "get": {
+        "tags": [
+          "crate::api::routes::admin"
+        ],
+        "operationId": "admin_accounts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_Accounts"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "crate::api::routes::admin"
+        ],
+        "operationId": "admin_save_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_Accounts"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/login-page": {
+      "get": {
+        "tags": [
+          "crate::api::routes::login_page"
+        ],
+        "operationId": "admin_login_page",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_LoginPageSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "crate::api::routes::login_page"
+        ],
+        "operationId": "admin_save_login_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginPageSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_LoginPageSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/login-page/assets": {
+      "post": {
+        "tags": [
+          "crate::api::routes::login_page"
+        ],
+        "operationId": "admin_login_page_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_LoginPageAsset"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/wecom": {
+      "get": {
+        "tags": [
+          "crate::api::routes::admin"
+        ],
+        "operationId": "admin_wecom",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_WecomSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "crate::api::routes::admin"
+        ],
+        "operationId": "admin_save_wecom",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveWecomSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_WecomSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "crate::api::routes::auth"
+        ],
+        "operationId": "auth_password_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/logout": {
@@ -927,6 +1794,86 @@
         }
       }
     },
+    "/api/v1/auth/password": {
+      "post": {
+        "tags": [
+          "crate::api::routes::auth"
+        ],
+        "operationId": "auth_change_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/permissions": {
       "get": {
         "tags": [
@@ -1076,6 +2023,57 @@
         }
       }
     },
+    "/api/v1/dashboard": {
+      "get": {
+        "tags": [
+          "crate::api::routes::dashboard"
+        ],
+        "operationId": "dashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/dictionaries": {
       "get": {
         "tags": [
@@ -1152,6 +2150,14 @@
               "type": "integer",
               "format": "int64",
               "minimum": 0
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -1490,6 +2496,157 @@
         ]
       }
     },
+    "/api/v1/login-page": {
+      "get": {
+        "tags": [
+          "crate::api::routes::login_page"
+        ],
+        "operationId": "login_page",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_LoginPageSettings"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/pending": {
+      "get": {
+        "tags": [
+          "crate::api::routes::reviews"
+        ],
+        "operationId": "reviews_pending",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teacher",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "academic_term_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Success_AchievementPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/teachers": {
       "get": {
         "tags": [
@@ -1779,6 +2936,109 @@
           "$ref": "#/components/schemas/AcademicTerm"
         }
       },
+      "AccountInput": {
+        "type": "object",
+        "required": [
+          "username",
+          "name",
+          "department",
+          "role",
+          "active"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "wecom_userid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "name",
+          "department",
+          "role",
+          "active",
+          "must_change"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "must_change": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "wecom_userid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Accounts": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountItem"
+            }
+          }
+        }
+      },
       "AchievementDetail": {
         "type": "object",
         "required": [
@@ -1787,10 +3047,18 @@
           "schema",
           "files",
           "events",
-          "can_edit"
+          "can_edit",
+          "can_review",
+          "can_archive"
         ],
         "properties": {
+          "can_archive": {
+            "type": "boolean"
+          },
           "can_edit": {
+            "type": "boolean"
+          },
+          "can_review": {
             "type": "boolean"
           },
           "data": {
@@ -2163,6 +3431,38 @@
           }
         }
       },
+      "ApiResponse_Accounts_ApiErrorCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AccountItem"
+                }
+              }
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
       "ApiResponse_AchievementDetail_ApiErrorCode": {
         "type": "object",
         "required": [
@@ -2181,10 +3481,18 @@
               "schema",
               "files",
               "events",
-              "can_edit"
+              "can_edit",
+              "can_review",
+              "can_archive"
             ],
             "properties": {
+              "can_archive": {
+                "type": "boolean"
+              },
               "can_edit": {
+                "type": "boolean"
+              },
+              "can_review": {
                 "type": "boolean"
               },
               "data": {
@@ -2381,14 +3689,68 @@
             "type": "object",
             "required": [
               "user",
-              "csrf_token"
+              "csrf_token",
+              "must_change_password"
             ],
             "properties": {
               "csrf_token": {
                 "type": "string"
               },
+              "must_change_password": {
+                "type": "boolean"
+              },
               "user": {
                 "$ref": "#/components/schemas/CurrentUser"
+              }
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponse_Dashboard_ApiErrorCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "counts",
+              "review_pending",
+              "recent"
+            ],
+            "properties": {
+              "counts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "recent": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AchievementItem"
+                }
+              },
+              "review_pending": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
               }
             }
           },
@@ -2447,6 +3809,16 @@
               "created_at"
             ],
             "properties": {
+              "association": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/FileAssociation"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "created_at": {
                 "type": "string",
                 "format": "date-time"
@@ -2548,6 +3920,7 @@
           "data": {
             "type": "object",
             "required": [
+              "password_enabled",
               "wecom_enabled",
               "mock_enabled"
             ],
@@ -2555,10 +3928,94 @@
               "mock_enabled": {
                 "type": "boolean"
               },
+              "password_enabled": {
+                "type": "boolean"
+              },
               "wecom_enabled": {
                 "type": "boolean"
               }
             }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponse_LoginPageAsset_ApiErrorCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponse_LoginPageSettings_ApiErrorCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "announcements": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LoginAnnouncement"
+                },
+                "default": []
+              },
+              "background_url": {
+                "type": "string",
+                "default": ""
+              },
+              "footer": {
+                "type": "string",
+                "default": "TeacherOA · 教师工作空间"
+              },
+              "logo_url": {
+                "type": "string",
+                "default": ""
+              },
+              "title": {
+                "type": "string",
+                "default": "TeacherOA · 教师综合 OA"
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32",
+                "default": 0
+              }
+            },
+            "additionalProperties": false
           },
           "error": {
             "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
@@ -2718,15 +4175,69 @@
           }
         }
       },
+      "ApiResponse_WecomSettings_ApiErrorCode": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "enabled",
+              "corp_id",
+              "agent_id",
+              "callback_url",
+              "secret_configured",
+              "version"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "callback_url": {
+                "type": "string"
+              },
+              "corp_id": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "secret_configured": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorInfo_TupleUnit"
+          },
+          "msg": {
+            "type": "string"
+          }
+        }
+      },
       "AuthResponse": {
         "type": "object",
         "required": [
           "user",
-          "csrf_token"
+          "csrf_token",
+          "must_change_password"
         ],
         "properties": {
           "csrf_token": {
             "type": "string"
+          },
+          "must_change_password": {
+            "type": "boolean"
           },
           "user": {
             "$ref": "#/components/schemas/CurrentUser"
@@ -2764,6 +4275,38 @@
           },
           "teacher": {
             "$ref": "#/components/schemas/TeacherProfile"
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "required": [
+          "counts",
+          "review_pending",
+          "recent"
+        ],
+        "properties": {
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementItem"
+            }
+          },
+          "review_pending": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         }
       },
@@ -2907,6 +4450,14 @@
           "file_list"
         ]
       },
+      "FileAssociation": {
+        "type": "string",
+        "enum": [
+          "linked",
+          "historical",
+          "unlinked"
+        ]
+      },
       "FileMetadata": {
         "type": "object",
         "required": [
@@ -2920,6 +4471,16 @@
           "created_at"
         ],
         "properties": {
+          "association": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FileAssociation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -2982,9 +4543,40 @@
           }
         }
       },
+      "LoginAnnouncement": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "content",
+          "published"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "LoginOptions": {
         "type": "object",
         "required": [
+          "password_enabled",
           "wecom_enabled",
           "mock_enabled"
         ],
@@ -2992,10 +4584,58 @@
           "mock_enabled": {
             "type": "boolean"
           },
+          "password_enabled": {
+            "type": "boolean"
+          },
           "wecom_enabled": {
             "type": "boolean"
           }
         }
+      },
+      "LoginPageAsset": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginPageSettings": {
+        "type": "object",
+        "properties": {
+          "announcements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoginAnnouncement"
+            },
+            "default": []
+          },
+          "background_url": {
+            "type": "string",
+            "default": ""
+          },
+          "footer": {
+            "type": "string",
+            "default": "TeacherOA · 教师工作空间"
+          },
+          "logo_url": {
+            "type": "string",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "default": "TeacherOA · 教师综合 OA"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
       },
       "MockLogin": {
         "type": "object",
@@ -3037,6 +4677,38 @@
         },
         "additionalProperties": false
       },
+      "PasswordChange": {
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PasswordLogin": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "PermissionGrant": {
         "type": "object",
         "required": [
@@ -3062,6 +4734,8 @@
         "type": "object",
         "required": [
           "id",
+          "reviewer_id",
+          "reviewer_name",
           "action",
           "old_status",
           "new_status",
@@ -3088,12 +4762,36 @@
           },
           "opinion": {
             "type": "string"
+          },
+          "reviewer_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reviewer_name": {
+            "type": "string"
           }
         }
+      },
+      "ReviewRequest": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "opinion": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
       },
       "RevisionItem": {
         "type": "object",
         "required": [
+          "files",
           "version",
           "schema_version",
           "snapshot",
@@ -3104,6 +4802,12 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileMetadata"
+            }
           },
           "modified_by": {
             "type": "integer",
@@ -3121,6 +4825,37 @@
             "format": "int32"
           }
         }
+      },
+      "SaveWecomSettings": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "corp_id",
+          "agent_id",
+          "version"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "corp_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
       },
       "StatusResponse": {
         "type": "object",
@@ -3144,6 +4879,24 @@
         "allOf": [
           {
             "$ref": "#/components/schemas/ApiResponse_AcademicTerms_ApiErrorCode"
+          },
+          {
+            "type": "object",
+            "required": [
+              "request_id"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Success_Accounts": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse_Accounts_ApiErrorCode"
           },
           {
             "type": "object",
@@ -3266,6 +5019,24 @@
           }
         ]
       },
+      "Success_Dashboard": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse_Dashboard_ApiErrorCode"
+          },
+          {
+            "type": "object",
+            "required": [
+              "request_id"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "Success_DictionaryItems": {
         "allOf": [
           {
@@ -3338,6 +5109,42 @@
           }
         ]
       },
+      "Success_LoginPageAsset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse_LoginPageAsset_ApiErrorCode"
+          },
+          {
+            "type": "object",
+            "required": [
+              "request_id"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Success_LoginPageSettings": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse_LoginPageSettings_ApiErrorCode"
+          },
+          {
+            "type": "object",
+            "required": [
+              "request_id"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "Success_PermissionGrants": {
         "allOf": [
           {
@@ -3378,6 +5185,24 @@
         "allOf": [
           {
             "$ref": "#/components/schemas/ApiResponse_TeacherProfile_ApiErrorCode"
+          },
+          {
+            "type": "object",
+            "required": [
+              "request_id"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Success_WecomSettings": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse_WecomSettings_ApiErrorCode"
           },
           {
             "type": "object",
@@ -3519,6 +5344,38 @@
           }
         },
         "additionalProperties": false
+      },
+      "WecomSettings": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "corp_id",
+          "agent_id",
+          "callback_url",
+          "secret_configured",
+          "version"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "callback_url": {
+            "type": "string"
+          },
+          "corp_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "secret_configured": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     },
     "securitySchemes": {

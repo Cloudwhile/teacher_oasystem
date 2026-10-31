@@ -91,5 +91,83 @@ async fn postgres_decimal_jsonb_private_files_and_concurrent_submit() {
         .expect("record");
     assert_eq!(row.status, "pending");
     assert_eq!(row.version, 2);
+    use teacher_oa_service::{
+        domain::achievements::ReviewRequest,
+        services::review_service::{ReviewAction, review},
+    };
+    let reviewer = identity::current_user(state.db_handles.writer(), 91003)
+        .await
+        .expect("reviewer");
+    let mut second_reviewer = reviewer.clone();
+    second_reviewer.id = 91004;
+    second_reviewer.teacher.id = 91004;
+    let request = ReviewRequest {
+        version: 2,
+        opinion: "核验通过".into(),
+    };
+    let (left, right) = tokio::join!(
+        review(
+            state.db_handles.writer(),
+            &reviewer,
+            row.id,
+            request.clone(),
+            ReviewAction::Approve
+        ),
+        review(
+            state.db_handles.writer(),
+            &second_reviewer,
+            row.id,
+            request,
+            ReviewAction::Return
+        )
+    );
+    assert_eq!(usize::from(left.is_ok()) + usize::from(right.is_ok()), 1);
+    assert!(
+        matches!(left, Err(ApiError::Conflict(_))) || matches!(right, Err(ApiError::Conflict(_)))
+    );
+    let winner = left.or(right).expect("one reviewer wins");
+    assert_eq!(winner.record.version, 3);
+    assert_eq!(winner.events.len(), 2);
+    let version = if winner.record.status == "returned" {
+        achievement_service::submit(state.db_handles.writer(), &user, row.id, 3)
+            .await
+            .expect("resubmit");
+        review(
+            state.db_handles.writer(),
+            &reviewer,
+            row.id,
+            ReviewRequest {
+                version: 4,
+                opinion: String::new(),
+            },
+            ReviewAction::Approve,
+        )
+        .await
+        .expect("approve");
+        5
+    } else {
+        3
+    };
+    let archived = review(
+        state.db_handles.writer(),
+        &reviewer,
+        row.id,
+        ReviewRequest {
+            version,
+            opinion: String::new(),
+        },
+        ReviewAction::Archive,
+    )
+    .await
+    .expect("archive");
+    assert_eq!(archived.record.status, "archived");
+    assert_eq!(
+        revision::Entity::find()
+            .filter(revision::Column::AchievementId.eq(row.id))
+            .count(&db)
+            .await
+            .expect("snapshots"),
+        (version + 1) as u64
+    );
     db.close().await.expect("close");
 }

@@ -159,7 +159,7 @@ async fn replace_links(
     }
     Ok(())
 }
-async fn snapshot(
+pub(super) async fn snapshot(
     db: &impl ConnectionTrait,
     actor: i64,
     record: &achievement::Model,

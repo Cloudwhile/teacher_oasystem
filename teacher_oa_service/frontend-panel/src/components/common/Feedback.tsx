@@ -1,4 +1,4 @@
-import { LuCircleAlert, LuLoaderCircle, LuRefreshCw } from "react-icons/lu";
+import { AlertCircle, Loader, Refresh } from "reicon-react";
 import { IconButton } from "./IconButton";
 
 export function Feedback({
@@ -13,14 +13,14 @@ export function Feedback({
 	return (
 		<div className="feedback" role={loading ? "status" : "alert"}>
 			{loading ? (
-				<LuLoaderCircle className="spin" aria-hidden="true" />
+				<Loader className="spin" aria-hidden="true" />
 			) : (
-				<LuCircleAlert aria-hidden="true" />
+				<AlertCircle aria-hidden="true" />
 			)}
 			<p>{message}</p>
 			{onRetry && (
 				<IconButton label="重新加载" onClick={onRetry}>
-					<LuRefreshCw />
+					<Refresh />
 				</IconButton>
 			)}
 		</div>

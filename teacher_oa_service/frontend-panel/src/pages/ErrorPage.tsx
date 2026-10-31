@@ -1,5 +1,5 @@
-import { LuArrowLeft } from "react-icons/lu";
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "reicon-react";
 import { appPaths } from "@/routes/routePaths";
 
 export function ErrorPage() {
@@ -7,7 +7,7 @@ export function ErrorPage() {
 		<div className="error-page">
 			<h1>页面暂不可用</h1>
 			<Link className="text-link" to={appPaths.dashboard}>
-				<LuArrowLeft aria-hidden="true" />
+				<ArrowLeft aria-hidden="true" />
 				返回工作台
 			</Link>
 		</div>

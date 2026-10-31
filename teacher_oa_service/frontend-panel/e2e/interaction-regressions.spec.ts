@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, type Page, test } from "playwright/test";
+import { fixtureLogin } from "./fixture-login";
 
 const evidence = path.resolve(import.meta.dirname, "fixtures/evidence.png");
 async function login(page: Page) {
 	await page.goto("/login");
-	await page.getByLabel("测试身份").selectOption("teacher");
-	await page.getByRole("button", { name: "登录", exact: true }).click();
+	await fixtureLogin(page, "teacher");
 	await expect(page).toHaveURL(/\/dashboard$/);
 }
 async function session(page: Page) {
@@ -96,6 +96,89 @@ test("恢复空值后切换类型无需放弃内容确认", async ({ page }) => 
 	await page.locator("#subject_code").selectOption("");
 	await page.getByLabel("成果类型").selectOption("research_project");
 	await expect(page.getByLabel("项目经费（元）")).toBeVisible();
+});
+
+test("审核意见在页面刷新后恢复，取消离开保留且成功退回后清理", async ({
+	page,
+}) => {
+	await login(page);
+	const auth = await session(page);
+	const uploaded = await page.request.post("/api/v1/files/upload", {
+		headers: {
+			Origin: new URL(page.url()).origin,
+			"X-CSRF-Token": auth.csrf_token,
+		},
+		multipart: {
+			file: {
+				name: "review-proof.png",
+				mimeType: "image/png",
+				buffer: readFileSync(evidence),
+			},
+		},
+	});
+	expect(uploaded.ok()).toBe(true);
+	const file = (await uploaded.json()).data;
+	const response = await page.request.post("/api/v1/achievements", {
+		headers: {
+			Origin: new URL(page.url()).origin,
+			"X-CSRF-Token": auth.csrf_token,
+		},
+		data: {
+			type_code: "open_class",
+			schema_version: 1,
+			title: `意见保留-${Date.now()}`,
+			attributes: {},
+			file_ids: [file.id],
+		},
+	});
+	expect(response.ok()).toBe(true);
+	const draft = (await response.json()).data;
+	const submitted = await page.request.post(
+		`/api/v1/achievements/${draft.record.id}/submit`,
+		{
+			headers: {
+				Origin: new URL(page.url()).origin,
+				"X-CSRF-Token": auth.csrf_token,
+			},
+			data: { version: draft.record.version },
+		},
+	);
+	expect(submitted.ok()).toBe(true);
+	await fixtureLogin(page, "reviewer");
+	await page.goto("/reviews?status=pending");
+	await page
+		.getByRole("link", { name: draft.record.title, exact: true })
+		.click();
+	const opinion = "请补充公开课日期";
+	await page.getByLabel("办理意见").fill(opinion);
+	page.once("dialog", (dialog) => dialog.accept());
+	await page.reload();
+	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
+	page.once("dialog", (dialog) => dialog.dismiss());
+	await page.getByRole("link", { name: "返回审核列表" }).click();
+	await expect(page).toHaveURL(new RegExp(`/achievements/${draft.record.id}$`));
+	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
+	page.once("dialog", (dialog) => dialog.accept());
+	await page.getByRole("link", { name: "返回审核列表" }).click();
+	await expect(page).toHaveURL(/\/reviews\?status=pending/);
+	await page
+		.getByRole("link", { name: draft.record.title, exact: true })
+		.click();
+	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
+	await page.getByRole("button", { name: "退回补正" }).click();
+	await expect(page.getByText(opinion, { exact: true })).toBeVisible();
+	await page.getByRole("link", { name: "返回审核列表" }).click();
+	await page.getByLabel("办理状态").selectOption("returned");
+	await page
+		.getByRole("link", { name: draft.record.title, exact: true })
+		.click();
+	await expect(page.getByRole("heading", { name: "待补正" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "审核通过" })).toHaveCount(0);
+	expect(
+		await page.evaluate(() =>
+			sessionStorage.getItem("teacher-oa:review-opinion:91003:15"),
+		),
+	).toBeNull();
 });
 
 test("缺少证明材料时定位错误且不创建草稿", async ({ page }) => {

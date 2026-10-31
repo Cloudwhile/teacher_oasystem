@@ -126,6 +126,16 @@ impl WeComAdapter for RealWeComAdapter {
 }
 
 pub fn build(config: &AuthConfig) -> crate::errors::Result<Arc<dyn WeComAdapter>> {
+    build_with_secret(
+        config,
+        std::env::var("WECOM_CORP_SECRET").unwrap_or_default(),
+    )
+}
+
+pub fn build_with_secret(
+    config: &AuthConfig,
+    secret: String,
+) -> crate::errors::Result<Arc<dyn WeComAdapter>> {
     if let Ok(allowed) = std::env::var("WECOM_ALLOWED_CORP_ID")
         && !allowed.is_empty()
         && allowed != config.wecom_corp_id
@@ -143,7 +153,7 @@ pub fn build(config: &AuthConfig) -> crate::errors::Result<Arc<dyn WeComAdapter>
         })?;
     Ok(Arc::new(RealWeComAdapter {
         config: config.clone(),
-        secret: std::env::var("WECOM_CORP_SECRET").unwrap_or_default(),
+        secret,
         client,
     }))
 }

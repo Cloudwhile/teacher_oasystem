@@ -1,11 +1,11 @@
 import path from "node:path";
 import { expect, test } from "playwright/test";
+import { fixtureLogin } from "./fixture-login";
 
 const evidence = path.resolve(import.meta.dirname, "fixtures/evidence.png");
 async function login(page: import("playwright/test").Page) {
 	await page.goto("/login");
-	await page.getByLabel("测试身份").selectOption("teacher");
-	await page.getByRole("button", { name: "登录", exact: true }).click();
+	await fixtureLogin(page, "teacher");
 	await expect(page).toHaveURL(/\/dashboard$/);
 }
 

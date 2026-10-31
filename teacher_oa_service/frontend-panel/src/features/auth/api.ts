@@ -26,10 +26,10 @@ export const authApi = {
 		);
 		return requireData(response.data);
 	},
-	async login(body: OperationRequestBody<"auth_mock_login">) {
+	async login(body: OperationRequestBody<"auth_password_login">) {
 		const response = await requestJson<
-			OperationJsonResponse<"auth_mock_login">
-		>("/api/v1/auth/mock/login", {
+			OperationJsonResponse<"auth_password_login">
+		>("/api/v1/auth/login", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
@@ -41,6 +41,20 @@ export const authApi = {
 			method: "POST",
 			headers: { "X-CSRF-Token": csrfToken },
 		});
+	},
+	async changePassword(
+		current_password: string,
+		new_password: string,
+		csrf: string,
+	) {
+		const response = await requestJson<
+			OperationJsonResponse<"auth_change_password">
+		>("/api/v1/auth/password", {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+			body: JSON.stringify({ current_password, new_password }),
+		});
+		return requireData(response.data);
 	},
 	async profile(signal?: AbortSignal) {
 		const response = await requestJson<OperationJsonResponse<"teachers_me">>(

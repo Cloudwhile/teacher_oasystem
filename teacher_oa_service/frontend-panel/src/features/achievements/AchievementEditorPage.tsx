@@ -1,11 +1,13 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { LuArrowLeft, LuRefreshCw, LuSave, LuSend } from "react-icons/lu";
 import {
 	Link,
+	useLocation,
 	useNavigate,
 	useParams,
 	useSearchParams,
 } from "react-router-dom";
+import { ArrowLeft, Refresh } from "reicon-react";
+import { CorrectionNotice } from "@/components/achievements/CorrectionNotice";
 import {
 	DynamicFields,
 	fieldErrorKey,
@@ -13,11 +15,13 @@ import {
 } from "@/components/achievements/DynamicFields";
 import { MaterialUpload } from "@/components/achievements/MaterialUpload";
 import { ParticipantsEditor } from "@/components/achievements/ParticipantsEditor";
+import { ActionButton } from "@/components/common/ActionButton";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { HttpError } from "@/services/httpClient";
+import { safeReturnPath } from "@/services/returnPath";
 import { useResource } from "@/services/useResource";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import {
@@ -47,6 +51,8 @@ export function AchievementEditorPage() {
 	const { id } = useParams();
 	const [params, setParams] = useSearchParams();
 	const navigate = useNavigate();
+	const location = useLocation();
+	const back = safeReturnPath(location.state?.from, "/achievements");
 	const { session, refresh } = useAuth();
 	const catalog = useResource(achievementApi.catalog);
 	const code = params.get("type") ?? "open_class";
@@ -180,7 +186,7 @@ export function AchievementEditorPage() {
 				setSaved(detail);
 			}
 			guard.allowLeave();
-			navigate(`/achievements/${detail.record.id}`);
+			navigate(`/achievements/${detail.record.id}`, { state: { from: back } });
 		} catch (error) {
 			setError(
 				`${submit && persisted ? "填报内容已保存。" : ""}${errorMessage(error)}`,
@@ -229,31 +235,37 @@ export function AchievementEditorPage() {
 				eyebrow={schema.name}
 			>
 				<Link
-					to={saved ? `/achievements/${saved.record.id}` : "/achievements"}
+					to={saved ? `/achievements/${saved.record.id}` : back}
+					state={{ from: back }}
 					className="icon-button"
-					aria-label="返回成果列表"
+					aria-label={
+						saved
+							? "返回成果详情"
+							: back.startsWith("/reviews")
+								? "返回审核列表"
+								: "返回成果列表"
+					}
 				>
-					<LuArrowLeft />
+					<ArrowLeft />
 				</Link>
-				<IconButton
-					label="保存草稿"
+				<ActionButton
 					disabled={busy || uploading}
 					onClick={() => {
 						void save(false);
 					}}
 				>
-					<LuSave />
-				</IconButton>
-				<IconButton
-					label="提交审核"
+					保存草稿
+				</ActionButton>
+				<ActionButton
 					type="submit"
 					form="achievement-form"
-					className="primary-action"
+					variant="primary"
 					disabled={busy || uploading}
 				>
-					<LuSend />
-				</IconButton>
+					提交审核
+				</ActionButton>
 			</PageHeading>
+			{saved && <CorrectionNotice detail={saved} />}
 			{busy && (
 				<p className="form-note" role="status">
 					正在保存成果…
@@ -278,7 +290,7 @@ export function AchievementEditorPage() {
 								);
 							}}
 						>
-							<LuRefreshCw />
+							<Refresh />
 						</IconButton>
 					)}
 				</div>

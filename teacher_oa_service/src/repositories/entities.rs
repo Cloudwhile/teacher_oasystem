@@ -1,4 +1,53 @@
 //! Product-owned entities, matching the identity migration.
+pub mod credential {
+    use sea_orm::entity::prelude::*;
+    #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    #[sea_orm(table_name = "password_credentials")]
+    pub struct Model {
+        #[sea_orm(primary_key, auto_increment = false)]
+        pub username: String,
+        pub user_id: i64,
+        pub password_hash: String,
+        pub version: i32,
+        pub failed_attempts: i32,
+        pub locked_until: Option<DateTimeUtc>,
+        pub must_change: bool,
+    }
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+    impl ActiveModelBehavior for ActiveModel {}
+}
+pub mod login_settings {
+    use sea_orm::entity::prelude::*;
+    #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    #[sea_orm(table_name = "login_settings")]
+    pub struct Model {
+        #[sea_orm(primary_key, auto_increment = false)]
+        pub id: i32,
+        pub enabled: bool,
+        pub corp_id: String,
+        pub agent_id: String,
+        pub secret_ciphertext: String,
+        pub version: i32,
+    }
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+    impl ActiveModelBehavior for ActiveModel {}
+}
+pub mod login_page_settings {
+    use sea_orm::entity::prelude::*;
+    #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    #[sea_orm(table_name = "login_page_settings")]
+    pub struct Model {
+        #[sea_orm(primary_key, auto_increment = false)]
+        pub id: i32,
+        pub body: String,
+        pub version: i32,
+    }
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+    impl ActiveModelBehavior for ActiveModel {}
+}
 pub mod user {
     use sea_orm::entity::prelude::*;
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]

@@ -99,14 +99,19 @@ export function DynamicFields({
 										value: String(term.id),
 										label: term.name,
 									}))
-							: catalog.dictionaries
-									.filter(
-										(item) =>
-											item.group_code === field.dictionary &&
-											(!field.options?.length ||
-												field.options.includes(item.code)),
-									)
-									.map((item) => ({ value: item.code, label: item.name }));
+							: field.dictionary
+								? catalog.dictionaries
+										.filter(
+											(item) =>
+												item.group_code === field.dictionary &&
+												(!field.options?.length ||
+													field.options.includes(item.code)),
+										)
+										.map((item) => ({ value: item.code, label: item.name }))
+								: (field.options ?? []).map((option) => ({
+										value: option,
+										label: option,
+									}));
 					let control: ReactNode;
 					if (field.type === "select" || field.type === "multi_select")
 						control = (

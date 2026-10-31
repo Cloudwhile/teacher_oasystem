@@ -1,13 +1,18 @@
-import { useCallback, useRef, useState } from "react";
-import { LuArrowLeft, LuPencil, LuRefreshCw, LuSend } from "react-icons/lu";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { ArrowLeft, Pen, Refresh } from "reicon-react";
+import { CorrectionNotice } from "@/components/achievements/CorrectionNotice";
 import { fieldValue } from "@/components/achievements/DynamicFields";
 import { MaterialList } from "@/components/achievements/MaterialList";
+import { ParticipantList } from "@/components/achievements/ParticipantList";
+import { ActionButton } from "@/components/common/ActionButton";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
+import { ReviewActions } from "@/components/reviews/ReviewActions";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { HttpError } from "@/services/httpClient";
+import { safeReturnPath } from "@/services/returnPath";
 import { useResource } from "@/services/useResource";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import {
@@ -39,9 +44,27 @@ function display(
 		? value.map(label).join("、") || "—"
 		: label(value);
 }
+
+function readOpinionDraft(key: string) {
+	try {
+		return key ? (window.sessionStorage.getItem(key) ?? "") : "";
+	} catch {
+		return "";
+	}
+}
+
 export function AchievementDetailPage() {
 	const { id } = useParams();
+	const location = useLocation();
+	const back = safeReturnPath(location.state?.from, "/achievements");
 	const { session, refresh } = useAuth();
+	const draftKey =
+		session && id ? `teacher-oa:review-opinion:${session.user.id}:${id}` : "";
+	const [draft, setDraft] = useState(() => ({
+		key: draftKey,
+		opinion: readOpinionDraft(draftKey),
+	}));
+	const opinion = draft.key === draftKey ? draft.opinion : "";
 	const load = useCallback(
 		async (signal: AbortSignal) => {
 			const [detail, catalog, revisions] = await Promise.all([
@@ -54,6 +77,20 @@ export function AchievementDetailPage() {
 		[id],
 	);
 	const result = useResource(load);
+	useEffect(() => {
+		if (draftKey && draft.key !== draftKey) {
+			setDraft({ key: draftKey, opinion: readOpinionDraft(draftKey) });
+		}
+	}, [draftKey, draft.key]);
+	useEffect(() => {
+		if (!draftKey || draft.key !== draftKey) return;
+		try {
+			if (draft.opinion) window.sessionStorage.setItem(draftKey, draft.opinion);
+			else window.sessionStorage.removeItem(draftKey);
+		} catch {
+			return;
+		}
+	}, [draftKey, draft]);
 	const [busy, setBusy] = useState(false);
 	const [failure, setFailure] = useState<{
 		id: string | undefined;
@@ -62,7 +99,7 @@ export function AchievementDetailPage() {
 	const error = failure.id === id ? failure.message : "";
 	const setError = (message: string) => setFailure({ id, message });
 	const pending = useRef(false);
-	useUnsavedChanges(false, busy);
+	useUnsavedChanges(Boolean(opinion), busy);
 	const submit = async () => {
 		if (!result.data || !session || pending.current) return;
 		pending.current = true;
@@ -97,35 +134,37 @@ export function AchievementDetailPage() {
 				eyebrow={detail.record.type_name}
 			>
 				<Link
-					to="/achievements"
+					to={back}
 					className="icon-button"
-					aria-label="返回成果列表"
+					aria-label={
+						back.startsWith("/reviews") ? "返回审核列表" : "返回成果列表"
+					}
 				>
-					<LuArrowLeft />
+					<ArrowLeft />
 				</Link>
 				<IconButton label="刷新成果" disabled={busy} onClick={result.reload}>
-					<LuRefreshCw />
+					<Refresh />
 				</IconButton>
 				{detail.can_edit && (
 					<>
 						<Link
 							className="icon-button"
 							to={`/achievements/${id}/edit`}
+							state={{ from: back }}
 							aria-label="编辑成果"
 							title="编辑成果"
 						>
-							<LuPencil />
+							<Pen />
 						</Link>
-						<IconButton
-							className="primary-action"
-							label="提交审核"
+						<ActionButton
+							variant="primary"
 							disabled={busy}
 							onClick={() => {
 								void submit();
 							}}
 						>
-							<LuSend />
-						</IconButton>
+							提交审核
+						</ActionButton>
 					</>
 				)}
 			</PageHeading>
@@ -142,6 +181,18 @@ export function AchievementDetailPage() {
 				</p>
 			)}
 			<div className="editor-sections">
+				<CorrectionNotice detail={detail} />
+				<ReviewActions
+					key={`${id}-${detail.record.version}`}
+					detail={detail}
+					initialOpinion={opinion}
+					onOpinionChange={(opinion) => setDraft({ key: draftKey, opinion })}
+					onComplete={() => {
+						setDraft({ key: draftKey, opinion: "" });
+						result.reload();
+					}}
+					onBusy={setBusy}
+				/>
 				<section className="panel">
 					<div className="section-heading">
 						<h2>成果信息</h2>
@@ -166,32 +217,10 @@ export function AchievementDetailPage() {
 						<div className="section-heading">
 							<h2>相关人员与署名顺序</h2>
 						</div>
-						<div className="table-scroll">
-							<table>
-								<thead>
-									<tr>
-										<th scope="col">顺序</th>
-										<th scope="col">姓名</th>
-										<th scope="col">角色</th>
-									</tr>
-								</thead>
-								<tbody>
-									{detail.data.participants?.map((person, index) => (
-										<tr key={person.sort_order}>
-											<td>{index + 1}</td>
-											<td>{person.external_name}</td>
-											<td>
-												{catalog.dictionaries.find(
-													(item) =>
-														item.group_code === "participant_roles" &&
-														item.code === person.role_code,
-												)?.name ?? person.role_code}
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-						</div>
+						<ParticipantList
+							participants={detail.data.participants ?? []}
+							catalog={catalog}
+						/>
 					</section>
 				)}
 				<section className="panel">
@@ -217,6 +246,8 @@ export function AchievementDetailPage() {
 											? "已提交审核"
 											: statusLabels[event.new_status]}
 									</strong>
+									<span>{event.reviewer_name}</span>
+									{event.opinion && <p>{event.opinion}</p>}
 									<time dateTime={event.created_at}>
 										{new Date(event.created_at).toLocaleString("zh-CN", {
 											timeZone: "Asia/Singapore",
@@ -259,6 +290,11 @@ export function AchievementDetailPage() {
 										</div>
 									))}
 							</dl>
+							<ParticipantList
+								participants={revision.snapshot.data.participants ?? []}
+								catalog={catalog}
+							/>
+							<MaterialList files={revision.files} />
 						</details>
 					))}
 				</section>

@@ -1,0 +1,27 @@
+// Flat window caption button; kind 0 = minimize, 1 = maximize, 2 = close.
+export component CaptionButton inherits Rectangle {
+    in property <string> label;
+    in property <int> kind;
+    callback clicked;
+    property <bool> danger: root.kind == 2;
+    property <color> glyph-color: root.danger && touch.has-hover ? #ffffff : #182b43;
+    width: 46px;
+    background: touch.pressed ? (root.danger ? #a8241a : #dde3eb) : touch.has-hover ? (root.danger ? #c42b1c : #eef1f5) : transparent;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    if root.kind == 0: Rectangle { width: 10px; height: 1px; background: root.glyph-color; }
+    if root.kind == 1: Rectangle { width: 10px; height: 10px; border-width: 1px; border-color: root.glyph-color; }
+    if root.kind == 2: Path {
+        width: 10px;
+        height: 10px;
+        viewbox-width: 10;
+        viewbox-height: 10;
+        commands: "M 0 0 L 10 10 M 10 0 L 0 10";
+        stroke: root.glyph-color;
+        stroke-width: 1px;
+    }
+}

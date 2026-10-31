@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { LuRefreshCw } from "react-icons/lu";
+import { Refresh } from "reicon-react";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -48,7 +48,7 @@ export function MyProfilePage() {
 						void load();
 					}}
 				>
-					<LuRefreshCw />
+					<Refresh />
 				</IconButton>
 			</PageHeading>
 			{loading ? (

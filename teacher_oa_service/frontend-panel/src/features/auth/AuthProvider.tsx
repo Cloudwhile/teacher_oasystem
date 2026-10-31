@@ -14,7 +14,8 @@ type AuthContextValue = {
 	status: AuthStatus;
 	session: AuthResponse | null;
 	refresh: () => Promise<void>;
-	login: (identity: string) => Promise<void>;
+	login: (username: string, password: string) => Promise<void>;
+	changePassword: (current: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -56,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			});
 		return () => controller.abort();
 	}, [applyError]);
-	const login = async (identity: string) => {
-		setSession(await authApi.login({ identity }));
+	const login = async (username: string, password: string) => {
+		setSession(await authApi.login({ username, password }));
 		setStatus("ready");
 	};
 	const logout = async () => {
@@ -71,8 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setSession(null);
 		setStatus("anonymous");
 	};
+	const changePassword = async (current: string, password: string) => {
+		if (!session) return;
+		setSession(
+			await authApi.changePassword(current, password, session.csrf_token),
+		);
+	};
 	return (
-		<AuthContext.Provider value={{ status, session, refresh, login, logout }}>
+		<AuthContext.Provider
+			value={{ status, session, refresh, login, logout, changePassword }}
+		>
 			{children}
 		</AuthContext.Provider>
 	);

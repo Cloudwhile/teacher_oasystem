@@ -23,6 +23,7 @@ pub struct UploadBody {
 }
 #[derive(Deserialize)]
 pub struct FileQuery {
+    pub mine: Option<bool>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
 }
@@ -84,7 +85,7 @@ pub async fn upload(
     result.map_err(|e: ApiError| e.at(&request))
 }
 
-#[aster_forge_api_docs_macros::path(get,path="/api/v1/files",operation_id="files_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query)),security(("session"=[])),responses((status=200,body=Success<FilePage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
+#[aster_forge_api_docs_macros::path(get,path="/api/v1/files",operation_id="files_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query),("mine"=Option<bool>,Query)),security(("session"=[])),responses((status=200,body=Success<FilePage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
 pub async fn list(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -96,14 +97,25 @@ pub async fn list(
             return Err(ApiError::Forbidden);
         }
         let (page, page_size) = super::achievements::pagination(query.page, query.page_size)?;
-        let pager = file::Entity::find()
+        let mut select = file::Entity::find()
             .filter(repo::file_scope(&user))
-            .filter(file::Column::UploadStatus.eq("ready"))
+            .filter(file::Column::UploadStatus.eq("ready"));
+        if query.mine.unwrap_or(false) {
+            select = select.filter(file::Column::UploadedBy.eq(user.id));
+        }
+        let pager = select
             .order_by_desc(file::Column::CreatedAt)
             .paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
         let page = page.min(total.div_ceil(page_size).max(1));
         let rows = pager.fetch_page(page - 1).await?;
+        let mut items = Vec::new();
+        for row in rows {
+            let mut item = repo::metadata(row);
+            item.association =
+                Some(repo::file_association(state.db_handles.writer(), &user, item.id).await?);
+            items.push(item);
+        }
         business_audit::write(
             state.db_handles.writer(),
             user.id,
@@ -115,7 +127,7 @@ pub async fn list(
         success(
             &request,
             FilePage {
-                items: rows.into_iter().map(repo::metadata).collect(),
+                items,
                 page,
                 page_size,
                 total,

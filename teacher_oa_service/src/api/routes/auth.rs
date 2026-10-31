@@ -11,9 +11,144 @@ use crate::{
 use actix_web::{HttpRequest, HttpResponse, web};
 use serde::{Deserialize, Serialize};
 
+pub fn safe_next(value: Option<&str>) -> String {
+    let value = value.unwrap_or("/dashboard");
+    if value.len() <= 2048
+        && !value.contains('\\')
+        && !value.chars().any(char::is_control)
+        && [
+            "/dashboard",
+            "/achievements",
+            "/reviews",
+            "/files",
+            "/teachers",
+            "/admin",
+            "/account",
+        ]
+        .iter()
+        .any(|prefix| {
+            value == *prefix
+                || value.starts_with(&format!("{prefix}/"))
+                || value.starts_with(&format!("{prefix}?"))
+        })
+    {
+        value.into()
+    } else {
+        "/dashboard".into()
+    }
+}
+
+fn throttle(request: &HttpRequest) -> Result<(), ApiError> {
+    use std::{
+        collections::BTreeMap,
+        sync::{Mutex, OnceLock},
+    };
+    static ATTEMPTS: OnceLock<Mutex<BTreeMap<String, (i64, u32)>>> = OnceLock::new();
+    let mut attempts = ATTEMPTS
+        .get_or_init(|| Mutex::new(BTreeMap::new()))
+        .lock()
+        .map_err(|_| ApiError::Internal)?;
+    let now = chrono::Utc::now().timestamp();
+    attempts.retain(|_, (start, _)| now - *start < 60);
+    if attempts.len() > 10000 {
+        return Err(ApiError::TooManyAttempts);
+    }
+    let key = request
+        .peer_addr()
+        .map(|p| p.ip().to_string())
+        .unwrap_or_default();
+    let entry = attempts.entry(key).or_insert((now, 0));
+    entry.1 += 1;
+    if entry.1 > 20 {
+        return Err(ApiError::TooManyAttempts);
+    }
+    Ok(())
+}
+#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/login",operation_id="auth_password_login",request_body=crate::services::account_service::PasswordLogin,responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=429,body=Failure),(status=500,body=Failure)))]
+pub async fn password_login(
+    request: HttpRequest,
+    state: web::Data<AppState>,
+    body: web::Json<crate::services::account_service::PasswordLogin>,
+) -> Result<HttpResponse, RequestError> {
+    let result = async {
+        auth::ensure_origin(&request, &state.config.auth)?;
+        throttle(&request)?;
+        let (user, verified_version) =
+            crate::services::account_service::login(state.db_handles.writer(), body.into_inner())
+                .await?;
+        let must_change_password =
+            crate::services::account_service::credential_for(state.db_handles.writer(), user.id)
+                .await?
+                .is_some_and(|c| c.must_change);
+        let (cookie, session) = auth::create_session(&request, &state, user.clone()).await?;
+        if session.credential_version != Some(verified_version) {
+            state
+                .auth_store
+                .delete(&format!("teacher_oa:session:{}", cookie.value()))
+                .await?;
+            return Err(ApiError::InvalidCredentials);
+        }
+        let mut response = success(
+            &request,
+            AuthResponse {
+                user,
+                csrf_token: session.csrf_token,
+                must_change_password,
+            },
+        )?;
+        response
+            .add_cookie(&cookie)
+            .map_err(|_| ApiError::Internal)?;
+        Ok(response)
+    }
+    .await;
+    result.map_err(|e: ApiError| e.at(&request))
+}
+#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/password",operation_id="auth_change_password",request_body=crate::services::account_service::PasswordChange,security(("session"=[],"csrf"=[])),responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=409,body=Failure),(status=500,body=Failure)))]
+pub async fn change_password(
+    request: HttpRequest,
+    state: web::Data<AppState>,
+    body: web::Json<crate::services::account_service::PasswordChange>,
+) -> Result<HttpResponse, RequestError> {
+    let result = async {
+        let (session, user) = auth::authenticate(&request, &state).await?;
+        auth::ensure_csrf(&request, &state.config.auth, &session)?;
+        throttle(&request)?;
+        let verified_version = crate::services::account_service::change(
+            state.db_handles.writer(),
+            user.id,
+            body.into_inner(),
+        )
+        .await?;
+        let (cookie, session) = auth::create_session(&request, &state, user.clone()).await?;
+        if session.credential_version != Some(verified_version) {
+            state
+                .auth_store
+                .delete(&format!("teacher_oa:session:{}", cookie.value()))
+                .await?;
+            return Err(ApiError::InvalidCredentials);
+        }
+        let mut response = success(
+            &request,
+            AuthResponse {
+                user,
+                csrf_token: session.csrf_token,
+                must_change_password: false,
+            },
+        )?;
+        response
+            .add_cookie(&cookie)
+            .map_err(|_| ApiError::Internal)?;
+        Ok(response)
+    }
+    .await;
+    result.map_err(|e: ApiError| e.at(&request))
+}
+
 #[derive(Serialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct LoginOptions {
+    pub password_enabled: bool,
     pub wecom_enabled: bool,
     pub mock_enabled: bool,
 }
@@ -30,12 +165,14 @@ pub struct MockLogin {
 pub struct AuthResponse {
     pub user: CurrentUser,
     pub csrf_token: String,
+    pub must_change_password: bool,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoginQuery {
     pub mode: Option<LoginMode>,
+    pub next: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -53,7 +190,11 @@ pub async fn options(
     success(
         &request,
         LoginOptions {
-            wecom_enabled: state.wecom.enabled(),
+            password_enabled: true,
+            wecom_enabled: crate::services::settings_service::read(&state)
+                .await
+                .map_err(|e| e.at(&request))?
+                .enabled,
             mock_enabled: state.config.auth.mock_enabled
                 && state.config.auth.environment != "production",
         },
@@ -88,6 +229,7 @@ pub async fn mock_login(
             AuthResponse {
                 user,
                 csrf_token: session.csrf_token,
+                must_change_password: false,
             },
         )?;
         response
@@ -109,6 +251,12 @@ pub async fn me(
         success(
             &request,
             AuthResponse {
+                must_change_password: crate::services::account_service::credential_for(
+                    state.db_handles.writer(),
+                    user.id,
+                )
+                .await?
+                .is_some_and(|c| c.must_change),
                 user,
                 csrf_token: session.csrf_token,
             },
@@ -171,9 +319,16 @@ pub async fn wecom_login(
     let result = async {
         let value = auth::random_token();
         let binding = auth::random_token();
-        let url = state
-            .wecom
-            .authorization_url(&value, query.mode.unwrap_or(LoginMode::Web))?;
+        let (adapter, _) = crate::services::settings_service::adapter(&state).await?;
+        let url = adapter.authorization_url(&value, query.mode.unwrap_or(LoginMode::Web))?;
+        state
+            .auth_store
+            .put(
+                &format!("teacher_oa:oauth-next:{value}"),
+                safe_next(query.next.as_deref()).into_bytes(),
+                auth::OAUTH_TTL,
+            )
+            .await?;
         state
             .auth_store
             .put(
@@ -217,8 +372,9 @@ pub async fn wecom_callback(
             .as_deref()
             .filter(|code| !code.is_empty() && code.len() <= 512)
             .ok_or(ApiError::Unauthorized)?;
-        let member = state.wecom.exchange(code).await?;
-        if member.corp_id != state.config.auth.wecom_corp_id {
+        let (adapter, config) = crate::services::settings_service::adapter(&state).await?;
+        let member = adapter.exchange(code).await?;
+        if member.corp_id != config.wecom_corp_id {
             return Err(ApiError::Forbidden);
         }
         let user = crate::repositories::identity::find_identity(
@@ -229,7 +385,13 @@ pub async fn wecom_callback(
         )
         .await?;
         let (cookie, _) = auth::create_session(&request, &state, user).await?;
-        Ok(cookie)
+        let next = state
+            .auth_store
+            .take(&format!("teacher_oa:oauth-next:{value}"))
+            .await?
+            .and_then(|v| String::from_utf8(v).ok())
+            .unwrap_or_else(|| "/dashboard".into());
+        Ok((cookie, safe_next(Some(&next))))
     }
     .await;
     let mut response = HttpResponse::SeeOther();
@@ -237,8 +399,8 @@ pub async fn wecom_callback(
         .insert_header(("Cache-Control", "no-store"))
         .cookie(auth::clear_cookie(&state.config.auth, auth::OAUTH_COOKIE));
     match result {
-        Ok(cookie) => response
-            .insert_header(("Location", "/dashboard"))
+        Ok((cookie, next)) => response
+            .insert_header(("Location", next))
             .cookie(cookie)
             .finish(),
         Err(_error) => response
@@ -249,6 +411,8 @@ pub async fn wecom_callback(
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.route("/auth/options", web::get().to(options))
+        .route("/auth/login", web::post().to(password_login))
+        .route("/auth/password", web::post().to(change_password))
         .route("/auth/mock/login", web::post().to(mock_login))
         .route("/auth/me", web::get().to(me))
         .route("/auth/permissions", web::get().to(permissions))

@@ -23,6 +23,8 @@ mod m20260627_000001_forge_foundation_schema;
 mod m20261025_000002_identity_schema;
 mod m20261025_000003_achievement_catalog;
 mod m20261025_000004_achievement_records;
+mod m20261030_000005_accounts_settings;
+mod m20261031_000006_login_page;
 mod schema_helpers;
 
 /// Service migrator.
@@ -46,6 +48,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20261025_000002_identity_schema::Migration),
             Box::new(m20261025_000003_achievement_catalog::Migration),
             Box::new(m20261025_000004_achievement_records::Migration),
+            Box::new(m20261030_000005_accounts_settings::Migration),
+            Box::new(m20261031_000006_login_page::Migration),
         ]
     }
 }

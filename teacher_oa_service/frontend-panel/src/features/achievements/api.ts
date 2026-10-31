@@ -33,6 +33,25 @@ function write(method: string, csrf: string, body: unknown): RequestInit {
 	};
 }
 export const achievementApi = {
+	dashboard: (signal?: AbortSignal) =>
+		call<"dashboard">("/api/v1/dashboard", { signal }),
+	ownFiles: (page: number, signal?: AbortSignal) =>
+		call<"files_list">(`/api/v1/files?mine=true&page=${page}&page_size=20`, {
+			signal,
+		}),
+	reviews: (query: string, signal?: AbortSignal) =>
+		call<"reviews_pending">(`/api/v1/reviews/pending?${query}`, { signal }),
+	review: (
+		id: number,
+		action: "approve" | "return" | "archive",
+		version: number,
+		opinion: string,
+		csrf: string,
+	) =>
+		call<"achievement_approve">(
+			`/api/v1/achievements/${id}/${action}`,
+			write("POST", csrf, { version, opinion }),
+		),
 	async catalog(signal?: AbortSignal) {
 		const [types, terms, dictionaries, teachers] = await Promise.all([
 			call<"achievement_types">("/api/v1/achievement-types", { signal }),

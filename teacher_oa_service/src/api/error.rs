@@ -7,6 +7,10 @@ use serde::Serialize;
 pub enum ApiError {
     #[error("请先登录")]
     Unauthorized,
+    #[error("账号或密码不正确，或账号暂时不可用")]
+    InvalidCredentials,
+    #[error("尝试次数过多，请稍后重试")]
+    TooManyAttempts,
     #[error("无权访问此内容")]
     Forbidden,
     #[error("{0}")]
@@ -94,6 +98,8 @@ impl ResponseError for RequestError {
     fn status_code(&self) -> StatusCode {
         match self.error {
             ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
+            ApiError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+            ApiError::TooManyAttempts => StatusCode::TOO_MANY_REQUESTS,
             ApiError::Forbidden => StatusCode::FORBIDDEN,
             ApiError::Invalid(_) => StatusCode::BAD_REQUEST,
             ApiError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
@@ -107,6 +113,8 @@ impl ResponseError for RequestError {
     fn error_response(&self) -> HttpResponse {
         let code = match self.error {
             ApiError::Unauthorized => ApiErrorCode::Unauthorized,
+            ApiError::InvalidCredentials => ApiErrorCode::Unauthorized,
+            ApiError::TooManyAttempts => ApiErrorCode::Unavailable,
             ApiError::Forbidden => ApiErrorCode::Forbidden,
             ApiError::Invalid(_) => ApiErrorCode::InvalidRequest,
             ApiError::Unavailable => ApiErrorCode::Unavailable,

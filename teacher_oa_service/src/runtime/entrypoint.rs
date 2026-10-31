@@ -22,9 +22,27 @@ pub async fn run() -> io::Result<()> {
     }
     let _logging_guard = logging.guard;
 
-    let state = crate::runtime::assembly::prepare_state(config)
+    let mut state = crate::runtime::assembly::prepare_state(config)
         .await
         .map_err(to_io_error)?;
+    if let Some(token) = std::env::var_os(management_protocol::TOKEN_ENV) {
+        let path = std::env::var_os(crate::config::CONFIG_ENV_VAR)
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| crate::config::DEFAULT_CONFIG_PATH.into());
+        state.management = Some(std::sync::Arc::new(
+            crate::services::management_service::Management::new(
+                token.into_string().map_err(|_| to_io_error("桌面管理凭据格式无效"))?,
+                path,
+            )?,
+        ));
+    }
+    if std::env::args().any(|arg| arg == "--init-admin") {
+        let path = crate::services::account_service::initialize_admin(&state)
+            .await
+            .map_err(to_io_error)?;
+        println!("管理员已初始化，初始凭据文件：{}", path.display());
+        return Ok(());
+    }
     crate::runtime::assembly::run(state).await
 }
 

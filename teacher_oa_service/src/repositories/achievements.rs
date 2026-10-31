@@ -26,7 +26,16 @@ pub fn scope(user: &CurrentUser) -> Condition {
     scope_for(user, "achievements:read")
 }
 
-fn scope_for(user: &CurrentUser, permission: &str) -> Condition {
+pub fn personal_scope(user: &CurrentUser) -> Condition {
+    let mut personal = user.clone();
+    personal.grants = vec![crate::domain::identity::PermissionGrant {
+        permission: "achievements:read".into(),
+        scope: DataScope::SelfOnly,
+    }];
+    scope(&personal)
+}
+
+pub fn scope_for(user: &CurrentUser, permission: &str) -> Condition {
     let mut condition = Condition::any();
     for grant in &user.grants {
         if grant.permission != permission {
@@ -166,7 +175,41 @@ pub fn metadata(r: file::Model) -> FileMetadata {
         uploaded_by: r.uploaded_by,
         upload_status: r.upload_status,
         created_at: r.created_at,
+        association: None,
     }
+}
+
+pub async fn file_association(
+    db: &impl ConnectionTrait,
+    user: &CurrentUser,
+    id: i64,
+) -> Result<FileAssociation, ApiError> {
+    let visible = achievement::Entity::find()
+        .select_only()
+        .column(achievement::Column::Id)
+        .filter(scope(user))
+        .filter(scope_for(user, "files:read"))
+        .into_query();
+    if achievement_file::Entity::find()
+        .filter(achievement_file::Column::FileId.eq(id))
+        .filter(achievement_file::Column::AchievementId.in_subquery(visible.clone()))
+        .one(db)
+        .await?
+        .is_some()
+    {
+        return Ok(FileAssociation::Linked);
+    }
+    use super::achievement_entities::revision_file;
+    if revision_file::Entity::find()
+        .filter(revision_file::Column::FileId.eq(id))
+        .filter(revision_file::Column::AchievementId.in_subquery(visible))
+        .one(db)
+        .await?
+        .is_some()
+    {
+        return Ok(FileAssociation::Historical);
+    }
+    Ok(FileAssociation::Unlinked)
 }
 
 pub async fn item(
@@ -255,21 +298,29 @@ pub async fn detail(
                 .ok_or(ApiError::Internal)?,
         ));
     }
-    let events = review_event::Entity::find()
+    let rows = review_event::Entity::find()
         .filter(review_event::Column::AchievementId.eq(r.id))
         .order_by_asc(review_event::Column::CreatedAt)
         .all(db)
-        .await?
-        .into_iter()
-        .map(|e| ReviewEvent {
+        .await?;
+    let mut events = Vec::new();
+    for e in rows {
+        let reviewer = super::entities::user::Entity::find_by_id(e.reviewer_id)
+            .one(db)
+            .await?;
+        events.push(ReviewEvent {
             id: e.id,
+            reviewer_id: e.reviewer_id,
+            reviewer_name: reviewer
+                .map(|u| u.display_name)
+                .unwrap_or_else(|| "原办理人员".into()),
             action: e.action,
             old_status: e.old_status,
             new_status: e.new_status,
             opinion: e.opinion,
             created_at: e.created_at,
-        })
-        .collect();
+        });
+    }
     Ok(AchievementDetail {
         record: item(db, r).await?,
         schema: schema(db, &r.type_code, r.schema_version).await?,
@@ -277,7 +328,28 @@ pub async fn detail(
         files,
         events,
         can_edit: editable(user, r),
+        can_review: r.status == "pending" && reviewable(db, user, r.id).await?,
+        can_archive: r.status == "approved" && reviewable(db, user, r.id).await?,
     })
+}
+pub fn review_scope(user: &CurrentUser) -> Condition {
+    Condition::all()
+        .add(scope(user))
+        .add(scope_for(user, "reviews:write"))
+        .add(achievement::Column::TeacherId.ne(user.teacher.id))
+        .add(achievement::Column::CreatedBy.ne(user.id))
+}
+
+pub async fn reviewable(
+    db: &impl ConnectionTrait,
+    user: &CurrentUser,
+    id: i64,
+) -> Result<bool, ApiError> {
+    Ok(achievement::Entity::find_by_id(id)
+        .filter(review_scope(user))
+        .one(db)
+        .await?
+        .is_some())
 }
 pub fn file_scope(user: &CurrentUser) -> Condition {
     let ids = achievement::Entity::find()

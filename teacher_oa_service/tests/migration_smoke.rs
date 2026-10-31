@@ -9,7 +9,7 @@ use sea_orm_migration::prelude::SchemaManager;
 fn foundation_migration_is_registered_first() {
     let migrations = teacher_oa_service_migration::Migrator::migrations();
 
-    assert_eq!(migrations.len(), 4);
+    assert_eq!(migrations.len(), 5);
     assert_eq!(
         migrations[0].name(),
         "m20260627_000001_forge_foundation_schema"

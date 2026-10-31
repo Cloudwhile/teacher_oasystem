@@ -16,6 +16,8 @@ pub struct IntegrationResources {
 /// Shared runtime state passed to HTTP handlers and component factories.
 #[derive(Clone)]
 pub struct AppState {
+    /// Present only for a process explicitly launched by the desktop supervisor.
+    pub management: Option<Arc<crate::services::management_service::Management>>,
     pub files: Arc<dyn object_store::ObjectStore>,
     pub auth_store: Arc<dyn crate::integrations::auth_store::AuthStore>,
     pub wecom: Arc<dyn crate::integrations::wecom::WeComAdapter>,
@@ -47,6 +49,7 @@ impl AppState {
         auth: IntegrationResources,
     ) -> Self {
         Self {
+            management: None,
             auth_store: auth.store,
             wecom: auth.wecom,
             files: auth.files,

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
-import { LuArrowUpRight, LuPlus, LuSearch } from "react-icons/lu";
 import { Link, useSearchParams } from "react-router-dom";
+import { Plus, Search } from "reicon-react";
+import { AchievementTable } from "@/components/achievements/AchievementTable";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -10,7 +11,9 @@ import { achievementApi, errorMessage, statusLabels } from "./api";
 
 export function AchievementListPage() {
 	const [params, setParams] = useSearchParams();
-	const query = params.toString();
+	const queryParams = new URLSearchParams(params);
+	if (!queryParams.has("scope")) queryParams.set("scope", "mine");
+	const query = queryParams.toString();
 	const load = useCallback(
 		(signal: AbortSignal) => achievementApi.list(query, signal),
 		[query],
@@ -26,27 +29,38 @@ export function AchievementListPage() {
 	};
 	return (
 		<>
-			<PageHeading title="我的成果" eyebrow="成果管理">
+			<PageHeading
+				title={params.get("scope") === "all" ? "成果查询" : "我的成果"}
+				eyebrow="成果管理"
+			>
 				<Link
 					to="/achievements/new"
 					className="icon-button primary-action"
 					aria-label="新建成果"
 					title="新建成果"
 				>
-					<LuPlus />
+					<Plus />
 				</Link>
 			</PageHeading>
 			<form
-				className="achievement-filters"
+				className="achievement-filters with-scope"
 				onSubmit={(event) => {
 					event.preventDefault();
 					const data = new FormData(event.currentTarget);
 					filter("search", String(data.get("search") ?? ""));
 				}}
 			>
+				<select
+					aria-label="成果范围"
+					value={params.get("scope") ?? "mine"}
+					onChange={(e) => filter("scope", e.target.value)}
+				>
+					<option value="mine">我的成果</option>
+					<option value="all">可查看的全部成果</option>
+				</select>
 				<div className="search-control">
 					<IconButton label="搜索成果" type="submit">
-						<LuSearch />
+						<Search />
 					</IconButton>
 					<input
 						key={params.get("search") ?? ""}
@@ -126,55 +140,7 @@ export function AchievementListPage() {
 							<span className="section-meta">共 {result.data.total} 条</span>
 						</div>
 						{result.data.items.length ? (
-							<div className="table-scroll">
-								<table>
-									<thead>
-										<tr>
-											<th scope="col">成果名称</th>
-											<th scope="col">成果类型</th>
-											<th scope="col">填报教师</th>
-											<th scope="col">日期</th>
-											<th scope="col">状态</th>
-											<th scope="col">
-												<span className="visually-hidden">操作</span>
-											</th>
-										</tr>
-									</thead>
-									<tbody>
-										{result.data.items.map((item) => (
-											<tr key={item.id}>
-												<td>
-													<Link
-														className="record-title"
-														to={`/achievements/${item.id}`}
-													>
-														{item.title}
-													</Link>
-												</td>
-												<td>{item.type_name}</td>
-												<td>{item.teacher_name}</td>
-												<td>{item.occurred_at ?? "—"}</td>
-												<td>
-													<span
-														className={`achievement-status status-${item.status}`}
-													>
-														{statusLabels[item.status]}
-													</span>
-												</td>
-												<td>
-													<Link
-														className="icon-button"
-														to={`/achievements/${item.id}`}
-														aria-label={`查看${item.title}`}
-													>
-														<LuArrowUpRight />
-													</Link>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
+							<AchievementTable items={result.data.items} />
 						) : (
 							<p className="empty-message">没有符合条件的成果。</p>
 						)}

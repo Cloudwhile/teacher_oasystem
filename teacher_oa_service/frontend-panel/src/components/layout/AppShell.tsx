@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LuGraduationCap, LuLogOut, LuMenu, LuX } from "react-icons/lu";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { GraduationCap, Logout, Menu, X } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { appPaths } from "@/routes/routePaths";
+import { workspaceContext } from "@/routes/workspaceContext";
 import { LeaveGuardContext } from "@/services/useUnsavedChanges";
 import { Navigation } from "./Navigation";
 
@@ -13,6 +14,11 @@ export function AppShell() {
 	const [error, setError] = useState("");
 	const [leaving, setLeaving] = useState(false);
 	const location = useLocation();
+	const context = workspaceContext(
+		location.pathname,
+		location.search,
+		location.state?.from,
+	);
 	const leaveGuard = useRef<(() => boolean) | null>(null);
 	const navigation = useRef<HTMLElement>(null);
 	const closeMenu = useCallback(() => {
@@ -65,22 +71,24 @@ export function AppShell() {
 						label="关闭导航"
 						onClick={closeMenu}
 					>
-						<LuX />
+						<X />
 					</IconButton>
 					<Link to={appPaths.dashboard} className="brand">
-						<LuGraduationCap aria-hidden="true" />
+						<GraduationCap aria-hidden="true" />
 						<span>
 							TeacherOA<small>教师综合 OA</small>
 						</span>
 					</Link>
-					<Navigation onNavigate={closeMenu} />
+					<Navigation onNavigate={closeMenu} activeSection={context.section} />
 					<div className="sidebar-account">
 						<span className="avatar">
 							{session?.user.display_name.slice(0, 1)}
 						</span>
 						<div className="account-label">
 							<strong>{session?.user.display_name}</strong>
-							<small>{session?.user.teacher.department_name}</small>
+							<small title={session?.user.teacher.department_name}>
+								{session?.user.teacher.department_name}
+							</small>
 						</div>
 						<IconButton
 							label="退出登录"
@@ -89,7 +97,7 @@ export function AppShell() {
 								void leave();
 							}}
 						>
-							<LuLogOut />
+							<Logout />
 						</IconButton>
 					</div>
 					{error && (
@@ -109,19 +117,11 @@ export function AppShell() {
 								aria-expanded={menuOpen}
 								onClick={() => setMenuOpen(!menuOpen)}
 							>
-								<LuMenu />
+								<Menu />
 							</IconButton>
 							<span>工作空间</span>
 							<span aria-hidden="true">/</span>
-							<strong>
-								{location.pathname.startsWith("/achievements")
-									? "成果管理"
-									: location.pathname === "/files"
-										? "文件资料"
-										: location.pathname === appPaths.profile
-											? "个人档案"
-											: "工作台"}
-							</strong>
+							<strong>{context.title}</strong>
 						</div>
 						<time dateTime={new Date().toISOString().slice(0, 10)}>
 							{new Intl.DateTimeFormat("zh-CN", {

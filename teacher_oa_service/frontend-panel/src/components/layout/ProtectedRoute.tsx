@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { appPaths } from "@/routes/routePaths";
 
 export function ProtectedRoute() {
-	const { status, refresh } = useAuth();
+	const { status, session, refresh } = useAuth();
 	const location = useLocation();
 	if (status === "loading") return <Feedback message="正在读取身份…" loading />;
 	if (status === "anonymous")
@@ -12,7 +12,7 @@ export function ProtectedRoute() {
 			<Navigate
 				to={appPaths.login}
 				replace
-				state={{ from: location.pathname }}
+				state={{ from: location.pathname + location.search }}
 			/>
 		);
 	if (status === "forbidden")
@@ -31,6 +31,13 @@ export function ProtectedRoute() {
 				onRetry={() => {
 					void refresh();
 				}}
+			/>
+		);
+	if (session?.must_change_password && location.pathname !== "/account")
+		return (
+			<Navigate
+				to={`/account?next=${encodeURIComponent(location.pathname + location.search)}`}
+				replace
 			/>
 		);
 	return <Outlet />;

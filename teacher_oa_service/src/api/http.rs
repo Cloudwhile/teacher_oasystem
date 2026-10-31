@@ -72,6 +72,14 @@ fn build_http_service_component(
         .disable_signals()
         .run();
     let handle = server.handle();
+    let cancellation = shutdown_token.clone();
+    let cancel_handle = handle.clone();
+    // Forge waits for the service future before draining resources. Cancellation alone does not
+    // stop Actix, so an API shutdown must explicitly wake and drain the HTTP server as well.
+    let cancellation_task = tokio::spawn(async move {
+        cancellation.cancelled().await;
+        cancel_handle.stop(true).await;
+    });
 
     Ok(RuntimeServiceComponent::new(
         "http",
@@ -80,6 +88,7 @@ fn build_http_service_component(
         shutdown_token,
         move || async move {
             handle.stop(true).await;
+            let _ = cancellation_task.await;
         },
     ))
 }

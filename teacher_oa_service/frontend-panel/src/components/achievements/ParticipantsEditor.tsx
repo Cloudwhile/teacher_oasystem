@@ -1,4 +1,4 @@
-import { LuArrowDown, LuArrowUp, LuPlus, LuTrash2 } from "react-icons/lu";
+import { ArrowDown, ArrowUp, Plus, Trash } from "reicon-react";
 import { FormField } from "@/components/common/FormField";
 import { IconButton } from "@/components/common/IconButton";
 import type {
@@ -55,7 +55,7 @@ export function ParticipantsEditor({
 						])
 					}
 				>
-					<LuPlus />
+					<Plus />
 				</IconButton>
 			</div>
 			{value.length === 0 && <p className="empty-message">尚未添加相关人员</p>}
@@ -167,14 +167,14 @@ export function ParticipantsEditor({
 							disabled={disabled || index === 0}
 							onClick={() => move(index, -1)}
 						>
-							<LuArrowUp />
+							<ArrowUp />
 						</IconButton>
 						<IconButton
 							label={`下移第${index + 1}位人员`}
 							disabled={disabled || index === value.length - 1}
 							onClick={() => move(index, 1)}
 						>
-							<LuArrowDown />
+							<ArrowDown />
 						</IconButton>
 						<IconButton
 							label={`移除第${index + 1}位人员`}
@@ -187,7 +187,7 @@ export function ParticipantsEditor({
 								)
 							}
 						>
-							<LuTrash2 />
+							<Trash />
 						</IconButton>
 					</div>
 					{errors[`participants.${index}`] && (

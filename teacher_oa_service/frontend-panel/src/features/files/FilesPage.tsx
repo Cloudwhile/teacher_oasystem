@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { LuUpload } from "react-icons/lu";
+import { Upload } from "reicon-react";
 import { MaterialList } from "@/components/achievements/MaterialList";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
@@ -53,7 +53,7 @@ export function FilesPage() {
 						disabled={busy}
 						onClick={() => input.current?.click()}
 					>
-						<LuUpload />
+						<Upload />
 					</IconButton>
 				)}
 			</PageHeading>

@@ -26,6 +26,7 @@ function TestApp() {
 }
 
 const identity: AuthResponse = {
+	must_change_password: false,
 	csrf_token: "test-csrf",
 	user: {
 		id: 1,
