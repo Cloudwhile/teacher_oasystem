@@ -376,9 +376,10 @@ pub async fn save(
             .exec(&txn)
             .await?;
         let old = existing.ok_or(ApiError::NotFound)?;
+        // A new version revokes existing sessions, so re-enabling never revives them.
         let mut update = credential::Entity::update_many().col_expr(
             credential::Column::Version,
-            Expr::value(old.version + i32::from(password_hash.is_some())),
+            Expr::value(old.version + i32::from(password_hash.is_some() || !input.active)),
         );
         if let Some(hash) = password_hash {
             update = update

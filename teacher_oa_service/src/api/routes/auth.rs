@@ -38,7 +38,21 @@ pub fn safe_next(value: Option<&str>) -> String {
     }
 }
 
-fn throttle(request: &HttpRequest) -> Result<(), ApiError> {
+/// Attempts allowed per minute from one client address. Teachers behind a shared proxy all use
+/// this budget, so it only stops a single flooding client; account limits do the real work.
+const IP_ATTEMPTS: u32 = 300;
+/// Attempts allowed per minute against one account.
+const ACCOUNT_ATTEMPTS: u32 = 10;
+
+fn peer_ip(request: &HttpRequest) -> String {
+    request
+        .peer_addr()
+        .map(|p| p.ip().to_string())
+        .unwrap_or_default()
+}
+
+/// Counts attempts in one-minute windows per `bucket:key`.
+fn throttle(bucket: &str, key: &str, limit: u32) -> Result<(), ApiError> {
     use std::{
         collections::BTreeMap,
         sync::{Mutex, OnceLock},
@@ -50,16 +64,13 @@ fn throttle(request: &HttpRequest) -> Result<(), ApiError> {
         .map_err(|_| ApiError::Internal)?;
     let now = chrono::Utc::now().timestamp();
     attempts.retain(|_, (start, _)| now - *start < 60);
-    if attempts.len() > 10000 {
+    let key = format!("{bucket}:{key}");
+    if !attempts.contains_key(&key) && attempts.len() >= 50_000 {
         return Err(ApiError::TooManyAttempts);
     }
-    let key = request
-        .peer_addr()
-        .map(|p| p.ip().to_string())
-        .unwrap_or_default();
     let entry = attempts.entry(key).or_insert((now, 0));
     entry.1 += 1;
-    if entry.1 > 20 {
+    if entry.1 > limit {
         return Err(ApiError::TooManyAttempts);
     }
     Ok(())
@@ -72,7 +83,15 @@ pub async fn password_login(
 ) -> Result<HttpResponse, RequestError> {
     let result = async {
         auth::ensure_origin(&request, &state.config.auth)?;
-        throttle(&request)?;
+        throttle("login-ip", &peer_ip(&request), IP_ATTEMPTS)?;
+        let account: String = body
+            .username
+            .trim()
+            .to_ascii_lowercase()
+            .chars()
+            .take(64)
+            .collect();
+        throttle("login-account", &account, ACCOUNT_ATTEMPTS)?;
         let (user, verified_version) =
             crate::services::account_service::login(state.db_handles.writer(), body.into_inner())
                 .await?;
@@ -113,7 +132,7 @@ pub async fn change_password(
     let result = async {
         let (session, user) = auth::authenticate(&request, &state).await?;
         auth::ensure_csrf(&request, &state.config.auth, &session)?;
-        throttle(&request)?;
+        throttle("password-user", &user.id.to_string(), ACCOUNT_ATTEMPTS)?;
         let verified_version = crate::services::account_service::change(
             state.db_handles.writer(),
             user.id,
@@ -317,6 +336,8 @@ pub async fn wecom_login(
     query: web::Query<LoginQuery>,
 ) -> Result<HttpResponse, RequestError> {
     let result = async {
+        // Each call stores two state records for OAUTH_TTL; bound how fast one client adds them.
+        throttle("wecom-ip", &peer_ip(&request), IP_ATTEMPTS)?;
         let value = auth::random_token();
         let binding = auth::random_token();
         let (adapter, _) = crate::services::settings_service::adapter(&state).await?;

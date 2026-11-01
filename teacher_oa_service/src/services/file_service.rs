@@ -11,6 +11,12 @@ use object_store::{ObjectStoreExt, path::Path};
 use sea_orm::{ActiveModelTrait, IntoActiveModel, Set, TransactionTrait};
 use sha2::{Digest, Sha256};
 
+/// Decoded bytes lopdf may produce while loading one PDF (object and xref streams).
+const PDF_DECODE_LIMIT: usize = 32 * 1024 * 1024;
+/// Uploads decoded at once; each may hold the upload, decoded image and parsed PDF in memory.
+static INSPECTIONS: std::sync::LazyLock<tokio::sync::Semaphore> =
+    std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(2));
+
 pub fn inspect(filename: &str, claimed_mime: &str, bytes: &[u8]) -> Result<&'static str, ApiError> {
     if filename.is_empty()
         || filename.chars().count() > 255
@@ -29,7 +35,10 @@ pub fn inspect(filename: &str, claimed_mime: &str, bytes: &[u8]) -> Result<&'sta
         if extension != "pdf" {
             return Err(ApiError::Invalid("文件扩展名与内容不一致"));
         }
-        let pdf = lopdf::Document::load_mem(bytes).map_err(|_| ApiError::Invalid("PDF内容无效"))?;
+        let pdf =
+            lopdf::decode_limit::with_limit(PDF_DECODE_LIMIT, || lopdf::Document::load_mem(bytes))
+                .ok_or(ApiError::Invalid("PDF压缩内容过大"))?
+                .map_err(|_| ApiError::Invalid("PDF内容无效"))?;
         if pdf.is_encrypted() || pdf.get_pages().is_empty() || pdf.get_pages().len() > 200 {
             return Err(ApiError::Invalid("PDF无法读取或页数过多"));
         }
@@ -112,7 +121,12 @@ pub async fn upload(
     if bytes.is_empty() {
         return Err(ApiError::Invalid("文件不能为空"));
     }
+    let permit = tokio::time::timeout(std::time::Duration::from_secs(30), INSPECTIONS.acquire())
+        .await
+        .map_err(|_| ApiError::Unavailable)?
+        .map_err(|_| ApiError::Internal)?;
     let (filename, mime, bytes) = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
         let mime = inspect(&filename, &claimed_mime, &bytes)?;
         Ok::<_, ApiError>((filename, mime, bytes))
     })

@@ -70,9 +70,10 @@ async fn review_return_resubmit_archive_preserves_snapshots_and_permissions() {
         .await
         .unwrap();
     let id = draft.record.id;
+    // Drafts are private to the owner, so reviewers cannot see them yet.
     assert!(matches!(
         review(db, &reviewer, id, request(1, ""), ReviewAction::Approve).await,
-        Err(ApiError::Conflict(_))
+        Err(ApiError::Forbidden)
     ));
     achievements::submit(db, &owner, id, 1).await.unwrap();
     assert!(matches!(
@@ -283,4 +284,75 @@ async fn review_return_resubmit_archive_preserves_snapshots_and_permissions() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[actix_web::test]
+async fn drafts_are_private_and_repeated_transitions_apply_once() {
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    development_seed::seed(db).await.expect("seed");
+    let owner = identity::current_user(db, 91001).await.unwrap();
+    let leader = identity::current_user(db, 91002).await.unwrap();
+    let reviewer = identity::current_user(db, 91003).await.unwrap();
+    let admin = identity::current_user(db, 91004).await.unwrap();
+    let file = file_service::upload(&state, &owner, "草稿.png".into(), "image/png".into(), png())
+        .await
+        .unwrap();
+    let input: AchievementInput = serde_json::from_value(json!({"type_code":"open_class","schema_version":1,"title":"草稿隐私","file_ids":[file.id]})).unwrap();
+    let id = achievements::create(db, &owner, input.clone())
+        .await
+        .unwrap()
+        .record
+        .id;
+    assert!(repo::accessible(db, &owner, id).await.is_ok());
+    assert!(repo::file_access(db, &owner, file.id).await.is_ok());
+    for other in [&leader, &reviewer, &admin] {
+        assert!(matches!(
+            repo::accessible(db, other, id).await,
+            Err(ApiError::Forbidden)
+        ));
+        assert!(matches!(
+            repo::file_access(db, other, file.id).await,
+            Err(ApiError::Forbidden)
+        ));
+    }
+
+    achievements::submit(db, &owner, id, 1).await.unwrap();
+    assert!(matches!(
+        achievements::submit(db, &owner, id, 1).await,
+        Err(ApiError::Conflict(_))
+    ));
+    for other in [&leader, &reviewer, &admin] {
+        assert!(repo::accessible(db, other, id).await.is_ok());
+        assert!(repo::file_access(db, other, file.id).await.is_ok());
+    }
+    review(db, &reviewer, id, request(2, ""), ReviewAction::Approve)
+        .await
+        .unwrap();
+    assert!(matches!(
+        review(db, &reviewer, id, request(2, ""), ReviewAction::Approve).await,
+        Err(ApiError::Conflict(_))
+    ));
+    let events = |action: &'static str, id: i64| async move {
+        review_event::Entity::find()
+            .filter(review_event::Column::AchievementId.eq(id))
+            .filter(review_event::Column::Action.eq(action))
+            .count(db)
+            .await
+            .unwrap()
+    };
+    assert_eq!(events("submit", id).await, 1);
+    assert_eq!(events("approve", id).await, 1);
+
+    let raced = achievements::create(db, &owner, input)
+        .await
+        .unwrap()
+        .record
+        .id;
+    let (a, b) = tokio::join!(
+        achievements::submit(db, &owner, raced, 1),
+        achievements::submit(db, &owner, raced, 1)
+    );
+    assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
+    assert_eq!(events("submit", raced).await, 1);
 }

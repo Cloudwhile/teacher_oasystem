@@ -308,6 +308,31 @@ async fn file_and_achievement_access_is_scoped_and_mutations_need_csrf() {
     );
     let record: Value = test::read_body_json(response).await;
     let record_id = record["data"]["record"]["id"].as_i64().expect("record");
+    // Drafts and their proofs stay private to the owner until submitted.
+    let (leader, leader_csrf) = login!(app, "leader");
+    for uri in [
+        format!("/api/v1/achievements/{record_id}"),
+        format!("/api/v1/files/{id}/download"),
+    ] {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri(&uri)
+                .cookie(leader.clone())
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{uri}");
+    }
+    let response = mutation!(
+        app,
+        post,
+        &format!("/api/v1/achievements/{record_id}/submit"),
+        owner,
+        csrf,
+        json!({"version":1})
+    );
+    assert_eq!(response.status(), StatusCode::OK);
     // Broader achievement access must not broaden an unrelated file grant.
     let mut restricted =
         teacher_oa_service::repositories::identity::current_user(state.db_handles.writer(), 91003)
@@ -341,7 +366,6 @@ async fn file_and_achievement_access_is_scoped_and_mutations_need_csrf() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
-    let (leader, leader_csrf) = login!(app, "leader");
     let response = test::call_service(
         &app,
         test::TestRequest::get()
@@ -360,13 +384,32 @@ async fn file_and_achievement_access_is_scoped_and_mutations_need_csrf() {
         json!({"version":1,"data":draft("open_class",vec![id])})
     );
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let mut returner = restricted.clone();
+    returner
+        .grants
+        .push(teacher_oa_service::domain::identity::PermissionGrant {
+            permission: "reviews:write".into(),
+            scope: teacher_oa_service::domain::identity::DataScope::All,
+        });
+    teacher_oa_service::services::review_service::review(
+        state.db_handles.writer(),
+        &returner,
+        record_id,
+        teacher_oa_service::domain::achievements::ReviewRequest {
+            version: 2,
+            opinion: "请更换材料".into(),
+        },
+        teacher_oa_service::services::review_service::ReviewAction::Return,
+    )
+    .await
+    .expect("return for correction");
     let response = mutation!(
         app,
         patch,
         &format!("/api/v1/achievements/{record_id}"),
         owner,
         csrf,
-        json!({"version":1,"data":draft("open_class",vec![])})
+        json!({"version":3,"data":draft("open_class",vec![])})
     );
     assert_eq!(response.status(), StatusCode::OK);
     let response = test::call_service(

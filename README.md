@@ -91,6 +91,28 @@ Windows 本机运维可使用基于 Slint 的桌面服务管理器，支持启�
 
 本地配置使用内存会话，应用重启后需要重新登录。备份时应同时保留数据库与附件目录。部署示例仍需按实际环境配置和验收。
 
+### 备份与恢复
+
+生产镜像的全部持久数据位于 `/data` 卷（`docker-compose.yml` 映射到 `./data`）：
+
+| 内容 | 位置 |
+| --- | --- |
+| 配置 | `/data/config.toml` |
+| SQLite 数据库（使用 SQLite 时） | `/data/teacher_oa_service.db` |
+| 证明材料（非生产 `storage.backend = "local"`） | `/data/private-files/evidence/` |
+| 企业微信 Secret 加密密钥 | `/data/private-files/.settings-key` |
+
+- `auth.environment = "production"` 时强制使用 HTTPS S3 存储证明材料，须另行备份存储桶（建议开启版本控制）。`.settings-key` 仍保存在本地 `storage.root`，必须随 `/data` 备份。
+- 使用 PostgreSQL 时另行 `pg_dump`。
+- `.env` 或容器环境中的 `WECOM_CORP_SECRET`、`AUTH_REDIS_URL`、`S3_*` 不在 `/data` 中，需单独保管。
+- 数据库与附件须取自同一时间点：停止服务后一并备份，或先备份数据库再备份附件。
+- 恢复：停止服务，同时还原数据库、`/data`（含 `.settings-key`）和环境变量后启动。确认 `/health/ready` 正常，打开一个历史附件（读取时校验 SHA-256），并在“登录设置”确认 Secret 显示为已配置。
+- 缺少 `.settings-key` 时已保存的 Secret 无法解密，企业微信登录返回 503，需重新填写 Secret；数据库与附件不受影响。
+
+### 登录限流
+
+密码登录按账号每分钟 10 次、按来源地址每分钟 300 次限流；企业微信登录入口按来源地址每分钟 300 次。来源地址取 TCP 连接地址，经反向代理部署时所有用户共用代理地址，此时地址限流相当于全局上限。内存会话存储每类记录最多 5 万条，超出时新登录返回 503；使用 Redis 时请配置 `maxmemory`。
+
 ### 可选 Redis
 
 默认使用内存会话，无需安装或启动 Redis。内存会话适合单实例运行，重启后需要重新登录。

@@ -277,3 +277,119 @@ async fn wecom_secret_encrypted_versioned_and_binding_unique() {
         2
     );
 }
+
+#[actix_web::test]
+async fn admin_role_and_status_changes_apply_to_existing_sessions() {
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    let id = accounts::save(db, None, "", account("reviewer", "reviewer"))
+        .await
+        .unwrap();
+    let app = create_test_app!(state.clone());
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/api/v1/auth/login")
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .set_json(json!({"username":"reviewer","password":"Initial-password-123"}))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let cookie = response
+        .response()
+        .cookies()
+        .find(|c| c.name() == auth_service::SESSION_COOKIE)
+        .unwrap()
+        .into_owned();
+    let grants = || async {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/auth/me")
+                .cookie(cookie.clone())
+                .to_request(),
+        )
+        .await;
+        let status = response.status();
+        let body: Value = test::read_body_json(response).await;
+        (status, body["data"]["user"]["grants"].to_string())
+    };
+    let (status, before) = grants().await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(before.contains("reviews:write"));
+
+    let mut demote = account("reviewer", "teacher");
+    demote.id = Some(id);
+    demote.password = None;
+    accounts::save(db, None, "", demote).await.unwrap();
+    let (status, after) = grants().await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!after.contains("reviews:write"));
+
+    let mut disable = account("reviewer", "teacher");
+    disable.id = Some(id);
+    disable.password = None;
+    disable.active = false;
+    accounts::save(db, None, "", disable).await.unwrap();
+    assert_eq!(grants().await.0, StatusCode::FORBIDDEN);
+
+    let mut enable = account("reviewer", "teacher");
+    enable.id = Some(id);
+    enable.password = None;
+    accounts::save(db, None, "", enable).await.unwrap();
+    assert_eq!(grants().await.0, StatusCode::UNAUTHORIZED);
+}
+
+#[actix_web::test]
+async fn shared_proxy_ip_does_not_throttle_other_accounts() {
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    let app = create_test_app!(state.clone());
+    let login = |username: String, password: &'static str| {
+        test::TestRequest::post()
+            .uri("/api/v1/auth/login")
+            .peer_addr("10.20.0.1:40000".parse().unwrap())
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .set_json(json!({"username":username,"password":password}))
+            .to_request()
+    };
+    // More teachers than the old shared per-IP limit of 20 attempts per minute.
+    for n in 0..25 {
+        let username = format!("shared{n:02}");
+        accounts::save(db, None, "", account(&username, "teacher"))
+            .await
+            .unwrap();
+        let response = test::call_service(&app, login(username, "Initial-password-123")).await;
+        assert_eq!(response.status(), StatusCode::OK, "teacher {n}");
+    }
+    // shared00 already used one of its ten attempts on the successful login above.
+    for _ in 0..9 {
+        let response = test::call_service(&app, login("shared00".into(), "wrong-password")).await;
+        assert_ne!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+    let response = test::call_service(&app, login("SHARED00 ".into(), "wrong-password")).await;
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    let response = test::call_service(&app, login("shared01".into(), "Initial-password-123")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[actix_web::test]
+async fn wecom_login_entry_is_rate_limited_per_client() {
+    let (state, _database) = common::setup().await;
+    let app = create_test_app!(state);
+    let entry = |peer: &str| {
+        test::TestRequest::get()
+            .uri("/api/v1/auth/wecom/login")
+            .peer_addr(peer.parse().unwrap())
+            .to_request()
+    };
+    for _ in 0..300 {
+        let response = test::call_service(&app, entry("10.30.0.1:40000")).await;
+        assert_ne!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+    let response = test::call_service(&app, entry("10.30.0.1:40000")).await;
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    let response = test::call_service(&app, entry("10.30.0.2:40000")).await;
+    assert_ne!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+}

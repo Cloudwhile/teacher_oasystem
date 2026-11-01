@@ -35,6 +35,7 @@ pub fn personal_scope(user: &CurrentUser) -> Condition {
     scope(&personal)
 }
 
+/// Drafts stay private to the owner and participants; wider scopes only see submitted records.
 pub fn scope_for(user: &CurrentUser, permission: &str) -> Condition {
     let mut condition = Condition::any();
     for grant in &user.grants {
@@ -42,7 +43,9 @@ pub fn scope_for(user: &CurrentUser, permission: &str) -> Condition {
             continue;
         }
         match grant.scope {
-            DataScope::All => return Condition::all(),
+            DataScope::All => {
+                condition = condition.add(achievement::Column::Status.ne("draft"));
+            }
             DataScope::SelfOnly => {
                 condition = condition
                     .add(achievement::Column::TeacherId.eq(user.teacher.id))
@@ -60,16 +63,20 @@ pub fn scope_for(user: &CurrentUser, permission: &str) -> Condition {
             }
             DataScope::Department => {
                 condition = condition.add(
-                    achievement::Column::TeacherId.in_subquery(
-                        Query::select()
-                            .column(teacher::Column::Id)
-                            .from(teacher::Entity)
-                            .and_where(
-                                Expr::col(teacher::Column::DepartmentId)
-                                    .eq(user.teacher.department_id),
-                            )
-                            .to_owned(),
-                    ),
+                    Condition::all()
+                        .add(achievement::Column::Status.ne("draft"))
+                        .add(
+                            achievement::Column::TeacherId.in_subquery(
+                                Query::select()
+                                    .column(teacher::Column::Id)
+                                    .from(teacher::Entity)
+                                    .and_where(
+                                        Expr::col(teacher::Column::DepartmentId)
+                                            .eq(user.teacher.department_id),
+                                    )
+                                    .to_owned(),
+                            ),
+                        ),
                 );
             }
         }

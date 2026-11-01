@@ -17,7 +17,9 @@ RUN apk add --no-cache build-base pkgconfig sqlite-dev curl
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock* ./
-COPY crates/teacher_oa_service_migration/ crates/teacher_oa_service_migration/
+# Every workspace member and the patched lopdf must be present for Cargo to resolve the workspace.
+COPY crates/ crates/
+COPY vendor/ vendor/
 COPY build.rs ./
 
 # Pre-build dependencies as a cache layer. The command may fail before all template sources are
