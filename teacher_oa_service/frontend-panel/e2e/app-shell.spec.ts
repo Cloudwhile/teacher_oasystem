@@ -8,6 +8,7 @@ test("会话、读取档案、刷新并退出", async ({ page }) => {
 	await expect(
 		page.getByRole("heading", { name: "工作台", exact: true }),
 	).toBeVisible();
+	await page.getByRole("button", { name: /^账户菜单/ }).click();
 	await page.getByRole("link", { name: "个人档案", exact: true }).click();
 	await expect(
 		page.locator("dd").filter({ hasText: "DEMO-91001" }),
@@ -30,6 +31,7 @@ test("移动端导航不遮挡工作区", async ({ page }) => {
 		page.getByRole("heading", { name: "工作台", exact: true }),
 	).toBeVisible();
 	await page.getByRole("button", { name: "展开导航" }).click();
+	await page.getByRole("button", { name: /^账户菜单/ }).click();
 	await page.getByRole("link", { name: "个人档案", exact: true }).click();
 	await expect(
 		page.locator("dd").filter({ hasText: "DEMO-91002" }),

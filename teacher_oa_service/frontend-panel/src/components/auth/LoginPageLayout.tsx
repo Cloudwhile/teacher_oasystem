@@ -17,7 +17,16 @@ export function LoginPageLayout({
 	children: ReactNode;
 }) {
 	return (
-		<main className="login-page">
+		<main
+			className={`login-page${settings.background_url ? " has-background" : ""}`}
+		>
+			{settings.background_url && (
+				<div
+					className="login-backdrop"
+					aria-hidden="true"
+					style={{ backgroundImage: `url("${settings.background_url}")` }}
+				/>
+			)}
 			<header className="public-header">
 				<div className="public-container public-brand">
 					{settings.logo_url ? (
@@ -28,15 +37,7 @@ export function LoginPageLayout({
 					<span>{settings.title}</span>
 				</div>
 			</header>
-			<section
-				className="login-banner"
-				aria-label="登录入口"
-				style={
-					settings.background_url
-						? { backgroundImage: `url("${settings.background_url}")` }
-						: undefined
-				}
-			>
+			<section className="login-banner" aria-label="登录入口">
 				<div className="public-container login-banner-inner">{children}</div>
 			</section>
 			<AnnouncementBoard

@@ -93,9 +93,9 @@
 	justify-content: center;
 	gap: 9px;
 	min-height: 44px;
-	border: 1px solid #4038a8;
+	border: 1px solid var(--oa-brand-strong);
 	border-radius: 10px;
-	background: #4b43c4;
+	background: var(--oa-brand);
 	color: #fff;
 	font-size: 14px;
 	font-weight: 600;

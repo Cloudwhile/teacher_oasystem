@@ -1,7 +1,8 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> & {
 	label: string;
+	ref?: Ref<HTMLButtonElement>;
 };
 export function IconButton({
 	label,

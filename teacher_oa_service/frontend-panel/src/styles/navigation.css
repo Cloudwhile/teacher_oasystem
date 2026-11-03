@@ -1,0 +1,342 @@
+/* App shell, sidebar navigation and the mobile navigation drawer. */
+.app-shell {
+	display: grid;
+	grid-template-columns: var(--oa-sidebar-width) minmax(0, 1fr);
+	min-height: 100dvh;
+}
+.sidebar {
+	position: sticky;
+	top: 0;
+	align-self: start;
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	min-width: 0;
+	/* Only reached when the fixed parts outgrow a very short viewport. */
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: max(20px, env(safe-area-inset-top)) 12px
+		max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+	background: #fff;
+	border-right: 1px solid var(--oa-border);
+}
+.sidebar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-shrink: 0;
+	padding: 0 4px 16px 8px;
+}
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	border-radius: 8px;
+	color: var(--oa-text);
+	font-size: 20px;
+	font-weight: 700;
+}
+.brand > svg {
+	width: 32px;
+	height: 32px;
+	color: var(--oa-brand);
+	flex-shrink: 0;
+}
+.brand small {
+	display: block;
+	margin-top: 2px;
+	color: var(--oa-text-muted);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 1px;
+}
+.sidebar-nav {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+.sidebar-create {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	flex-shrink: 0;
+	min-height: 40px;
+	margin: 0 4px 12px;
+	padding: 0 14px;
+	border-radius: 8px;
+	background: var(--oa-brand);
+	color: #fff;
+	font-size: 14px;
+	font-weight: 600;
+	transition: background-color 150ms ease-out;
+}
+.sidebar-create > svg {
+	width: 18px;
+	height: 18px;
+}
+.navigation {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 0 4px 12px;
+}
+.nav-section + .nav-section {
+	margin-top: 16px;
+}
+.nav-group-label {
+	padding: 8px 12px 6px;
+	color: var(--oa-text-muted);
+	font-size: 12px;
+	font-weight: 500;
+}
+.nav-list,
+.nav-sublist,
+.account-menu ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.nav-link {
+	--nav-accent: #7a879c;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 44px;
+	margin: 2px 0;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--oa-text-nav);
+	font-size: 14px;
+	text-align: left;
+	transition:
+		color 150ms ease-out,
+		background-color 150ms ease-out;
+}
+.nav-link > svg {
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	color: var(--nav-accent);
+	transition: color 150ms ease-out;
+}
+.nav-text {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.nav-link.active {
+	--nav-accent: var(--oa-brand);
+	color: var(--oa-brand-strong);
+	background: var(--oa-brand-soft);
+	font-weight: 600;
+}
+/* The collapsed parent is the only cue left once its active child is hidden. */
+.nav-group-toggle.contains-current[aria-expanded="false"] {
+	--nav-accent: var(--oa-brand);
+	color: var(--oa-brand-strong);
+	font-weight: 600;
+}
+.nav-link:focus-visible,
+.account-trigger:focus-visible {
+	outline: 2px solid var(--oa-focus);
+	outline-offset: -2px;
+}
+.nav-sublist {
+	position: relative;
+	margin-bottom: 4px;
+	padding-left: 24px;
+}
+.nav-sublist::before {
+	content: "";
+	position: absolute;
+	top: 6px;
+	bottom: 6px;
+	left: 21px;
+	width: 1px;
+	background: var(--oa-border);
+}
+.nav-link.nav-sublink {
+	padding-left: 20px;
+}
+.sidebar-account {
+	flex-shrink: 0;
+	margin: 4px 4px 0;
+	padding-top: 10px;
+	border-top: 1px solid var(--oa-border);
+}
+.account-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.account-trigger {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	min-height: 52px;
+	padding: 6px 8px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--oa-text);
+	text-align: left;
+	transition: background-color 150ms ease-out;
+}
+.account-trigger.contains-current[aria-expanded="false"] {
+	background: var(--oa-brand-soft);
+}
+.nav-link > .nav-chevron,
+.account-trigger > .nav-chevron {
+	width: 16px;
+	height: 16px;
+	color: var(--oa-text-muted);
+	transition: transform 180ms ease-out;
+}
+.nav-group-toggle[aria-expanded="true"] > .nav-chevron,
+.account-trigger[aria-expanded="true"] > .nav-chevron {
+	transform: rotate(180deg);
+}
+.avatar {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	flex-shrink: 0;
+	border-radius: 50%;
+	background: var(--oa-brand-soft);
+	color: var(--oa-brand-strong);
+	font-size: 14px;
+	font-weight: 600;
+}
+.account-label {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.account-label strong,
+.account-label small {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.account-label strong {
+	font-size: 13px;
+	font-weight: 600;
+}
+.account-label small {
+	color: var(--oa-text-muted);
+	font-size: 12px;
+}
+/* Truncated while closed; the open menu shows the full name and department. */
+.account-trigger[aria-expanded="true"] .account-label strong,
+.account-trigger[aria-expanded="true"] .account-label small {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.account-menu {
+	padding: 2px 0;
+}
+.inline-error.account-error {
+	margin: 8px 4px 0;
+}
+.icon-button.menu-toggle,
+.icon-button.mobile-nav-close,
+.drawer-backdrop {
+	display: none;
+}
+.page-content:focus {
+	outline: none;
+}
+@media (hover: hover) {
+	.nav-link:hover,
+	.account-trigger:hover {
+		--nav-accent: var(--oa-brand);
+		color: var(--oa-text);
+		background: var(--oa-hover);
+	}
+	.nav-link.active:hover {
+		color: var(--oa-brand-strong);
+		background: var(--oa-brand-soft-hover);
+	}
+	.sidebar-create:hover {
+		background: var(--oa-brand-strong);
+	}
+}
+@media (max-width: 720px) {
+	.app-shell {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.sidebar {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 40;
+		width: min(280px, 85vw);
+		border-right: 1px solid var(--oa-border);
+		transform: translateX(-100%);
+		visibility: hidden;
+		transition:
+			transform 200ms ease-out,
+			visibility 0s linear 200ms;
+	}
+	.drawer-open .sidebar {
+		transform: none;
+		visibility: visible;
+		box-shadow: 0 8px 24px rgb(25 35 56 / 12%);
+		transition: transform 200ms ease-out;
+	}
+	.drawer-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		background: rgb(25 35 56 / 40%);
+		opacity: 0;
+		visibility: hidden;
+		transition:
+			opacity 200ms ease-out,
+			visibility 0s linear 200ms;
+	}
+	.drawer-open .drawer-backdrop {
+		opacity: 1;
+		visibility: visible;
+		transition: opacity 200ms ease-out;
+	}
+	html:has(.app-shell.drawer-open) {
+		overflow: hidden;
+	}
+	.icon-button.menu-toggle,
+	.icon-button.mobile-nav-close {
+		display: inline-flex;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.sidebar,
+	.drawer-open .sidebar,
+	.drawer-backdrop,
+	.drawer-open .drawer-backdrop,
+	.sidebar-create,
+	.nav-link,
+	.nav-link > svg,
+	.nav-link > .nav-chevron,
+	.account-trigger,
+	.account-trigger > .nav-chevron {
+		transition: none;
+	}
+}

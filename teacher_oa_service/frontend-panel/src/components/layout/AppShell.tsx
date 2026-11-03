@@ -1,39 +1,73 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { GraduationCap, Logout, Menu, X } from "reicon-react";
+import { GraduationCap, Menu, Plus, X } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { resolveNavigation } from "@/routes/navigationState";
 import { appPaths } from "@/routes/routePaths";
-import { workspaceContext } from "@/routes/workspaceContext";
+import { useMediaQuery } from "@/services/useMediaQuery";
+import { useOpenUntilNavigation } from "@/services/useOpenUntilNavigation";
 import { LeaveGuardContext } from "@/services/useUnsavedChanges";
 import { Navigation } from "./Navigation";
+import { navPaths } from "./navigation.config";
+import { SidebarAccount } from "./SidebarAccount";
+
+export const mobileDrawerQuery = "(max-width: 720px)";
 
 export function AppShell() {
 	const { session, logout } = useAuth();
-	const [menuOpen, setMenuOpen] = useState(false);
 	const [error, setError] = useState("");
 	const [leaving, setLeaving] = useState(false);
 	const location = useLocation();
-	const context = workspaceContext(
+	const nav = resolveNavigation(
 		location.pathname,
 		location.search,
 		location.state?.from,
 	);
-	const leaveGuard = useRef<(() => boolean) | null>(null);
-	const navigation = useRef<HTMLElement>(null);
-	const closeMenu = useCallback(() => {
+	const mobile = useMediaQuery(mobileDrawerQuery);
+	const [menuOpen, setMenuOpen] = useOpenUntilNavigation();
+	if (menuOpen && !mobile) setMenuOpen(false);
+	const drawerOpen = mobile && menuOpen;
+	const toggleButton = useRef<HTMLButtonElement>(null);
+	const closeButton = useRef<HTMLButtonElement>(null);
+	const main = useRef<HTMLElement>(null);
+	const restoreToggleFocus = useRef(false);
+	const wasOpen = useRef(false);
+	const closeDrawer = useCallback(() => {
+		restoreToggleFocus.current = true;
 		setMenuOpen(false);
-		document.getElementById("navigation-toggle")?.focus();
-	}, []);
+	}, [setMenuOpen]);
 	useEffect(() => {
-		if (!menuOpen) return;
-		navigation.current?.querySelector<HTMLElement>("button")?.focus();
+		if (drawerOpen) {
+			wasOpen.current = true;
+			closeButton.current?.focus();
+			return;
+		}
+		if (!wasOpen.current) return;
+		wasOpen.current = false;
+		const toToggle = restoreToggleFocus.current;
+		restoreToggleFocus.current = false;
+		// Closed by the user: back to the trigger. Closed because a navigation
+		// committed: into the new page instead of the now-hidden menu.
+		if (toToggle) toggleButton.current?.focus();
+		else if (mobile) main.current?.focus({ preventScroll: true });
+	}, [drawerOpen, mobile]);
+	useEffect(() => {
+		if (!drawerOpen) return;
 		const handleEscape = (event: KeyboardEvent) => {
-			if (event.key === "Escape") closeMenu();
+			if (event.key === "Escape") closeDrawer();
 		};
 		window.addEventListener("keydown", handleEscape);
 		return () => window.removeEventListener("keydown", handleEscape);
-	}, [menuOpen, closeMenu]);
+	}, [drawerOpen, closeDrawer]);
+	const leaveGuard = useRef<(() => boolean) | null>(null);
 	const guards = useMemo(
 		() => ({
 			register: (guard: () => boolean) => {
@@ -59,69 +93,79 @@ export function AppShell() {
 	};
 	return (
 		<LeaveGuardContext.Provider value={guards}>
-			<div className="app-shell">
-				<aside
-					ref={navigation}
+			<div className={`app-shell${drawerOpen ? " drawer-open" : ""}`}>
+				{/* Pointer shortcut only; the close button and Escape serve keyboard users. */}
+				<div
+					className="drawer-backdrop"
+					aria-hidden="true"
+					onClick={closeDrawer}
+				/>
+				{/* Modal only while it covers the page as a drawer; a plain sidebar otherwise. */}
+				<div
 					id="main-navigation"
-					className={`sidebar ${menuOpen ? "mobile-open" : ""}`}
-					aria-label="主导航"
+					className="sidebar"
+					{...(drawerOpen && {
+						role: "dialog",
+						"aria-modal": true,
+						"aria-label": "导航菜单",
+					})}
 				>
-					<IconButton
-						className="mobile-nav-close"
-						label="关闭导航"
-						onClick={closeMenu}
-					>
-						<X />
-					</IconButton>
-					<Link to={appPaths.dashboard} className="brand">
-						<GraduationCap aria-hidden="true" />
-						<span>
-							TeacherOA<small>教师综合 OA</small>
-						</span>
-					</Link>
-					<Navigation onNavigate={closeMenu} activeSection={context.section} />
-					<div className="sidebar-account">
-						<span className="avatar">
-							{session?.user.display_name.slice(0, 1)}
-						</span>
-						<div className="account-label">
-							<strong>{session?.user.display_name}</strong>
-							<small title={session?.user.teacher.department_name}>
-								{session?.user.teacher.department_name}
-							</small>
-						</div>
+					<div className="sidebar-header">
+						<Link to={appPaths.dashboard} className="brand">
+							<GraduationCap aria-hidden="true" />
+							<span>
+								TeacherOA<small>教师综合 OA</small>
+							</span>
+						</Link>
 						<IconButton
-							label="退出登录"
-							disabled={leaving}
-							onClick={() => {
-								void leave();
-							}}
+							ref={closeButton}
+							className="mobile-nav-close"
+							label="关闭导航"
+							onClick={closeDrawer}
 						>
-							<Logout />
+							<X />
 						</IconButton>
 					</div>
-					{error && (
-						<p className="inline-error" role="alert">
-							{error}
-						</p>
-					)}
-				</aside>
-				<div className="workspace">
+					<nav className="sidebar-nav" aria-label="主导航">
+						<Link to={navPaths.achievementsNew} className="sidebar-create">
+							<Plus aria-hidden="true" />
+							<span>新建成果</span>
+						</Link>
+						<Navigation state={nav} />
+					</nav>
+					<SidebarAccount
+						user={session?.user}
+						activeKey={nav.activeKey}
+						leaving={leaving}
+						error={error}
+						onLogout={() => {
+							void leave();
+						}}
+					/>
+				</div>
+				<div className="workspace" inert={drawerOpen}>
 					<header className="topbar">
 						<div className="breadcrumb">
 							<IconButton
+								ref={toggleButton}
 								className="menu-toggle"
-								id="navigation-toggle"
-								label={menuOpen ? "收起导航" : "展开导航"}
+								label="展开导航"
 								aria-controls="main-navigation"
-								aria-expanded={menuOpen}
-								onClick={() => setMenuOpen(!menuOpen)}
+								aria-expanded={drawerOpen}
+								onClick={() => setMenuOpen(true)}
 							>
 								<Menu />
 							</IconButton>
-							<span>工作空间</span>
-							<span aria-hidden="true">/</span>
-							<strong>{context.title}</strong>
+							{nav.trail.map((part, index) =>
+								index === nav.trail.length - 1 ? (
+									<strong key={part}>{part}</strong>
+								) : (
+									<Fragment key={part}>
+										<span>{part}</span>
+										<span aria-hidden="true">/</span>
+									</Fragment>
+								),
+							)}
 						</div>
 						<time dateTime={new Date().toISOString().slice(0, 10)}>
 							{new Intl.DateTimeFormat("zh-CN", {
@@ -132,7 +176,12 @@ export function AppShell() {
 							}).format(new Date())}
 						</time>
 					</header>
-					<main id="main-content" className="page-content">
+					<main
+						ref={main}
+						id="main-content"
+						className="page-content"
+						tabIndex={-1}
+					>
 						<Outlet />
 					</main>
 					<footer className="workspace-footer">

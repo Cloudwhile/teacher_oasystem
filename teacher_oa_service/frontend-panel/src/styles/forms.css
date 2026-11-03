@@ -27,8 +27,8 @@
 	outline: none;
 }
 .input-control:has(input:focus) {
-	border-color: #655dcf;
-	box-shadow: 0 0 0 3px rgb(81 73 220 / 12%);
+	border-color: var(--oa-focus);
+	box-shadow: 0 0 0 3px rgb(18 100 209 / 14%);
 }
 .input-control:has(input[aria-invalid="true"]) {
 	border-color: #c84c50;
@@ -62,7 +62,7 @@
 	border-radius: 8px;
 }
 .input-trailing .password-toggle:focus-visible {
-	outline: 2px solid #655dcf;
+	outline: 2px solid var(--oa-focus);
 	outline-offset: -3px;
 }
 @media (hover: hover) {
@@ -71,8 +71,8 @@
 	}
 	.input-trailing .password-toggle:hover:not(:disabled) {
 		border-color: transparent;
-		background: #f0f1f8;
-		color: #3f3a9e;
+		background: var(--oa-hover);
+		color: var(--oa-brand-strong);
 	}
 }
 @media (prefers-reduced-motion: reduce) {

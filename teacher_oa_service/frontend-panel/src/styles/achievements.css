@@ -1,10 +1,10 @@
 .icon-button.primary-action {
-	background: #5149dc;
+	background: var(--oa-brand);
 	color: #fff;
-	border-color: #5149dc;
+	border-color: var(--oa-brand);
 }
 .icon-button.primary-action:hover {
-	background: #423ac2;
+	background: var(--oa-brand-strong);
 	color: #fff;
 }
 .achievement-filters {
@@ -50,9 +50,6 @@
 	width: 18px;
 	height: 18px;
 }
-.icon-button.mobile-nav-close {
-	display: none;
-}
 .page-heading > div:first-child {
 	min-width: 0;
 }
@@ -62,7 +59,7 @@
 	overflow-wrap: anywhere;
 }
 .record-title:hover {
-	color: #5149dc;
+	color: var(--oa-brand);
 }
 .achievement-status {
 	padding: 4px 10px;
@@ -174,7 +171,7 @@
 	height: 16px;
 	margin-top: 3px;
 	flex-shrink: 0;
-	accent-color: #5149dc;
+	accent-color: var(--oa-brand);
 }
 .participant-row {
 	display: grid;
@@ -334,11 +331,6 @@
 	}
 }
 @media (max-width: 720px) {
-	.icon-button.mobile-nav-close {
-		display: inline-flex;
-		align-self: flex-end;
-		margin-bottom: 12px;
-	}
 	.page-heading {
 		flex-wrap: wrap;
 		gap: 16px;
