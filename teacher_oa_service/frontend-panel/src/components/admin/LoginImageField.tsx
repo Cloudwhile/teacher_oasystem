@@ -1,7 +1,9 @@
 import { useRef } from "react";
 import { ActionButton } from "@/components/common/ActionButton";
 import { errorMessage } from "@/features/achievements/api";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { loginPageApi } from "@/features/auth/loginPageApi";
+import { HttpError } from "@/services/httpClient";
 
 export function LoginImageField({
 	label,
@@ -20,6 +22,7 @@ export function LoginImageField({
 	onBusy: (busy: boolean) => void;
 	onError: (error: string) => void;
 }) {
+	const { refresh } = useAuth();
 	const input = useRef<HTMLInputElement>(null);
 	const pending = useRef(false);
 	const upload = async (file?: File) => {
@@ -38,6 +41,7 @@ export function LoginImageField({
 		try {
 			onChange(await loginPageApi.upload(file, csrf));
 		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) void refresh();
 			onError(errorMessage(error, "图片上传失败，请重试"));
 		} finally {
 			pending.current = false;

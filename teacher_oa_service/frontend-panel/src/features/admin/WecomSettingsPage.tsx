@@ -21,7 +21,11 @@ export function WecomSettingsPage() {
 					onRetry={result.reload}
 				/>
 			) : (
-				<WecomSettingsForm initial={result.data} csrf={session.csrf_token} />
+				<WecomSettingsForm
+					initial={result.data}
+					csrf={session.csrf_token}
+					onReload={result.reload}
+				/>
 			)}
 		</>
 	);

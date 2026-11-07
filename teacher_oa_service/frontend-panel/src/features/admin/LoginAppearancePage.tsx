@@ -36,6 +36,7 @@ export function LoginAppearancePage() {
 				<LoginPageSettingsForm
 					initial={result.data}
 					csrf={session.csrf_token}
+					onReload={result.reload}
 				/>
 			)}
 		</>

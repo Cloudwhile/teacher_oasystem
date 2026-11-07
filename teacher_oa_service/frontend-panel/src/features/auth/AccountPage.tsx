@@ -4,11 +4,12 @@ import { ActionButton } from "@/components/common/ActionButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { PasswordField } from "@/components/common/PasswordField";
 import { errorMessage } from "@/features/achievements/api";
+import { HttpError } from "@/services/httpClient";
 import { safeReturnPath } from "@/services/returnPath";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import { useAuth } from "./AuthProvider";
 export function AccountPage() {
-	const { session, changePassword } = useAuth();
+	const { session, changePassword, refresh } = useAuth();
 	const [current, setCurrent] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
@@ -42,6 +43,7 @@ export function AccountPage() {
 				navigate(safeReturnPath(params.get("next")), { replace: true });
 			}
 		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) void refresh();
 			setError(errorMessage(error));
 		} finally {
 			setBusy(false);

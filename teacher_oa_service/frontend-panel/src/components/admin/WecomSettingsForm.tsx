@@ -3,14 +3,19 @@ import { ActionButton } from "@/components/common/ActionButton";
 import { FormField } from "@/components/common/FormField";
 import { errorMessage } from "@/features/achievements/api";
 import { adminApi, type WecomSettings } from "@/features/admin/api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { HttpError } from "@/services/httpClient";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 export function WecomSettingsForm({
 	initial,
 	csrf,
+	onReload,
 }: {
 	initial: WecomSettings;
 	csrf: string;
+	onReload: () => void;
 }) {
+	const { refresh } = useAuth();
 	const [saved, setSaved] = useState(initial);
 	const [corp, setCorp] = useState(initial.corp_id);
 	const [agent, setAgent] = useState(initial.agent_id);
@@ -19,7 +24,8 @@ export function WecomSettingsForm({
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	const [message, setMessage] = useState("");
-	useUnsavedChanges(
+	const [conflict, setConflict] = useState(false);
+	const guard = useUnsavedChanges(
 		corp !== saved.corp_id ||
 			agent !== saved.agent_id ||
 			enabled !== saved.enabled ||
@@ -32,6 +38,7 @@ export function WecomSettingsForm({
 		setBusy(true);
 		setError("");
 		setMessage("");
+		setConflict(false);
 		try {
 			const result = await adminApi.saveSettings(
 				{
@@ -49,6 +56,8 @@ export function WecomSettingsForm({
 			setSecret("");
 			setMessage("企业微信设置已保存");
 		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) void refresh();
+			setConflict(error instanceof HttpError && error.status === 409);
 			setError(errorMessage(error));
 		} finally {
 			setBusy(false);
@@ -118,6 +127,16 @@ export function WecomSettingsForm({
 				<p className="inline-error" role="alert">
 					{error}
 				</p>
+			)}
+			{conflict && (
+				<ActionButton
+					disabled={busy}
+					onClick={() => {
+						if (guard.confirmLeave()) onReload();
+					}}
+				>
+					加载最新设置
+				</ActionButton>
 			)}
 			{message && (
 				<p className="success-text" role="status">

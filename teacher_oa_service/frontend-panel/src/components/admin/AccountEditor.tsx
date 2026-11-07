@@ -10,6 +10,8 @@ import {
 	type AccountItem,
 	adminApi,
 } from "@/features/admin/api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { HttpError } from "@/services/httpClient";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 export function AccountEditor({
 	account,
@@ -24,6 +26,7 @@ export function AccountEditor({
 	onDone: () => void;
 	onCancel: () => void;
 }) {
+	const { refresh } = useAuth();
 	const initial: AccountInput = {
 		id: account?.id,
 		username: account?.username ?? "",
@@ -50,7 +53,9 @@ export function AccountEditor({
 			await adminApi.saveAccount(data, csrf);
 			guard.allowLeave();
 			onDone();
+			if (self && data.name !== account?.name) void refresh();
 		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) void refresh();
 			setError(errorMessage(error));
 		} finally {
 			setBusy(false);

@@ -2,10 +2,12 @@ import { type FormEvent, useRef, useState } from "react";
 import { ActionButton } from "@/components/common/ActionButton";
 import { FormField } from "@/components/common/FormField";
 import { errorMessage } from "@/features/achievements/api";
+import { useAuth } from "@/features/auth/AuthProvider";
 import {
 	type LoginPageSettings,
 	loginPageApi,
 } from "@/features/auth/loginPageApi";
+import { HttpError } from "@/services/httpClient";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import { AnnouncementManager } from "./AnnouncementManager";
 import { LoginImageField } from "./LoginImageField";
@@ -13,10 +15,13 @@ import { LoginImageField } from "./LoginImageField";
 export function LoginPageSettingsForm({
 	initial,
 	csrf,
+	onReload,
 }: {
 	initial: LoginPageSettings;
 	csrf: string;
+	onReload: () => void;
 }) {
+	const { refresh } = useAuth();
 	const [data, setData] = useState(initial);
 	const [saved, setSaved] = useState(initial);
 	const [saving, setSaving] = useState(false);
@@ -24,9 +29,10 @@ export function LoginPageSettingsForm({
 	const [noticeDirty, setNoticeDirty] = useState(false);
 	const [error, setError] = useState("");
 	const [message, setMessage] = useState("");
+	const [conflict, setConflict] = useState(false);
 	const pending = useRef(false);
 	const busy = saving || uploading;
-	useUnsavedChanges(
+	const guard = useUnsavedChanges(
 		JSON.stringify(data) !== JSON.stringify(saved) || noticeDirty,
 		busy,
 	);
@@ -36,6 +42,7 @@ export function LoginPageSettingsForm({
 		setSaving(true);
 		setError("");
 		setMessage("");
+		setConflict(false);
 		try {
 			const result = await loginPageApi.save(next, csrf);
 			setData(result);
@@ -43,6 +50,8 @@ export function LoginPageSettingsForm({
 			setMessage("登录页设置已保存");
 			return true;
 		} catch (error) {
+			if (error instanceof HttpError && error.status === 401) void refresh();
+			setConflict(error instanceof HttpError && error.status === 409);
 			setError(errorMessage(error));
 			return false;
 		} finally {
@@ -60,6 +69,16 @@ export function LoginPageSettingsForm({
 				<p role="alert" className="inline-error">
 					{error}
 				</p>
+			)}
+			{conflict && (
+				<ActionButton
+					disabled={busy}
+					onClick={() => {
+						if (guard.confirmLeave()) onReload();
+					}}
+				>
+					加载最新设置
+				</ActionButton>
 			)}
 			{message && (
 				<p role="status" className="success-text">
