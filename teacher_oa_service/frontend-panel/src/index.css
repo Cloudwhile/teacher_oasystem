@@ -453,6 +453,16 @@ tbody tr:last-child td {
 	padding: 48px;
 	display: grid;
 	gap: 20px;
+	justify-items: start;
+}
+.error-page .text-link,
+.permission-feedback .text-link {
+	min-height: 44px;
+	font-size: 14px;
+}
+.permission-feedback {
+	display: grid;
+	justify-items: center;
 }
 .spin {
 	animation: spin 1s linear infinite;

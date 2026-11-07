@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Refresh, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
 import { Feedback } from "@/components/common/Feedback";
@@ -7,6 +7,8 @@ import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
 import { achievementApi, errorMessage } from "@/features/achievements/api";
+import { appPaths } from "@/routes/routePaths";
+import { HttpError } from "@/services/httpClient";
 import { useResource } from "@/services/useResource";
 export function ReviewListPage() {
 	const [params, setParams] = useSearchParams();
@@ -24,6 +26,19 @@ export function ReviewListPage() {
 		next.delete("page");
 		setParams(next);
 	};
+	if (result.error instanceof HttpError && result.error.status === 403) {
+		return (
+			<>
+				<PageHeading title="审核中心" eyebrow="成果管理" />
+				<section className="panel permission-feedback">
+					<Feedback message="当前账号没有审核权限，无法查看审核待办。" />
+					<Link className="text-link" to={appPaths.dashboard}>
+						返回工作台
+					</Link>
+				</section>
+			</>
+		);
+	}
 	return (
 		<>
 			<PageHeading title="审核中心" eyebrow="成果管理">

@@ -331,6 +331,13 @@
 	}
 }
 @media (max-width: 720px) {
+	.achievement-filters select,
+	.achievement-filters input,
+	.form-field input,
+	.form-field select,
+	.editor-sections .section-heading select {
+		min-height: 44px;
+	}
 	.page-heading {
 		flex-wrap: wrap;
 		gap: 16px;
