@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Plus, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
 import { Feedback } from "@/components/common/Feedback";
@@ -11,6 +11,7 @@ import { achievementApi, errorMessage, statusLabels } from "./api";
 
 export function AchievementListPage() {
 	const [params, setParams] = useSearchParams();
+	const location = useLocation();
 	const queryParams = new URLSearchParams(params);
 	if (!queryParams.has("scope")) queryParams.set("scope", "mine");
 	const query = queryParams.toString();
@@ -35,6 +36,7 @@ export function AchievementListPage() {
 			>
 				<Link
 					to="/achievements/new"
+					state={{ from: location.pathname + location.search }}
 					className="icon-button primary-action"
 					aria-label="新建成果"
 					title="新建成果"
