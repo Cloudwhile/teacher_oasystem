@@ -2,7 +2,7 @@
 mod common;
 
 use actix_web::{http::StatusCode, test};
-use sea_orm::EntityTrait;
+use sea_orm::{ConnectionTrait, EntityTrait};
 use serde_json::{Value, json};
 use teacher_oa_service::{
     repositories::entities::login_settings,
@@ -276,6 +276,56 @@ async fn wecom_secret_encrypted_versioned_and_binding_unique() {
             .len(),
         2
     );
+}
+
+#[actix_web::test]
+async fn account_save_preserves_newer_credential_versions() {
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    // Advance the persisted version after save reads it, without timing or production hooks.
+    db.execute_unprepared(
+        "CREATE TRIGGER advance_credential_version AFTER UPDATE ON users BEGIN \
+         UPDATE password_credentials SET version = version + 1 WHERE user_id = NEW.id; END",
+    )
+    .await
+    .unwrap();
+    for (username, reset, active, expected_version) in [
+        ("profile", false, true, 2),
+        ("reset", true, true, 3),
+        ("disabled", false, false, 3),
+    ] {
+        let id = accounts::save(db, None, "", account(username, "teacher"))
+            .await
+            .unwrap();
+        let user = teacher_oa_service::repositories::identity::current_user(db, id)
+            .await
+            .unwrap();
+        let request = test::TestRequest::default().to_http_request();
+        let (cookie, _) = auth_service::create_session(&request, &state, user)
+            .await
+            .unwrap();
+        let mut update = account(username, "teacher");
+        update.id = Some(id);
+        update.active = active;
+        update.password = reset.then(|| "replacement-password-123".into());
+
+        accounts::save(db, None, "", update).await.unwrap();
+
+        assert_eq!(
+            accounts::credential_for(db, id)
+                .await
+                .unwrap()
+                .unwrap()
+                .version,
+            expected_version,
+            "{username} must preserve the newer persisted version"
+        );
+        let request = test::TestRequest::get()
+            .uri("/api/v1/auth/me")
+            .cookie(cookie)
+            .to_http_request();
+        assert!(auth_service::authenticate(&request, &state).await.is_err());
+    }
 }
 
 #[actix_web::test]

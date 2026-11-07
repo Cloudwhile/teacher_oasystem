@@ -375,26 +375,27 @@ pub async fn save(
             .filter(teacher::Column::UserId.eq(id))
             .exec(&txn)
             .await?;
-        let old = existing.ok_or(ApiError::NotFound)?;
-        // A new version revokes existing sessions, so re-enabling never revives them.
-        let mut update = credential::Entity::update_many().col_expr(
-            credential::Column::Version,
-            Expr::value(old.version + i32::from(password_hash.is_some() || !input.active)),
-        );
-        if let Some(hash) = password_hash {
-            update = update
-                .col_expr(credential::Column::PasswordHash, Expr::value(hash))
-                .col_expr(credential::Column::MustChange, Expr::value(true))
-                .col_expr(credential::Column::FailedAttempts, Expr::value(0))
-                .col_expr(
-                    credential::Column::LockedUntil,
-                    Expr::value(None::<chrono::DateTime<Utc>>),
-                );
+        // Increment the persisted version atomically; ordinary profile saves leave it alone.
+        if password_hash.is_some() || !input.active {
+            let mut update = credential::Entity::update_many().col_expr(
+                credential::Column::Version,
+                Expr::col(credential::Column::Version).add(1),
+            );
+            if let Some(hash) = password_hash {
+                update = update
+                    .col_expr(credential::Column::PasswordHash, Expr::value(hash))
+                    .col_expr(credential::Column::MustChange, Expr::value(true))
+                    .col_expr(credential::Column::FailedAttempts, Expr::value(0))
+                    .col_expr(
+                        credential::Column::LockedUntil,
+                        Expr::value(None::<chrono::DateTime<Utc>>),
+                    );
+            }
+            update
+                .filter(credential::Column::UserId.eq(id))
+                .exec(&txn)
+                .await?;
         }
-        update
-            .filter(credential::Column::UserId.eq(id))
-            .exec(&txn)
-            .await?;
         id
     } else {
         let account = user::ActiveModel {
