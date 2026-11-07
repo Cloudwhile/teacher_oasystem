@@ -9,7 +9,7 @@ use crate::{
     services::auth_service as auth,
 };
 use actix_web::{HttpRequest, HttpResponse, web};
-use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder};
 use serde::Deserialize;
 
 async fn authorized(request: &HttpRequest, state: &AppState) -> Result<(), ApiError> {
@@ -115,7 +115,7 @@ pub async fn teachers(
             .filter(scope)
             .filter(teacher::Column::EmploymentStatus.eq("active"))
             .order_by_asc(teacher::Column::Name)
-            .limit(300)
+            .order_by_asc(teacher::Column::Id)
             .all(state.db_handles.writer())
             .await?;
         success(
