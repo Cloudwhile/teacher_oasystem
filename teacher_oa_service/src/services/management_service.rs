@@ -73,8 +73,41 @@ impl Management {
             return Err(ApiError::Conflict("配置文件已被修改，请重新读取后再保存"));
         }
         let mut document: toml::Value = toml::from_str(&content).map_err(internal)?;
+        let saved: AppConfig = toml::from_str(&content).map_err(internal)?;
         let config = request.config;
-        // Update only the allowlist. Never serialize the full AppConfig (which redacts secrets).
+        // Match the desktop's direct loopback address, including wildcard listeners.
+        let direct_origin = |host: &str, port| -> Result<String, ApiError> {
+            let ip: std::net::IpAddr = host.parse().map_err(internal)?;
+            let loopback = if ip.is_unspecified() {
+                if ip.is_ipv6() {
+                    std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
+                } else {
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+                }
+            } else {
+                ip
+            };
+            let address = std::net::SocketAddr::new(loopback, port);
+            Ok(url::Url::parse(&format!("http://{address}"))
+                .map_err(internal)?
+                .origin()
+                .ascii_serialization())
+        };
+        let old_ip: std::net::IpAddr = saved.server.host.parse().map_err(internal)?;
+        if (old_ip.is_loopback() || old_ip.is_unspecified())
+            && saved.auth.public_origin == direct_origin(&saved.server.host, saved.server.port)?
+        {
+            let auth = document
+                .as_table_mut()
+                .ok_or(ApiError::Internal)?
+                .entry("auth")
+                .or_insert_with(|| toml::Value::Table(Default::default()));
+            auth.as_table_mut().ok_or(ApiError::Internal)?.insert(
+                "public_origin".into(),
+                toml::Value::String(direct_origin(&config.host, config.port)?),
+            );
+        }
+        // Update only the allowlist and its matching direct origin; preserve external origins.
         for (section, key, value) in [
             ("server", "host", toml::Value::String(config.host)),
             (

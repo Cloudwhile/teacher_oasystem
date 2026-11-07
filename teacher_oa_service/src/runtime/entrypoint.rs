@@ -31,7 +31,9 @@ pub async fn run() -> io::Result<()> {
             .unwrap_or_else(|| crate::config::DEFAULT_CONFIG_PATH.into());
         state.management = Some(std::sync::Arc::new(
             crate::services::management_service::Management::new(
-                token.into_string().map_err(|_| to_io_error("桌面管理凭据格式无效"))?,
+                token
+                    .into_string()
+                    .map_err(|_| to_io_error("桌面管理凭据格式无效"))?,
                 path,
             )?,
         ));

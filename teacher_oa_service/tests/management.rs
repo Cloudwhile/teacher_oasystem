@@ -169,6 +169,80 @@ async fn ordinary_startup_does_not_enable_desktop_management() {
 }
 
 #[actix_web::test]
+async fn listener_changes_update_only_matching_direct_loopback_origins() {
+    for (host, origin, next_host, expected) in [
+        (
+            "127.0.0.1",
+            "http://127.0.0.1:3000",
+            "127.0.0.1",
+            "http://127.0.0.1:3001",
+        ),
+        (
+            "0.0.0.0",
+            "http://127.0.0.1:3000",
+            "::",
+            "http://[::1]:3001",
+        ),
+        (
+            "::1",
+            "http://[::1]:3000",
+            "127.0.0.1",
+            "http://127.0.0.1:3001",
+        ),
+        (
+            "127.0.0.1",
+            "https://oa.example.edu.cn",
+            "127.0.0.1",
+            "https://oa.example.edu.cn",
+        ),
+        (
+            "127.0.0.1",
+            "http://127.0.0.1:9000",
+            "127.0.0.1",
+            "http://127.0.0.1:9000",
+        ),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("service.toml");
+        let content = format!(
+            "{}\n[auth]\npublic_origin = {origin:?}\n",
+            CONFIG.replace("host = \"127.0.0.1\"", &format!("host = {host:?}"))
+        );
+        std::fs::write(&path, &content).unwrap();
+        let active = toml::from_str(&content).unwrap();
+        let management = Management::new(TOKEN.into(), path.clone()).unwrap();
+        let snapshot = management.snapshot(&active).unwrap();
+        let mut config = snapshot.saved;
+        config.host = next_host.into();
+        config.port = 3001;
+
+        management
+            .save(
+                &active,
+                SaveConfig {
+                    config,
+                    revision: snapshot.revision,
+                },
+            )
+            .unwrap();
+
+        let saved: teacher_oa_service::config::AppConfig =
+            toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            saved.auth.public_origin, expected,
+            "listener {host}, origin {origin}"
+        );
+        let request = test::TestRequest::post()
+            .insert_header(("Origin", expected))
+            .to_http_request();
+        assert!(
+            teacher_oa_service::services::auth_service::ensure_origin(&request, &saved.auth)
+                .is_ok()
+        );
+    }
+}
+
+#[actix_web::test]
 async fn invalid_management_credentials_fail_closed() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
