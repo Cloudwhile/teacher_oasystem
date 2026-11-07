@@ -6,13 +6,23 @@ use sea_orm_migration::prelude::MigratorTrait;
 use sea_orm_migration::prelude::SchemaManager;
 
 #[test]
-fn foundation_migration_is_registered_first() {
+fn migrations_preserve_registered_names_and_order() {
     let migrations = teacher_oa_service_migration::Migrator::migrations();
+    let names: Vec<_> = migrations
+        .iter()
+        .map(|migration| migration.name())
+        .collect();
 
-    assert_eq!(migrations.len(), 5);
     assert_eq!(
-        migrations[0].name(),
-        "m20260627_000001_forge_foundation_schema"
+        names,
+        [
+            "m20260627_000001_forge_foundation_schema",
+            "m20261025_000002_identity_schema",
+            "m20261025_000003_achievement_catalog",
+            "m20261025_000004_achievement_records",
+            "m20261030_000005_accounts_settings",
+            "m20261031_000006_login_page",
+        ]
     );
 }
 
