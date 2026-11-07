@@ -56,6 +56,8 @@ jobs:
       - name: Start TeacherOA service
         env:
           ASTER_CONFIG: config.development.toml
+          ASTER__AUTH__MOCK_ENABLED: "true"
+          ASTER__AUTH__MOCK_SEED: "true"
           ASTER__DATABASE__URL: postgres://teacher_oa:teacher_oa_ci@127.0.0.1:5432/teacher_oa_test
         run: |
           ./target/debug/teacher_oa_service > "$RUNNER_TEMP/teacheroa.log" 2>&1 &
