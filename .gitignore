@@ -16,6 +16,9 @@
 **/.github/instructions/
 
 # Local tools and generated output
+.omo/
+.debug-journal.md
+/DESIGN.md
 .cache/
 .tools/
 tmp/
