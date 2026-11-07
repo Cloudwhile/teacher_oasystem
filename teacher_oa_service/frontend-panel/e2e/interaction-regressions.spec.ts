@@ -351,6 +351,14 @@ test("320px 下导航可关闭、人员可排序，长标题无页面溢出", as
 	await expect(close).toBeFocused();
 	const box = await close.boundingBox();
 	expect(box?.y).toBeLessThan(200);
+	const drawer = page.getByRole("dialog", { name: "导航菜单" });
+	const brand = drawer.getByRole("link", { name: "TeacherOA 教师综合 OA" });
+	const logout = drawer.getByRole("button", { name: "退出登录" });
+	await logout.focus();
+	await page.keyboard.press("Tab");
+	await expect(brand).toBeFocused();
+	await page.keyboard.press("Shift+Tab");
+	await expect(logout).toBeFocused();
 	await page.keyboard.press("Escape");
 	await expect(
 		page.getByRole("button", { name: "展开导航", exact: true }),

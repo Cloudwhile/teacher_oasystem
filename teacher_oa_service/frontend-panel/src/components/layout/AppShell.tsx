@@ -37,6 +37,7 @@ export function AppShell() {
 	const drawerOpen = mobile && menuOpen;
 	const toggleButton = useRef<HTMLButtonElement>(null);
 	const closeButton = useRef<HTMLButtonElement>(null);
+	const drawer = useRef<HTMLDivElement>(null);
 	const main = useRef<HTMLElement>(null);
 	const restoreToggleFocus = useRef(false);
 	const wasOpen = useRef(false);
@@ -61,11 +62,29 @@ export function AppShell() {
 	}, [drawerOpen, mobile]);
 	useEffect(() => {
 		if (!drawerOpen) return;
-		const handleEscape = (event: KeyboardEvent) => {
-			if (event.key === "Escape") closeDrawer();
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				closeDrawer();
+				return;
+			}
+			if (event.key !== "Tab" || !drawer.current) return;
+			const controls = Array.from(
+				drawer.current.querySelectorAll<HTMLElement>(
+					'a[href], button:not(:disabled), [tabindex="0"]',
+				),
+			).filter((element) => element.getClientRects().length > 0);
+			const first = controls.at(0);
+			const last = controls.at(-1);
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last?.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first?.focus();
+			}
 		};
-		window.addEventListener("keydown", handleEscape);
-		return () => window.removeEventListener("keydown", handleEscape);
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [drawerOpen, closeDrawer]);
 	const leaveGuard = useRef<(() => boolean) | null>(null);
 	const guards = useMemo(
@@ -102,6 +121,7 @@ export function AppShell() {
 				/>
 				{/* Modal only while it covers the page as a drawer; a plain sidebar otherwise. */}
 				<div
+					ref={drawer}
 					id="main-navigation"
 					className="sidebar"
 					{...(drawerOpen && {
