@@ -347,6 +347,7 @@ pub async fn submit(
     if update.rows_affected != 1 {
         return Err(ApiError::Conflict("记录状态或版本已变化，请重新加载"));
     }
+    replace_links(&txn, id, &input).await?;
     let record = achievement::Entity::find_by_id(id)
         .one(&txn)
         .await?

@@ -607,6 +607,83 @@ async fn normalized_participants_and_revision_titles_match_persisted_data() {
 }
 
 #[actix_web::test]
+async fn submit_persists_renamed_participants_in_detail_and_revisions() {
+    use teacher_oa_service::repositories::entities::teacher;
+    let (state, _database) = setup().await;
+    let app = create_test_app!(state.clone());
+    let (cookie, csrf) = login!(app, "teacher");
+    let file_id = upload!(app, cookie, csrf);
+    let mut data = draft("research_project", vec![file_id]);
+    data["participants"] =
+        json!([{"teacher_id":91001,"external_name":"","role_code":"host","sort_order":0}]);
+    let response = mutation!(app, post, "/api/v1/achievements", cookie, csrf, data);
+    assert_eq!(response.status(), StatusCode::OK);
+    let created: Value = test::read_body_json(response).await;
+    let id = created["data"]["record"]["id"].as_i64().unwrap();
+    teacher::Entity::update_many()
+        .col_expr(teacher::Column::Name, Expr::value("改名教师"))
+        .filter(teacher::Column::Id.eq(91001))
+        .exec(state.db_handles.writer())
+        .await
+        .unwrap();
+
+    let response = mutation!(
+        app,
+        post,
+        &format!("/api/v1/achievements/{id}/submit"),
+        cookie,
+        csrf,
+        json!({"version":1})
+    );
+    assert_eq!(response.status(), StatusCode::OK);
+    let submitted: Value = test::read_body_json(response).await;
+    assert_eq!(
+        submitted["data"]["data"]["participants"][0]["external_name"],
+        "改名教师"
+    );
+    assert_eq!(submitted["data"]["data"]["file_ids"], json!([file_id]));
+    let (reviewer, reviewer_csrf) = login!(app, "reviewer");
+    let response = mutation!(
+        app,
+        post,
+        &format!("/api/v1/achievements/{id}/approve"),
+        reviewer,
+        reviewer_csrf,
+        json!({"version":2,"opinion":""})
+    );
+    assert_eq!(response.status(), StatusCode::OK);
+    let approved: Value = test::read_body_json(response).await;
+    assert_eq!(
+        approved["data"]["data"]["participants"][0]["external_name"],
+        "改名教师"
+    );
+    let response = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/api/v1/achievements/{id}/revisions"))
+            .cookie(cookie)
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let revisions: Value = test::read_body_json(response).await;
+    for index in [0, 1] {
+        assert_eq!(
+            revisions["data"][index]["snapshot"]["data"]["participants"][0]["external_name"],
+            "改名教师"
+        );
+        assert_eq!(
+            revisions["data"][index]["snapshot"]["data"]["file_ids"],
+            json!([file_id])
+        );
+    }
+    assert_eq!(
+        revisions["data"][2]["snapshot"]["data"]["participants"][0]["external_name"],
+        "测试教师"
+    );
+}
+
+#[actix_web::test]
 async fn search_treats_wildcards_as_text_and_pagination_stays_in_range() {
     let (state, _database) = setup().await;
     let app = create_test_app!(state);
