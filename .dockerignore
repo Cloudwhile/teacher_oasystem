@@ -3,6 +3,7 @@
 .tools
 .playwright-cli
 tmp
+**/.tmp
 output
 dev_docs
 docs

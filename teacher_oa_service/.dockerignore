@@ -33,6 +33,8 @@ config.*.local.toml
 .cache
 .tools
 tmp
+.tmp
+**/.tmp
 output
 **/node_modules
 **/dist

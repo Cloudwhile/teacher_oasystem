@@ -5,7 +5,11 @@ Push-Location $serviceRoot
 try {
     Push-Location (Join-Path $serviceRoot 'frontend-panel')
     try {
-        & npm run build
+        if (Get-Command bun -ErrorAction SilentlyContinue) {
+            & bun run build
+        } else {
+            & npm run build
+        }
         if ($LASTEXITCODE -ne 0) { throw '前端构建失败' }
     } finally { Pop-Location }
     $buildArgs = @('build', '-p', 'teacher_oa_service', '-p', 'teacher_oa_desktop')
