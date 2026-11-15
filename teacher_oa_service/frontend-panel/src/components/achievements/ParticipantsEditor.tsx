@@ -94,9 +94,9 @@ export function ParticipantsEditor({
 			{value.length === 0 && <p className="empty-message">尚未添加相关人员</p>}
 			{value.map((person, index) => {
 				const rowKey = rowKeys.current[index] ?? index;
-				const personId = `person-${rowKey}`;
-				const nameId = `name-${rowKey}`;
-				const roleId = `role-${rowKey}`;
+				const personId = `person-${index}`;
+				const nameId = `name-${index}`;
+				const roleId = `role-${index}`;
 				return (
 					<div className="participant-row" key={rowKey}>
 						<span className="participant-order">{index + 1}</span>
