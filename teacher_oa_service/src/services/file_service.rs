@@ -17,6 +17,13 @@ const PDF_DECODE_LIMIT: usize = 32 * 1024 * 1024;
 static INSPECTIONS: std::sync::LazyLock<tokio::sync::Semaphore> =
     std::sync::LazyLock::new(|| tokio::sync::Semaphore::new(2));
 
+pub async fn acquire_inspection() -> Result<tokio::sync::SemaphorePermit<'static>, ApiError> {
+    tokio::time::timeout(std::time::Duration::from_secs(30), INSPECTIONS.acquire())
+        .await
+        .map_err(|_| ApiError::Unavailable)?
+        .map_err(|_| ApiError::Internal)
+}
+
 pub fn inspect(filename: &str, claimed_mime: &str, bytes: &[u8]) -> Result<&'static str, ApiError> {
     if filename.is_empty()
         || filename.chars().count() > 255
@@ -27,10 +34,9 @@ pub fn inspect(filename: &str, claimed_mime: &str, bytes: &[u8]) -> Result<&'sta
         return Err(ApiError::Invalid("文件名无效"));
     }
     let extension = filename
-        .rsplit('.')
-        .next()
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+        .rsplit_once('.')
+        .and_then(|(stem, ext)| (!stem.is_empty()).then(|| ext.to_ascii_lowercase()))
+        .unwrap_or_default();
     let mime = if bytes.starts_with(b"%PDF-") {
         if extension != "pdf" {
             return Err(ApiError::Invalid("文件扩展名与内容不一致"));
@@ -121,10 +127,7 @@ pub async fn upload(
     if bytes.is_empty() {
         return Err(ApiError::Invalid("文件不能为空"));
     }
-    let permit = tokio::time::timeout(std::time::Duration::from_secs(30), INSPECTIONS.acquire())
-        .await
-        .map_err(|_| ApiError::Unavailable)?
-        .map_err(|_| ApiError::Internal)?;
+    let permit = acquire_inspection().await?;
     let (filename, mime, bytes) = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         let mime = inspect(&filename, &claimed_mime, &bytes)?;

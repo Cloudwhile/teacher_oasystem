@@ -69,6 +69,7 @@ export const navigationSections: NavSection[] = [
 						kind: "link",
 						key: "achievements-new",
 						to: navPaths.achievementsNew,
+						permission: "achievements:write",
 					},
 				],
 			},

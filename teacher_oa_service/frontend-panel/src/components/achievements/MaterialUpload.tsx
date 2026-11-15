@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { type DragEvent, useRef, useState } from "react";
 import { FolderOpen, Upload } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import {
@@ -33,7 +33,9 @@ export function MaterialUpload({
 	const [error, setError] = useState("");
 	const [picking, setPicking] = useState(false);
 	const [uploading, setUploading] = useState(false);
+	const [dragging, setDragging] = useState(false);
 	const pending = useRef(false);
+	const blocked = disabled || uploading || files.length >= 20;
 	const upload = async (selection: FileList | null) => {
 		if (!selection?.length || disabled || pending.current) return;
 		if (files.length + selection.length > 20) {
@@ -68,13 +70,36 @@ export function MaterialUpload({
 			if (input.current) input.current.value = "";
 		}
 	};
+	const handleDragOver = (event: DragEvent<HTMLElement>) => {
+		if (blocked) return;
+		event.preventDefault();
+		if (!dragging) setDragging(true);
+	};
+	const handleDragLeave = (event: DragEvent<HTMLElement>) => {
+		if (event.currentTarget.contains(event.relatedTarget as Node | null))
+			return;
+		setDragging(false);
+	};
+	const handleDrop = (event: DragEvent<HTMLElement>) => {
+		event.preventDefault();
+		setDragging(false);
+		if (blocked) return;
+		void upload(event.dataTransfer.files);
+	};
 	return (
-		<section className="panel">
+		// biome-ignore lint/a11y/noStaticElementInteractions: file drop target paired with the labelled keyboard upload button.
+		<section
+			className={`panel material-upload-panel${dragging ? " is-dragging" : ""}`}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
 			<div className="section-heading">
 				<h2>
 					证明材料<span className="required-mark"> *</span>
 				</h2>
 				<div className="row-actions">
+					<span className="section-meta">{files.length} / 20</span>
 					<IconButton
 						label="选择已有材料"
 						aria-expanded={picking}
@@ -87,7 +112,7 @@ export function MaterialUpload({
 						label="上传证明材料"
 						aria-invalid={Boolean(fieldError)}
 						aria-describedby={fieldError ? "proofs-error" : undefined}
-						disabled={disabled || uploading || files.length >= 20}
+						disabled={blocked}
 						onClick={() => input.current?.click()}
 					>
 						<Upload />
@@ -102,7 +127,7 @@ export function MaterialUpload({
 				accept=".pdf,.jpg,.jpeg,.png"
 				multiple
 				tabIndex={-1}
-				disabled={disabled || uploading || files.length >= 20}
+				disabled={blocked}
 				onChange={(event) => {
 					void upload(event.target.files);
 				}}
@@ -130,10 +155,38 @@ export function MaterialUpload({
 				/>
 			)}
 			{files.length ? (
-				<MaterialList
-					files={files}
-					onRemove={disabled || uploading ? undefined : onRemove}
-				/>
+				<>
+					<MaterialList
+						files={files}
+						onRemove={disabled || uploading ? undefined : onRemove}
+					/>
+					{!blocked && (
+						// biome-ignore lint/a11y/noStaticElementInteractions: keyboard users activate upload via the labelled IconButton in the section header.
+						// biome-ignore lint/a11y/useKeyWithClickEvents: pointer/drag convenience target paired with the accessible upload button above.
+						<div
+							className="upload-dropzone upload-dropzone-compact"
+							onClick={() => input.current?.click()}
+						>
+							<Upload aria-hidden="true" />
+							<span>继续点击或拖拽补充材料（支持 PDF、JPG、PNG）</span>
+						</div>
+					)}
+				</>
+			) : !blocked ? (
+				// biome-ignore lint/a11y/noStaticElementInteractions: keyboard users activate upload via the labelled IconButton in the section header.
+				// biome-ignore lint/a11y/useKeyWithClickEvents: pointer/drag convenience target paired with the accessible upload button above.
+				<div
+					className={`upload-dropzone${fieldError ? " has-error" : ""}`}
+					onClick={() => input.current?.click()}
+				>
+					<span className="upload-dropzone-icon" aria-hidden="true">
+						<Upload />
+					</span>
+					<p className="empty-message">尚未关联证明材料</p>
+					<small className="upload-dropzone-hint">
+						点击此处或拖拽 PDF、JPG、PNG 文件上传（最多 20 份）
+					</small>
+				</div>
 			) : (
 				<p className="empty-message">尚未关联证明材料</p>
 			)}

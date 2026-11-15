@@ -10,6 +10,7 @@ import {
 	statusLabels,
 } from "@/features/achievements/api";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { hasPermission } from "@/features/auth/permissions";
 import { useResource } from "@/services/useResource";
 export const roleLabels: Record<string, string> = {
 	teacher: "教师",
@@ -31,12 +32,14 @@ export function DashboardPage() {
 				title="工作台"
 				eyebrow={`你好，${session?.user.display_name ?? ""}`}
 			>
-				<Link
-					className="action-button action-button-primary"
-					to="/achievements/new"
-				>
-					新建成果
-				</Link>
+				{hasPermission(session?.user, "achievements:write") && (
+					<Link
+						className="action-button action-button-primary"
+						to="/achievements/new"
+					>
+						新建成果
+					</Link>
+				)}
 				<IconButton label="刷新工作台" onClick={result.reload}>
 					<Refresh />
 				</IconButton>

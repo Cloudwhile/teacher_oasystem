@@ -1,11 +1,13 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ActionButton } from "@/components/common/ActionButton";
 import { Feedback } from "@/components/common/Feedback";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { appPaths } from "@/routes/routePaths";
 
 export function ProtectedRoute() {
-	const { status, session, refresh } = useAuth();
+	const { status, session, refresh, logout } = useAuth();
 	const location = useLocation();
+	const navigate = useNavigate();
 	if (status === "loading") return <Feedback message="正在读取身份…" loading />;
 	if (status === "anonymous")
 		return (
@@ -17,12 +19,25 @@ export function ProtectedRoute() {
 		);
 	if (status === "forbidden")
 		return (
-			<Feedback
-				message="当前账户无法访问，请联系学校管理员。"
-				onRetry={() => {
-					void refresh();
-				}}
-			/>
+			<div className="stack">
+				<Feedback
+					message="当前账户无法访问，请联系学校管理员。"
+					onRetry={() => {
+						void refresh();
+					}}
+				/>
+				<div className="row-actions">
+					<ActionButton
+						onClick={() => {
+							void logout().finally(() => {
+								navigate(appPaths.login, { replace: true });
+							});
+						}}
+					>
+						切换账号登录
+					</ActionButton>
+				</div>
+			</div>
 		);
 	if (status === "error")
 		return (

@@ -1,6 +1,22 @@
 /** Generated from the Rust OpenAPI contract. Do not edit. */
 import type { operations } from "../api.generated";
 export interface PathsPart2 {
+    "/api/v1/files/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["file_download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/preview": {
         parameters: {
             query?: never;

@@ -106,12 +106,16 @@ pub async fn upload(
             image = Some((name, claimed, bytes));
         }
         let (name, claimed, bytes) = image.ok_or(ApiError::Invalid("请选择图片"))?;
+        if bytes.is_empty() {
+            return Err(ApiError::Invalid("图片不能为空"));
+        }
+        let permit = file_service::acquire_inspection().await?;
         let (mime, bytes) = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
             let ext = name
-                .rsplit('.')
-                .next()
-                .unwrap_or_default()
-                .to_ascii_lowercase();
+                .rsplit_once('.')
+                .and_then(|(stem, ext)| (!stem.is_empty()).then(|| ext.to_ascii_lowercase()))
+                .unwrap_or_default();
             if !["png", "jpg", "jpeg"].contains(&ext.as_str()) {
                 return Err(ApiError::Invalid("请选择PNG或JPG图片"));
             }

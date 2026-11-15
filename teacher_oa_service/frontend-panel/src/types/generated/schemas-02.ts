@@ -43,6 +43,7 @@ export interface SchemasPart2 {
         sort_order: number;
         /** Format: int64 */
         teacher_id?: number | null;
+        teacher_name?: string | null;
     };
     PasswordChange: {
         current_password: string;

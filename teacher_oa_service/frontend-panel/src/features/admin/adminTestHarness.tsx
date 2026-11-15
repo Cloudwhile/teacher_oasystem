@@ -13,7 +13,10 @@ export const identity: AuthResponse = {
 		id: 1,
 		display_name: "原管理员",
 		roles: ["admin"],
-		grants: [{ permission: "admin:manage", scope: "ALL" }],
+		grants: [
+			{ permission: "admin:manage", scope: "ALL" },
+			{ permission: "achievements:write", scope: "SELF" },
+		],
 		teacher: {
 			id: 1,
 			user_id: 1,

@@ -13,6 +13,8 @@ pub enum ApiError {
     TooManyAttempts,
     #[error("无权访问此内容")]
     Forbidden,
+    #[error("当前访问地址未在允许来源中，请使用配置的地址访问或更新 auth.public_origin")]
+    OriginMismatch,
     #[error("{0}")]
     Invalid(&'static str),
     #[error("服务暂时不可用，请稍后重试")]
@@ -100,7 +102,7 @@ impl ResponseError for RequestError {
             ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiError::InvalidCredentials => StatusCode::UNAUTHORIZED,
             ApiError::TooManyAttempts => StatusCode::TOO_MANY_REQUESTS,
-            ApiError::Forbidden => StatusCode::FORBIDDEN,
+            ApiError::Forbidden | ApiError::OriginMismatch => StatusCode::FORBIDDEN,
             ApiError::Invalid(_) => StatusCode::BAD_REQUEST,
             ApiError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             ApiError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
@@ -115,7 +117,7 @@ impl ResponseError for RequestError {
             ApiError::Unauthorized => ApiErrorCode::Unauthorized,
             ApiError::InvalidCredentials => ApiErrorCode::Unauthorized,
             ApiError::TooManyAttempts => ApiErrorCode::Unavailable,
-            ApiError::Forbidden => ApiErrorCode::Forbidden,
+            ApiError::Forbidden | ApiError::OriginMismatch => ApiErrorCode::Forbidden,
             ApiError::Invalid(_) => ApiErrorCode::InvalidRequest,
             ApiError::Unavailable => ApiErrorCode::Unavailable,
             ApiError::Internal => ApiErrorCode::InternalError,

@@ -85,7 +85,11 @@ pub async fn list(
         }
         select = match query.sort.as_deref().unwrap_or("updated_at_desc") {
             "updated_at_desc" => select.order_by_desc(achievement::Column::UpdatedAt),
-            "occurred_at_desc" => select.order_by_desc(achievement::Column::OccurredAt),
+            "occurred_at_desc" => select.order_by_with_nulls(
+                achievement::Column::OccurredAt,
+                sea_orm::Order::Desc,
+                sea_orm::sea_query::NullOrdering::Last,
+            ),
             _ => return Err(ApiError::Invalid("排序方式无效")),
         };
         let pager = select
@@ -216,23 +220,49 @@ pub async fn revisions(
             Some(*id),
         )
         .await?;
-        let mut revisions = Vec::new();
+        let mut parsed = Vec::with_capacity(rows.len());
+        let mut teacher_ids = std::collections::BTreeSet::new();
         for r in rows {
             let snapshot: AchievementSnapshot =
                 serde_json::from_value(r.snapshot).map_err(|_| ApiError::Internal)?;
+            for person in &snapshot.data.participants {
+                if let Some(tid) = person.teacher_id {
+                    teacher_ids.insert(tid);
+                }
+            }
+            parsed.push((
+                r.version,
+                r.schema_version,
+                r.modified_by,
+                r.created_at,
+                snapshot,
+            ));
+        }
+        let names = repo::teacher_names(state.db_handles.writer(), teacher_ids).await?;
+        let mut revisions = Vec::with_capacity(parsed.len());
+        for (version, schema_version, modified_by, created_at, mut snapshot) in parsed {
+            for person in &mut snapshot.data.participants {
+                if person.teacher_name.is_none() {
+                    person.teacher_name =
+                        person.teacher_id.and_then(|tid| names.get(&tid).cloned());
+                }
+            }
             let mut files = Vec::new();
             for file_id in &snapshot.data.file_ids {
-                files.push(repo::metadata(
-                    repo::file_access(state.db_handles.writer(), &user, *file_id).await?,
-                ));
+                if let Ok(model) =
+                    repo::file_access(state.db_handles.writer(), &user, *file_id).await
+                {
+                    files.push(repo::metadata(model));
+                }
             }
+            snapshot.data.file_ids = files.iter().map(|f| f.id).collect();
             revisions.push(RevisionItem {
-                version: r.version,
-                schema_version: r.schema_version,
+                version,
+                schema_version,
                 snapshot,
                 files,
-                modified_by: r.modified_by,
-                created_at: r.created_at,
+                modified_by,
+                created_at,
             });
         }
         success(&request, AchievementRevisions(revisions))

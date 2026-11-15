@@ -249,17 +249,37 @@ pub async fn item(
         updated_at: r.updated_at,
     })
 }
+pub async fn teacher_names(
+    db: &impl ConnectionTrait,
+    ids: impl IntoIterator<Item = i64>,
+) -> Result<std::collections::BTreeMap<i64, String>, ApiError> {
+    let ids: Vec<i64> = ids.into_iter().collect();
+    if ids.is_empty() {
+        return Ok(std::collections::BTreeMap::new());
+    }
+    Ok(teacher::Entity::find()
+        .filter(teacher::Column::Id.is_in(ids))
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|row| (row.id, row.name))
+        .collect())
+}
+
 pub async fn input(
     db: &impl ConnectionTrait,
     r: &achievement::Model,
 ) -> Result<AchievementInput, ApiError> {
-    let participants = participant::Entity::find()
+    let rows = participant::Entity::find()
         .filter(participant::Column::AchievementId.eq(r.id))
         .order_by_asc(participant::Column::SortOrder)
         .all(db)
-        .await?
+        .await?;
+    let names = teacher_names(db, rows.iter().filter_map(|p| p.teacher_id)).await?;
+    let participants = rows
         .into_iter()
         .map(|p| ParticipantInput {
+            teacher_name: p.teacher_id.and_then(|id| names.get(&id).cloned()),
             teacher_id: p.teacher_id,
             external_name: p.external_name,
             role_code: p.role_code,
@@ -295,16 +315,14 @@ pub async fn detail(
     user: &CurrentUser,
     r: &achievement::Model,
 ) -> Result<AchievementDetail, ApiError> {
-    let data = input(db, r).await?;
+    let mut data = input(db, r).await?;
     let mut files = Vec::new();
     for id in &data.file_ids {
-        files.push(metadata(
-            file::Entity::find_by_id(*id)
-                .one(db)
-                .await?
-                .ok_or(ApiError::Internal)?,
-        ));
+        if let Ok(model) = file_access(db, user, *id).await {
+            files.push(metadata(model));
+        }
     }
+    data.file_ids = files.iter().map(|f| f.id).collect();
     let rows = review_event::Entity::find()
         .filter(review_event::Column::AchievementId.eq(r.id))
         .order_by_asc(review_event::Column::CreatedAt)
@@ -345,6 +363,15 @@ pub fn review_scope(user: &CurrentUser) -> Condition {
         .add(scope_for(user, "reviews:write"))
         .add(achievement::Column::TeacherId.ne(user.teacher.id))
         .add(achievement::Column::CreatedBy.ne(user.id))
+        .add(
+            achievement::Column::Id.not_in_subquery(
+                Query::select()
+                    .column(participant::Column::AchievementId)
+                    .from(participant::Entity)
+                    .and_where(Expr::col(participant::Column::TeacherId).eq(user.teacher.id))
+                    .to_owned(),
+            ),
+        )
 }
 
 pub async fn reviewable(

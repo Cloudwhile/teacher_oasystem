@@ -99,7 +99,8 @@ pub async fn password_login(
             crate::services::account_service::credential_for(state.db_handles.writer(), user.id)
                 .await?
                 .is_some_and(|c| c.must_change);
-        let (cookie, session) = auth::create_session(&request, &state, user.clone()).await?;
+        let (cookie, session) =
+            auth::create_password_session(&request, &state, user.clone()).await?;
         if session.credential_version != Some(verified_version) {
             state
                 .auth_store
@@ -139,7 +140,8 @@ pub async fn change_password(
             body.into_inner(),
         )
         .await?;
-        let (cookie, session) = auth::create_session(&request, &state, user.clone()).await?;
+        let (cookie, session) =
+            auth::create_password_session(&request, &state, user.clone()).await?;
         if session.credential_version != Some(verified_version) {
             state
                 .auth_store
@@ -270,12 +272,13 @@ pub async fn me(
         success(
             &request,
             AuthResponse {
-                must_change_password: crate::services::account_service::credential_for(
-                    state.db_handles.writer(),
-                    user.id,
-                )
-                .await?
-                .is_some_and(|c| c.must_change),
+                must_change_password: session.password_authenticated
+                    && crate::services::account_service::credential_for(
+                        state.db_handles.writer(),
+                        user.id,
+                    )
+                    .await?
+                    .is_some_and(|c| c.must_change),
                 user,
                 csrf_token: session.csrf_token,
             },

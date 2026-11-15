@@ -47,3 +47,20 @@ it("成果查询新建后返回恢复筛选与分页", async () => {
 	);
 	expect(await screen.findByRole("heading", { name: "成果查询" })).toBeTruthy();
 });
+it("切换下拉筛选时保留已输入的搜索词", async () => {
+	mockHttp((url) => {
+		if (url.endsWith("/auth/me")) return json(identity);
+		if (url.startsWith("/api/v1/achievements?"))
+			return json({ items: [], page: 1, page_size: 20, total: 0 });
+		return json([]);
+	});
+	const router = showPage(<Page />, "/achievements");
+	const search = await screen.findByLabelText("搜索成果名称");
+	fireEvent.change(search, { target: { value: "人工智能教学" } });
+	fireEvent.change(screen.getByLabelText("筛选状态"), {
+		target: { value: "approved" },
+	});
+	const nextParams = new URLSearchParams(router.state.location.search);
+	expect(nextParams.get("search")).toBe("人工智能教学");
+	expect(nextParams.get("status")).toBe("approved");
+});

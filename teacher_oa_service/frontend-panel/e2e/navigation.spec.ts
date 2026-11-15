@@ -381,11 +381,12 @@ test("键盘：Tab 顺序、Enter/Space 折叠、隐藏项不可聚焦", async (
 				document.activeElement?.textContent?.trim(),
 		);
 	const order = [];
-	for (let i = 0; i < 9; i++) {
+	for (let i = 0; i < 10; i++) {
 		await page.keyboard.press("Tab");
 		order.push(await focused());
 	}
 	expect(order).toEqual([
+		"跳至主要内容",
 		"TeacherOA教师综合 OA",
 		"新建成果",
 		"工作台",

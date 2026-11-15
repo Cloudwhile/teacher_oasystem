@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		);
 	}, []);
 	const refresh = useCallback(async () => {
-		setStatus("loading");
+		setStatus((previous) => (previous === "ready" ? previous : "loading"));
 		try {
 			setSession(await authApi.me());
 			setStatus("ready");

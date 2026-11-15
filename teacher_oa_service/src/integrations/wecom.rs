@@ -1,7 +1,12 @@
 use crate::{api::error::ApiError, config::AuthConfig};
 use async_trait::async_trait;
 use serde::Deserialize;
-use std::{sync::Arc, time::Duration};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex, OnceLock},
+    time::{Duration, Instant},
+};
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -22,10 +27,30 @@ pub trait WeComAdapter: Send + Sync {
     async fn exchange(&self, code: &str) -> Result<WeComIdentity, ApiError>;
 }
 
+struct DisabledWeComAdapter;
+
+#[async_trait]
+impl WeComAdapter for DisabledWeComAdapter {
+    fn enabled(&self) -> bool {
+        false
+    }
+    fn authorization_url(&self, _state: &str, _mode: LoginMode) -> Result<String, ApiError> {
+        Err(ApiError::Invalid("企业微信登录未启用"))
+    }
+    async fn exchange(&self, _code: &str) -> Result<WeComIdentity, ApiError> {
+        Err(ApiError::Unavailable)
+    }
+}
+
+pub fn disabled() -> Arc<dyn WeComAdapter> {
+    Arc::new(DisabledWeComAdapter)
+}
+
 struct RealWeComAdapter {
     config: AuthConfig,
     secret: String,
     client: reqwest::Client,
+    cached_token: tokio::sync::Mutex<Option<(String, Instant)>>,
 }
 
 #[derive(Deserialize)]
@@ -33,6 +58,7 @@ struct TokenResponse {
     #[serde(default)]
     errcode: i64,
     access_token: Option<String>,
+    expires_in: Option<u64>,
 }
 #[derive(Deserialize)]
 struct MemberResponse {
@@ -40,6 +66,46 @@ struct MemberResponse {
     errcode: i64,
     #[serde(alias = "UserId")]
     userid: Option<String>,
+}
+
+impl RealWeComAdapter {
+    async fn access_token(&self) -> Result<String, ApiError> {
+        let mut cached = self.cached_token.lock().await;
+        if let Some((token, expires_at)) = &*cached
+            && Instant::now() < *expires_at
+        {
+            return Ok(token.clone());
+        }
+        // Never propagate reqwest errors: they may include URLs containing credentials.
+        let token: TokenResponse = self
+            .client
+            .get("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
+            .query(&[
+                ("corpid", self.config.wecom_corp_id.as_str()),
+                ("corpsecret", self.secret.as_str()),
+            ])
+            .send()
+            .await
+            .map_err(|_| ApiError::Unavailable)?
+            .error_for_status()
+            .map_err(|_| ApiError::Unavailable)?
+            .json()
+            .await
+            .map_err(|_| ApiError::Unavailable)?;
+        if token.errcode != 0 {
+            return Err(ApiError::Unavailable);
+        }
+        let access_token = token
+            .access_token
+            .filter(|value| !value.is_empty())
+            .ok_or(ApiError::Unavailable)?;
+        let ttl_secs = token.expires_in.unwrap_or(7200).saturating_sub(120).max(30);
+        *cached = Some((
+            access_token.clone(),
+            Instant::now() + Duration::from_secs(ttl_secs),
+        ));
+        Ok(access_token)
+    }
 }
 
 #[async_trait]
@@ -76,29 +142,7 @@ impl WeComAdapter for RealWeComAdapter {
         if !self.enabled() {
             return Err(ApiError::Unavailable);
         }
-        // Never propagate reqwest errors: they may include URLs containing credentials.
-        let token: TokenResponse = self
-            .client
-            .get("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
-            .query(&[
-                ("corpid", self.config.wecom_corp_id.as_str()),
-                ("corpsecret", self.secret.as_str()),
-            ])
-            .send()
-            .await
-            .map_err(|_| ApiError::Unavailable)?
-            .error_for_status()
-            .map_err(|_| ApiError::Unavailable)?
-            .json()
-            .await
-            .map_err(|_| ApiError::Unavailable)?;
-        if token.errcode != 0 {
-            return Err(ApiError::Unavailable);
-        }
-        let token = token
-            .access_token
-            .filter(|value| !value.is_empty())
-            .ok_or(ApiError::Unavailable)?;
+        let token = self.access_token().await?;
         let member: MemberResponse = self
             .client
             .get("https://qyapi.weixin.qq.com/cgi-bin/auth/getuserinfo")
@@ -111,6 +155,9 @@ impl WeComAdapter for RealWeComAdapter {
             .json()
             .await
             .map_err(|_| ApiError::Unavailable)?;
+        if matches!(member.errcode, 40014 | 42001) {
+            *self.cached_token.lock().await = None;
+        }
         if member.errcode != 0 {
             return Err(ApiError::Unauthorized);
         }
@@ -155,5 +202,40 @@ pub fn build_with_secret(
         config: config.clone(),
         secret,
         client,
+        cached_token: tokio::sync::Mutex::new(None),
     }))
+}
+
+type AdapterMap = BTreeMap<[u8; 32], Arc<dyn WeComAdapter>>;
+
+pub fn cached_with_secret(
+    config: &AuthConfig,
+    secret: String,
+) -> crate::errors::Result<Arc<dyn WeComAdapter>> {
+    static ADAPTERS: OnceLock<Mutex<AdapterMap>> = OnceLock::new();
+    let mut hasher = Sha256::new();
+    for part in [
+        config.wecom_corp_id.as_str(),
+        config.wecom_agent_id.as_str(),
+        config.wecom_redirect_uri.as_str(),
+        secret.as_str(),
+    ] {
+        hasher.update(u64::try_from(part.len()).unwrap_or(0).to_le_bytes());
+        hasher.update(part.as_bytes());
+    }
+    let fingerprint: [u8; 32] = hasher.finalize().into();
+    let cache = ADAPTERS.get_or_init(|| Mutex::new(BTreeMap::new()));
+    if let Ok(guard) = cache.lock()
+        && let Some(existing) = guard.get(&fingerprint)
+    {
+        return Ok(existing.clone());
+    }
+    let built = build_with_secret(config, secret)?;
+    if let Ok(mut guard) = cache.lock() {
+        if guard.len() >= 16 {
+            guard.clear();
+        }
+        guard.insert(fingerprint, built.clone());
+    }
+    Ok(built)
 }

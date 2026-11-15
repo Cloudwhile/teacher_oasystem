@@ -1,20 +1,42 @@
-// Flat window caption button; kind 0 = minimize, 1 = maximize, 2 = close.
+// Flat window caption button; kind 0 = minimize, 1 = maximize/restore, 2 = close.
 export component CaptionButton inherits Rectangle {
     in property <string> label;
     in property <int> kind;
+    in property <bool> maximized: false;
     callback clicked;
     property <bool> danger: root.kind == 2;
     property <color> glyph-color: root.danger && touch.has-hover ? #ffffff : #182b43;
     width: 46px;
-    background: touch.pressed ? (root.danger ? #a8241a : #dde3eb) : touch.has-hover ? (root.danger ? #c42b1c : #eef1f5) : transparent;
+    background: touch.pressed ? (root.danger ? #a8241a : #dde5f0) : touch.has-hover ? (root.danger ? #c42b1c : #eef3fa) : transparent;
+    border-width: focus-scope.has-focus ? 2px : 0px;
+    border-color: root.danger ? #c42b1c : #1264d1;
+    animate background { duration: 120ms; }
     accessible-role: button;
     accessible-label: root.label;
     accessible-action-default => { root.clicked(); }
+    focus-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
     touch := TouchArea {
         clicked => { root.clicked(); }
     }
     if root.kind == 0: Rectangle { width: 10px; height: 1px; background: root.glyph-color; }
-    if root.kind == 1: Rectangle { width: 10px; height: 10px; border-width: 1px; border-color: root.glyph-color; }
+    if root.kind == 1 && !root.maximized: Rectangle { width: 10px; height: 10px; border-width: 1px; border-color: root.glyph-color; }
+    if root.kind == 1 && root.maximized: Path {
+        width: 10px;
+        height: 10px;
+        viewbox-width: 10;
+        viewbox-height: 10;
+        commands: "M 0 2 L 8 2 L 8 10 L 0 10 Z M 2 2 L 2 0 L 10 0 L 10 8 L 8 8";
+        stroke: root.glyph-color;
+        stroke-width: 1px;
+    }
     if root.kind == 2: Path {
         width: 10px;
         height: 10px;

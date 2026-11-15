@@ -31,9 +31,11 @@ pub async fn accounts(
 ) -> Result<HttpResponse, RequestError> {
     let result = async {
         admin(&request, &state, false).await?;
+        let settings = settings_service::read(&state).await?;
         success(
             &request,
-            account_service::accounts(state.db_handles.writer()).await?,
+            account_service::accounts_for_corp(state.db_handles.writer(), &settings.corp_id)
+                .await?,
         )
     }
     .await;
@@ -57,7 +59,8 @@ pub async fn save_account(
         .await?;
         success(
             &request,
-            account_service::accounts(state.db_handles.writer()).await?,
+            account_service::accounts_for_corp(state.db_handles.writer(), &settings.corp_id)
+                .await?,
         )
     }
     .await;

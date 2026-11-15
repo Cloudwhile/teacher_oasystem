@@ -105,6 +105,7 @@ pub async fn list(
         }
         let pager = select
             .order_by_desc(file::Column::CreatedAt)
+            .order_by_desc(file::Column::Id)
             .paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
         let page = page.min(total.div_ceil(page_size).max(1));

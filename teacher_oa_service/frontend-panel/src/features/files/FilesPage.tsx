@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { type DragEvent, useCallback, useRef, useState } from "react";
 import { Upload } from "reicon-react";
 import { MaterialList } from "@/components/achievements/MaterialList";
 import { Feedback } from "@/components/common/Feedback";
@@ -21,8 +21,12 @@ export function FilesPage() {
 	const result = useResource(load);
 	const input = useRef<HTMLInputElement>(null);
 	const [busy, setBusy] = useState(false);
+	const [dragging, setDragging] = useState(false);
 	const [error, setError] = useState("");
 	const pending = useRef(false);
+	const canUpload = Boolean(
+		session?.user.grants.some((grant) => grant.permission === "files:write"),
+	);
 	useUnsavedChanges(false, busy);
 	const upload = async (file?: File) => {
 		if (!file || !session || pending.current) return;
@@ -42,13 +46,28 @@ export function FilesPage() {
 			if (input.current) input.current.value = "";
 		}
 	};
+	const handleDragOver = (event: DragEvent<HTMLElement>) => {
+		if (!canUpload || busy) return;
+		event.preventDefault();
+		if (!dragging) setDragging(true);
+	};
+	const handleDragLeave = (event: DragEvent<HTMLElement>) => {
+		if (event.currentTarget.contains(event.relatedTarget as Node | null))
+			return;
+		setDragging(false);
+	};
+	const handleDrop = (event: DragEvent<HTMLElement>) => {
+		event.preventDefault();
+		setDragging(false);
+		if (!canUpload || busy) return;
+		void upload(event.dataTransfer.files[0]);
+	};
 	return (
 		<>
 			<PageHeading title="文件资料" eyebrow="证明材料">
-				{session?.user.grants.some(
-					(grant) => grant.permission === "files:write",
-				) && (
+				{canUpload && (
 					<IconButton
+						className="primary-action"
 						label="上传材料"
 						disabled={busy}
 						onClick={() => input.current?.click()}
@@ -88,13 +107,34 @@ export function FilesPage() {
 				/>
 			) : (
 				result.data && (
-					<section className="panel">
+					// biome-ignore lint/a11y/noStaticElementInteractions: file drop target paired with the labelled keyboard upload button.
+					<section
+						className={`panel material-upload-panel${dragging ? " is-dragging" : ""}`}
+						onDragOver={handleDragOver}
+						onDragLeave={handleDragLeave}
+						onDrop={handleDrop}
+					>
 						<div className="section-heading">
 							<h2>材料列表</h2>
 							<span className="section-meta">共 {result.data.total} 份</span>
 						</div>
 						{result.data.items.length ? (
 							<MaterialList files={result.data.items} />
+						) : canUpload ? (
+							// biome-ignore lint/a11y/noStaticElementInteractions: keyboard users activate upload via the labelled IconButton in PageHeading.
+							// biome-ignore lint/a11y/useKeyWithClickEvents: pointer/drag convenience target paired with the accessible upload button above.
+							<div
+								className="upload-dropzone"
+								onClick={() => !busy && input.current?.click()}
+							>
+								<span className="upload-dropzone-icon" aria-hidden="true">
+									<Upload />
+								</span>
+								<p className="empty-message">暂无可查看的材料。</p>
+								<small className="upload-dropzone-hint">
+									点击此处或拖拽 PDF、JPG、PNG 文件上传证明材料
+								</small>
+							</div>
 						) : (
 							<p className="empty-message">暂无可查看的材料。</p>
 						)}

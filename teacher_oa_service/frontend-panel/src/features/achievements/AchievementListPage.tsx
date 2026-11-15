@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Plus, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
@@ -6,12 +6,16 @@ import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { hasPermission } from "@/features/auth/permissions";
 import { useResource } from "@/services/useResource";
 import { achievementApi, errorMessage, statusLabels } from "./api";
 
 export function AchievementListPage() {
+	const { session } = useAuth();
 	const [params, setParams] = useSearchParams();
 	const location = useLocation();
+	const formRef = useRef<HTMLFormElement>(null);
 	const queryParams = new URLSearchParams(params);
 	if (!queryParams.has("scope")) queryParams.set("scope", "mine");
 	const query = queryParams.toString();
@@ -23,6 +27,13 @@ export function AchievementListPage() {
 	const result = useResource(load);
 	const filter = (key: string, value: string) => {
 		const next = new URLSearchParams(params);
+		if (formRef.current && key !== "search") {
+			const searchText = String(
+				new FormData(formRef.current).get("search") ?? "",
+			).trim();
+			if (searchText) next.set("search", searchText);
+			else next.delete("search");
+		}
 		if (value) next.set(key, value);
 		else next.delete(key);
 		next.delete("page");
@@ -34,22 +45,25 @@ export function AchievementListPage() {
 				title={params.get("scope") === "all" ? "成果查询" : "我的成果"}
 				eyebrow="成果管理"
 			>
-				<Link
-					to="/achievements/new"
-					state={{ from: location.pathname + location.search }}
-					className="icon-button primary-action"
-					aria-label="新建成果"
-					title="新建成果"
-				>
-					<Plus />
-				</Link>
+				{hasPermission(session?.user, "achievements:write") && (
+					<Link
+						to="/achievements/new"
+						state={{ from: location.pathname + location.search }}
+						className="icon-button primary-action"
+						aria-label="新建成果"
+						title="新建成果"
+					>
+						<Plus />
+					</Link>
+				)}
 			</PageHeading>
 			<form
+				ref={formRef}
 				className="achievement-filters with-scope"
 				onSubmit={(event) => {
 					event.preventDefault();
 					const data = new FormData(event.currentTarget);
-					filter("search", String(data.get("search") ?? ""));
+					filter("search", String(data.get("search") ?? "").trim());
 				}}
 			>
 				<select

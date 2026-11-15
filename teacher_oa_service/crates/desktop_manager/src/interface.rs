@@ -52,7 +52,8 @@ fn set_config(ui: &AppWindow, snapshot: &ConfigSnapshot) {
     ui.set_config_dirty(false);
 }
 
-fn confirm(kind: i32, running: bool) -> bool {
+fn confirm(kind: i32, running: bool, connected: bool) -> bool {
+    let force_exit = kind == 4 && running && !connected;
     let (title, description, action) = match kind {
         1 => ("停止服务？", "系统将等待当前请求处理完成。", "停止"),
         2 => (
@@ -63,12 +64,20 @@ fn confirm(kind: i32, running: bool) -> bool {
         3 => ("强制结束服务？", "尚未完成的请求可能中断。", "强制结束"),
         4 => (
             "退出管理器？",
-            if running {
+            if force_exit {
+                "服务管理连接尚未就绪或正在停止，退出将强制结束服务进程。未保存的修改会被放弃。"
+            } else if running {
                 "将停止服务后退出。未保存的修改会被放弃。"
             } else {
                 "未保存的修改会被放弃。"
             },
-            if running { "停止并退出" } else { "退出" },
+            if force_exit {
+                "强制结束服务并退出"
+            } else if running {
+                "停止并退出"
+            } else {
+                "退出"
+            },
         ),
         5 => ("重新读取配置？", "尚未保存的服务配置将被放弃。", "重新读取"),
         _ => return false,
@@ -76,7 +85,7 @@ fn confirm(kind: i32, running: bool) -> bool {
     rfd::MessageDialog::new()
         .set_title(title)
         .set_description(description)
-        .set_level(if kind == 3 {
+        .set_level(if kind == 3 || force_exit {
             rfd::MessageLevel::Warning
         } else {
             rfd::MessageLevel::Info
@@ -87,6 +96,37 @@ fn confirm(kind: i32, running: bool) -> bool {
         ))
         .show()
         == rfd::MessageDialogResult::Custom(action.into())
+}
+
+#[derive(Default)]
+struct LogViewState {
+    live_text: String,
+    live_version: u64,
+    paused_snapshot: Option<(String, u64)>,
+    rendered: Option<(u64, String)>,
+}
+
+impl LogViewState {
+    fn next_output(&mut self, filter: &str, paused: bool) -> Option<String> {
+        if paused {
+            if self.paused_snapshot.is_none() {
+                self.paused_snapshot = Some((self.live_text.clone(), self.live_version));
+            }
+        } else {
+            self.paused_snapshot = None;
+        }
+        let (source_text, source_version) = match self.paused_snapshot.as_ref() {
+            Some((snap_text, snap_ver)) => (snap_text.as_str(), *snap_ver),
+            None => (self.live_text.as_str(), self.live_version),
+        };
+        let next_key = (source_version, filter.to_string());
+        if self.rendered.as_ref() == Some(&next_key) {
+            return None;
+        }
+        let filtered = teacher_oa_desktop::logs::filter_lines(source_text, filter);
+        self.rendered = Some(next_key);
+        Some(filtered)
+    }
 }
 
 fn send(ui: &AppWindow, sender: &Sender<Command>, command: Command) {
@@ -102,7 +142,7 @@ fn send(ui: &AppWindow, sender: &Sender<Command>, command: Command) {
 
 pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event>) {
     let snapshot: Rc<RefCell<Option<ConfigSnapshot>>> = Default::default();
-    let log_text = Rc::new(RefCell::new(String::new()));
+    let log_state = Rc::new(RefCell::new(LogViewState::default()));
     let weak = ui.as_weak();
     let sender = commands.clone();
     ui.on_start_service(move || {
@@ -172,7 +212,7 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
     ui.on_confirm_action(move |kind| {
         if let Some(ui) = weak.upgrade()
             && !ui.get_busy()
-            && confirm(kind, ui.get_running())
+            && confirm(kind, ui.get_running(), ui.get_connected())
         {
             send(
                 &ui,
@@ -196,9 +236,17 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
     });
     let weak = ui.as_weak();
     let sender = commands.clone();
+    let clear_log_state = log_state.clone();
     ui.on_clear_logs(move || {
         if let Some(ui) = weak.upgrade() {
             let _ = sender.send(Command::ClearLogs);
+            let mut state = clear_log_state.borrow_mut();
+            state.live_text.clear();
+            state.live_version = state.live_version.wrapping_add(1);
+            if state.paused_snapshot.is_some() {
+                state.paused_snapshot = Some((String::new(), state.live_version));
+            }
+            state.rendered = Some((state.live_version, ui.get_log_filter().to_lowercase()));
             ui.set_logs("".into());
         }
     });
@@ -206,6 +254,7 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
     let sender = commands.clone();
     ui.on_export_logs(move || {
         if let Some(ui) = weak.upgrade()
+            && !ui.get_busy()
             && let Some(path) = rfd::FileDialog::new()
                 .set_title("导出运行日志")
                 .set_file_name("teacher-oa.log")
@@ -265,7 +314,9 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
     let weak = ui.as_weak();
     ui.on_toggle_maximize(move || {
         if let Some(ui) = weak.upgrade() {
-            ui.window().set_maximized(!ui.window().is_maximized());
+            let next = !ui.window().is_maximized();
+            ui.window().set_maximized(next);
+            ui.set_is_maximized(next);
         }
     });
     let weak = ui.as_weak();
@@ -278,10 +329,20 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
             show_feedback(&ui, "请等待当前操作完成", true);
             return slint::CloseRequestResponse::KeepWindowShown;
         }
-        if (!ui.get_running() && !ui.get_launcher_dirty() && !ui.get_config_dirty())
-            || confirm(4, ui.get_running())
+        let running = ui.get_running();
+        let connected = ui.get_connected();
+        if (!running && !ui.get_launcher_dirty() && !ui.get_config_dirty())
+            || confirm(4, running, connected)
         {
-            send(&ui, &sender, Command::Exit);
+            send(
+                &ui,
+                &sender,
+                if running && !connected {
+                    Command::ForceExit
+                } else {
+                    Command::Exit
+                },
+            );
         }
         slint::CloseRequestResponse::KeepWindowShown
     });
@@ -294,11 +355,18 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
             let Some(ui) = weak.upgrade() else {
                 return;
             };
+            let maximized = ui.window().is_maximized();
+            if ui.get_is_maximized() != maximized {
+                ui.set_is_maximized(maximized);
+            }
             for event in responses.try_iter() {
                 match event {
                     Event::View(view) => {
                         if ui.get_pid().as_str() != view.pid {
                             ui.set_config_loaded(false);
+                            ui.set_config_dirty(false);
+                            ui.set_restart_required(false);
+                            *snapshot.borrow_mut() = None;
                         }
                         ui.set_status(view.status.into());
                         ui.set_status_color(slint::Color::from_rgb_u8(
@@ -316,9 +384,16 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
                         ui.set_busy(false);
                         if !view.running {
                             ui.set_config_loaded(false);
+                            ui.set_config_dirty(false);
+                            ui.set_restart_required(false);
+                            *snapshot.borrow_mut() = None;
                         }
                     }
-                    Event::Logs(text) => *log_text.borrow_mut() = text,
+                    Event::Logs(text) => {
+                        let mut state = log_state.borrow_mut();
+                        state.live_text = text;
+                        state.live_version = state.live_version.wrapping_add(1);
+                    }
                     Event::Config(config) => {
                         set_config(&ui, &config);
                         *snapshot.borrow_mut() = Some(config);
@@ -330,17 +405,10 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
                     }
                 }
             }
-            if !ui.get_log_paused() {
-                let filter = ui.get_log_filter().to_lowercase();
-                let text = log_text.borrow();
-                let filtered = if filter.is_empty() {
-                    text.clone()
-                } else {
-                    text.lines()
-                        .filter(|line| line.to_lowercase().contains(&filter))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                };
+            let filter = ui.get_log_filter().to_lowercase();
+            let paused = ui.get_log_paused();
+            let next_logs = log_state.borrow_mut().next_output(&filter, paused);
+            if let Some(filtered) = next_logs {
                 ui.set_logs(filtered.into());
             }
         },
@@ -378,4 +446,45 @@ fn install_snapshot(ui: &AppWindow) {
         }
         let _ = slint::quit_event_loop();
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LogViewState;
+
+    #[test]
+    fn paused_logs_freeze_snapshot_while_allowing_filter_and_skipping_redundant_renders() {
+        let mut state = LogViewState {
+            live_text: "INFO boot\nERROR db offline".into(),
+            live_version: 1,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            state.next_output("", false),
+            Some("INFO boot\nERROR db offline".into())
+        );
+        // Unchanged version and filter must not re-render on subsequent 250ms ticks.
+        assert_eq!(state.next_output("", false), None);
+
+        // Pausing with no new logs must not trigger a redundant re-render.
+        assert_eq!(state.next_output("", true), None);
+
+        // New live logs arrive while paused, but the paused snapshot stays frozen.
+        state.live_text.push_str("\nWARN retry");
+        state.live_version = 2;
+        assert_eq!(state.next_output("", true), None);
+
+        // Filtering while paused still filters the frozen snapshot immediately.
+        assert_eq!(
+            state.next_output("error", true),
+            Some("ERROR db offline".into())
+        );
+
+        // Unpausing catches up to the newer live version.
+        assert_eq!(
+            state.next_output("", false),
+            Some("INFO boot\nERROR db offline\nWARN retry".into())
+        );
+    }
 }

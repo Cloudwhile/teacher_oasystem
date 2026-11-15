@@ -443,3 +443,92 @@ async fn wecom_login_entry_is_rate_limited_per_client() {
     let response = test::call_service(&app, entry("10.30.0.2:40000")).await;
     assert_ne!(response.status(), StatusCode::TOO_MANY_REQUESTS);
 }
+
+#[actix_web::test]
+async fn sso_sessions_skip_initial_password_wall_and_corp_changes_filter_bindings() {
+    let (mut state, _database) = common::setup().await;
+    let directory = tempfile::tempdir().unwrap();
+    std::sync::Arc::make_mut(&mut state.config).storage.root =
+        directory.path().to_string_lossy().into();
+    let db = state.db_handles.writer();
+    let admin_id = accounts::save(db, None, "", account("admin", "admin"))
+        .await
+        .unwrap();
+    settings_service::save(
+        &state,
+        admin_id,
+        settings_service::SaveWecomSettings {
+            enabled: true,
+            corp_id: "ww-corp_01".into(),
+            agent_id: "1000002".into(),
+            secret: Some("secret-corp-01".into()),
+            version: 0,
+        },
+    )
+    .await
+    .unwrap();
+
+    let mut sso_user = account(&"u".repeat(60), "teacher");
+    sso_user.wecom_userid = Some("teacher_sso".into());
+    let uid = accounts::save(db, Some(admin_id), "ww-corp_01", sso_user)
+        .await
+        .unwrap();
+
+    let user = teacher_oa_service::repositories::identity::current_user(db, uid)
+        .await
+        .unwrap();
+    let req = test::TestRequest::default().to_http_request();
+    let (sso_cookie, _) = auth_service::create_session(&req, &state, user)
+        .await
+        .unwrap();
+    let app = create_test_app!(state.clone());
+    let me_resp = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/auth/me")
+            .cookie(sso_cookie.clone())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(me_resp.status(), StatusCode::OK);
+    let me_body: Value = test::read_body_json(me_resp).await;
+    assert_eq!(me_body["data"]["must_change_password"], false);
+    assert_eq!(
+        test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/dashboard")
+                .cookie(sso_cookie)
+                .to_request()
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+
+    let list_old = accounts::accounts_for_corp(db, "ww-corp_01").await.unwrap();
+    assert_eq!(
+        list_old
+            .items
+            .iter()
+            .find(|a| a.id == uid)
+            .unwrap()
+            .wecom_userid
+            .as_deref(),
+        Some("teacher_sso")
+    );
+    let list_new = accounts::accounts_for_corp(db, "ww-corp_02").await.unwrap();
+    assert_eq!(
+        list_new
+            .items
+            .iter()
+            .find(|a| a.id == uid)
+            .unwrap()
+            .wecom_userid,
+        None
+    );
+
+    let mut bad = account("badnull", "teacher");
+    bad.name = "张\0三".into();
+    assert!(accounts::save(db, Some(admin_id), "", bad).await.is_err());
+}

@@ -21,6 +21,8 @@ pub struct Session {
     pub expires_at: i64,
     #[serde(default)]
     pub credential_version: Option<i32>,
+    #[serde(default)]
+    pub password_authenticated: bool,
 }
 
 pub fn random_token() -> String {
@@ -50,15 +52,76 @@ pub fn clear_cookie(config: &AuthConfig, name: &'static str) -> Cookie<'static> 
     cookie
 }
 
+fn is_loopback_origin(url: &url::Url) -> bool {
+    match url.host() {
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        Some(url::Host::Domain(domain)) => domain.eq_ignore_ascii_case("localhost"),
+        None => false,
+    }
+}
+
 pub fn ensure_origin(request: &HttpRequest, config: &AuthConfig) -> Result<(), ApiError> {
-    let origin = request
+    let Some(origin) = request
         .headers()
         .get("origin")
-        .and_then(|value| value.to_str().ok());
-    if origin != Some(config.public_origin.as_str()) {
-        return Err(ApiError::Forbidden);
+        .and_then(|value| value.to_str().ok())
+    else {
+        return Err(ApiError::OriginMismatch);
+    };
+    if origin == config.public_origin {
+        return Ok(());
     }
-    Ok(())
+    if config.environment != "production"
+        && let (Ok(origin_url), Ok(expected_url)) = (
+            url::Url::parse(origin),
+            url::Url::parse(&config.public_origin),
+        )
+        && origin_url.origin().ascii_serialization() == origin
+        && ["http", "https"].contains(&origin_url.scheme())
+        && (expected_url.scheme() != "https" || origin_url.scheme() == "https")
+    {
+        let sec_fetch_site = request
+            .headers()
+            .get("sec-fetch-site")
+            .and_then(|value| value.to_str().ok());
+        let same_origin_fetch = sec_fetch_site.is_none_or(|site| site == "same-origin");
+
+        if same_origin_fetch && is_loopback_origin(&origin_url) && is_loopback_origin(&expected_url)
+        {
+            let same_scheme_and_port = origin_url.scheme() == expected_url.scheme()
+                && origin_url.port_or_known_default() == expected_url.port_or_known_default();
+            let local_dev_peer = config.environment == "development"
+                && origin_url.scheme() == "http"
+                && request
+                    .peer_addr()
+                    .is_some_and(|peer| peer.ip().is_loopback());
+            if same_scheme_and_port || local_dev_peer {
+                return Ok(());
+            }
+        }
+
+        if config.environment == "development"
+            && same_origin_fetch
+            && let Some(host) = request
+                .headers()
+                .get("host")
+                .and_then(|value| value.to_str().ok())
+            && let Some(authority) = origin
+                .strip_prefix("http://")
+                .or_else(|| origin.strip_prefix("https://"))
+            && authority.eq_ignore_ascii_case(host.trim())
+        {
+            return Ok(());
+        }
+    }
+    tracing::warn!(
+        origin = %origin,
+        expected = %config.public_origin,
+        environment = %config.environment,
+        "rejected request with mismatched Origin header"
+    );
+    Err(ApiError::OriginMismatch)
 }
 
 pub fn ensure_csrf(
@@ -115,7 +178,8 @@ pub async fn authenticate(
     if credentials.as_ref().map(|c| c.version) != session.credential_version {
         return Err(ApiError::Unauthorized);
     }
-    if credentials.is_some_and(|c| c.must_change)
+    if session.password_authenticated
+        && credentials.is_some_and(|c| c.must_change)
         && ![
             "/api/v1/auth/me",
             "/api/v1/auth/password",
@@ -161,6 +225,23 @@ pub async fn create_session(
     state: &AppState,
     user: CurrentUser,
 ) -> Result<(Cookie<'static>, Session), ApiError> {
+    create_session_inner(request, state, user, false).await
+}
+
+pub async fn create_password_session(
+    request: &HttpRequest,
+    state: &AppState,
+    user: CurrentUser,
+) -> Result<(Cookie<'static>, Session), ApiError> {
+    create_session_inner(request, state, user, true).await
+}
+
+async fn create_session_inner(
+    request: &HttpRequest,
+    state: &AppState,
+    user: CurrentUser,
+    password_authenticated: bool,
+) -> Result<(Cookie<'static>, Session), ApiError> {
     let token = random_token();
     let ttl = state.config.auth.session_ttl_seconds;
     let session = Session {
@@ -173,6 +254,7 @@ pub async fn create_session(
         .map(|c| c.version),
         csrf_token: random_token(),
         expires_at: Utc::now().timestamp() + i64::try_from(ttl).map_err(|_| ApiError::Internal)?,
+        password_authenticated,
     };
     let key = format!("teacher_oa:session:{token}");
     state
@@ -221,4 +303,62 @@ pub async fn consume_state(
         return Err(ApiError::Forbidden);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_origin;
+    use crate::config::AuthConfig;
+    use actix_web::test::TestRequest;
+
+    #[test]
+    fn development_accepts_loopback_aliases_and_same_origin_hosts_while_production_stays_strict() {
+        let dev_auth = AuthConfig::default();
+
+        for origin in [
+            "http://127.0.0.1:3000",
+            "http://localhost:3000",
+            "http://[::1]:3000",
+        ] {
+            let req = TestRequest::post()
+                .insert_header(("Origin", origin))
+                .to_http_request();
+            assert!(ensure_origin(&req, &dev_auth).is_ok(), "{origin}");
+        }
+
+        let lan_same_origin = TestRequest::post()
+            .insert_header(("Origin", "http://192.168.1.50:3000"))
+            .insert_header(("Host", "192.168.1.50:3000"))
+            .insert_header(("Sec-Fetch-Site", "same-origin"))
+            .to_http_request();
+        assert!(ensure_origin(&lan_same_origin, &dev_auth).is_ok());
+
+        for bad in [
+            TestRequest::post().to_http_request(),
+            TestRequest::post()
+                .insert_header(("Origin", "https://evil.example"))
+                .insert_header(("Host", "127.0.0.1:3000"))
+                .to_http_request(),
+            TestRequest::post()
+                .insert_header(("Origin", "http://192.168.1.50:3000"))
+                .insert_header(("Host", "192.168.1.50:3000"))
+                .insert_header(("Sec-Fetch-Site", "cross-site"))
+                .to_http_request(),
+        ] {
+            assert!(ensure_origin(&bad, &dev_auth).is_err());
+        }
+
+        let prod_auth = AuthConfig {
+            environment: "production".into(),
+            public_origin: "https://oa.example.edu.cn".into(),
+            cookie_secure: true,
+            ..Default::default()
+        };
+        let prod_mismatch = TestRequest::post()
+            .insert_header(("Origin", "https://other.example.edu.cn"))
+            .insert_header(("Host", "other.example.edu.cn"))
+            .insert_header(("Sec-Fetch-Site", "same-origin"))
+            .to_http_request();
+        assert!(ensure_origin(&prod_mismatch, &prod_auth).is_err());
+    }
 }

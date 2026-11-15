@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Refresh, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
@@ -12,6 +12,7 @@ import { HttpError } from "@/services/httpClient";
 import { useResource } from "@/services/useResource";
 export function ReviewListPage() {
 	const [params, setParams] = useSearchParams();
+	const formRef = useRef<HTMLFormElement>(null);
 	const query = params.toString();
 	const load = useCallback(
 		(signal: AbortSignal) => achievementApi.reviews(query, signal),
@@ -21,6 +22,14 @@ export function ReviewListPage() {
 	const catalog = useResource(achievementApi.catalog);
 	const filter = (key: string, value: string) => {
 		const next = new URLSearchParams(params);
+		if (formRef.current) {
+			const data = new FormData(formRef.current);
+			for (const textKey of ["search", "teacher"]) {
+				const textValue = String(data.get(textKey) ?? "").trim();
+				if (textValue) next.set(textKey, textValue);
+				else next.delete(textKey);
+			}
+		}
 		if (value) next.set(key, value);
 		else next.delete(key);
 		next.delete("page");
@@ -47,6 +56,7 @@ export function ReviewListPage() {
 				</IconButton>
 			</PageHeading>
 			<form
+				ref={formRef}
 				className="achievement-filters"
 				onSubmit={(e) => {
 					e.preventDefault();

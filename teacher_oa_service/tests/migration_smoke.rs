@@ -22,6 +22,7 @@ fn migrations_preserve_registered_names_and_order() {
             "m20261025_000004_achievement_records",
             "m20261030_000005_accounts_settings",
             "m20261031_000006_login_page",
+            "m20261115_000007_identity_constraints",
         ]
     );
 }

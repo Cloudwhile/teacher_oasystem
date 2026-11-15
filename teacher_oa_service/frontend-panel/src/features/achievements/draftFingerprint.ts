@@ -5,7 +5,12 @@ function canonical(value: unknown): unknown {
 	if (value && typeof value === "object") {
 		return Object.fromEntries(
 			Object.entries(value)
-				.filter(([, item]) => item != null && item !== "")
+				.filter(
+					([, item]) =>
+						item != null &&
+						item !== "" &&
+						!(Array.isArray(item) && item.length === 0),
+				)
 				.sort(([left], [right]) => left.localeCompare(right))
 				.map(([key, item]) => [key, canonical(item)]),
 		);

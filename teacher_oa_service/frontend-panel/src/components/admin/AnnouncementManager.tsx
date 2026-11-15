@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActionButton } from "@/components/common/ActionButton";
 import { FormField } from "@/components/common/FormField";
 import type { LoginAnnouncement } from "@/features/auth/loginPageApi";
+import { formatSingaporeDate } from "@/services/dateFormat";
 
 type Draft = { id: string; title: string; content: string };
 const empty: Draft = { id: "", title: "", content: "" };
@@ -132,7 +133,7 @@ export function AnnouncementManager({
 								<strong>{item.title}</strong>
 								<span className="muted">
 									{item.published
-										? `已发布 · ${item.published_at?.slice(0, 10) ?? ""}`
+										? `已发布 · ${formatSingaporeDate(item.published_at)}`
 										: "草稿"}
 								</span>
 							</div>
@@ -156,6 +157,26 @@ export function AnnouncementManager({
 										撤回
 									</ActionButton>
 								)}
+								<ActionButton
+									disabled={disabled}
+									onClick={() => {
+										if (!window.confirm(`确定删除公告「${item.title}」吗？`))
+											return;
+										void onSave(items.filter((row) => row.id !== item.id)).then(
+											(ok) => {
+												if (ok && draft.id === item.id) {
+													setDraft(empty);
+													setEditing(false);
+													setDirty(false);
+													onDirty(false);
+													setError("");
+												}
+											},
+										);
+									}}
+								>
+									删除
+								</ActionButton>
 							</div>
 						</li>
 					))}

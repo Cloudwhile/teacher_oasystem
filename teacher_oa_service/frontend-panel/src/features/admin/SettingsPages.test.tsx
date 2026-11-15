@@ -199,3 +199,48 @@ it.each([true, false])(
 		);
 	},
 );
+
+it("删除公告不会误提交尚未保存的外观草稿", async () => {
+	let putBody: Record<string, unknown> | null = null;
+	const pageWithNotice = {
+		...defaultLoginPage,
+		title: "已保存标题",
+		announcements: [
+			{
+				id: "notice-1",
+				title: "系统维护通知",
+				content: "今晚升级",
+				published: true,
+				published_at: "2026-11-15T18:30:00Z",
+			},
+		],
+	};
+	mockHttp((url, init) => {
+		if (url.endsWith("/auth/me")) return json(identity);
+		if (init?.method === "PUT") {
+			putBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+			return json({
+				...pageWithNotice,
+				version: 2,
+				announcements: [],
+			});
+		}
+		return json(pageWithNotice);
+	});
+	vi.spyOn(window, "confirm").mockReturnValue(true);
+	showPage(<LoginAppearancePage />, "/admin/login-page");
+	expect(await screen.findByText(/2026-11-16/)).toBeTruthy();
+	fireEvent.change(screen.getByLabelText(/^网站名称/), {
+		target: { value: "未保存新标题" },
+	});
+	fireEvent.click(screen.getByRole("button", { name: "删除" }));
+	await screen.findByText("暂无公告");
+	expect(putBody).toMatchObject({
+		title: "已保存标题",
+		announcements: [],
+	});
+	expect(screen.getByLabelText(/^网站名称/)).toHaveProperty(
+		"value",
+		"未保存新标题",
+	);
+});

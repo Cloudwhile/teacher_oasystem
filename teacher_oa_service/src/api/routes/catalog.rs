@@ -134,10 +134,49 @@ pub async fn teachers(
     .await;
     result.map_err(|e: ApiError| e.at(&request))
 }
+#[aster_forge_api_docs_macros::path(get,path="/api/v1/collaboration-teachers",operation_id="collaboration_teachers",security(("session"=[])),responses((status=200,body=Success<TeacherOptions>),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
+pub async fn collaboration_teachers(
+    request: HttpRequest,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, RequestError> {
+    let result = async {
+        let (_, user) = auth::authenticate(&request, &state).await?;
+        if !repo::has_permission(&user, "achievements:write")
+            && !repo::has_permission(&user, "achievements:read")
+        {
+            return Err(ApiError::Forbidden);
+        }
+        let rows = teacher::Entity::find()
+            .filter(teacher::Column::EmploymentStatus.eq("active"))
+            .order_by_asc(teacher::Column::Name)
+            .order_by_asc(teacher::Column::Id)
+            .all(state.db_handles.writer())
+            .await?;
+        success(
+            &request,
+            TeacherOptions(
+                rows.into_iter()
+                    .map(|r| TeacherOption {
+                        id: r.id,
+                        name: r.name,
+                        department_id: r.department_id,
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+        )
+    }
+    .await;
+    result.map_err(|e: ApiError| e.at(&request))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.route("/achievement-types", web::get().to(types))
         .route("/achievement-types/{code}/schema", web::get().to(schema))
         .route("/academic-terms", web::get().to(terms))
         .route("/dictionaries", web::get().to(dictionaries))
-        .route("/teachers", web::get().to(teachers));
+        .route("/teachers", web::get().to(teachers))
+        .route(
+            "/collaboration-teachers",
+            web::get().to(collaboration_teachers),
+        );
 }

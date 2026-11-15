@@ -36,7 +36,10 @@ export function LoginPageSettingsForm({
 		JSON.stringify(data) !== JSON.stringify(saved) || noticeDirty,
 		busy,
 	);
-	const persist = async (next: LoginPageSettings) => {
+	const persist = async (
+		next: LoginPageSettings,
+		announcementsOnly = false,
+	) => {
 		if (pending.current || uploading) return false;
 		pending.current = true;
 		setSaving(true);
@@ -45,9 +48,18 @@ export function LoginPageSettingsForm({
 		setConflict(false);
 		try {
 			const result = await loginPageApi.save(next, csrf);
-			setData(result);
 			setSaved(result);
-			setMessage("登录页设置已保存");
+			if (announcementsOnly) {
+				setData((previous) => ({
+					...previous,
+					announcements: result.announcements,
+					version: result.version,
+				}));
+				setMessage("公告已更新");
+			} else {
+				setData(result);
+				setMessage("登录页设置已保存");
+			}
 			return true;
 		} catch (error) {
 			if (error instanceof HttpError && error.status === 401) void refresh();
@@ -139,10 +151,10 @@ export function LoginPageSettingsForm({
 				</FormField>
 			</form>
 			<AnnouncementManager
-				items={data.announcements}
+				items={saved.announcements}
 				disabled={busy}
 				onDirty={setNoticeDirty}
-				onSave={(announcements) => persist({ ...data, announcements })}
+				onSave={(announcements) => persist({ ...saved, announcements }, true)}
 			/>
 		</div>
 	);

@@ -313,6 +313,7 @@ async fn disabled_accounts_inactive_teachers_expired_sessions_and_rotation_revok
     let token = auth_service::random_token();
     let expired = auth_service::Session {
         credential_version: None,
+        password_authenticated: false,
         user_id: 91004,
         csrf_token: auth_service::random_token(),
         expires_at: 0,
@@ -493,4 +494,46 @@ async fn mock_login_is_disabled_by_default() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[actix_web::test]
+async fn development_loopback_and_same_origin_hosts_succeed_while_production_is_strict() {
+    let dev_auth = teacher_oa_service::config::AuthConfig::default();
+
+    for origin in ["http://localhost:3000", "http://[::1]:3000"] {
+        let req = test::TestRequest::post()
+            .insert_header(("Origin", origin))
+            .to_http_request();
+        assert!(
+            auth_service::ensure_origin(&req, &dev_auth).is_ok(),
+            "{origin}"
+        );
+    }
+
+    let lan_same_origin = test::TestRequest::post()
+        .insert_header(("Origin", "http://192.168.1.50:3000"))
+        .insert_header(("Host", "192.168.1.50:3000"))
+        .insert_header(("Sec-Fetch-Site", "same-origin"))
+        .to_http_request();
+    assert!(auth_service::ensure_origin(&lan_same_origin, &dev_auth).is_ok());
+
+    let lan_cross_site = test::TestRequest::post()
+        .insert_header(("Origin", "http://192.168.1.50:3000"))
+        .insert_header(("Host", "192.168.1.50:3000"))
+        .insert_header(("Sec-Fetch-Site", "cross-site"))
+        .to_http_request();
+    assert!(auth_service::ensure_origin(&lan_cross_site, &dev_auth).is_err());
+
+    let prod_auth = teacher_oa_service::config::AuthConfig {
+        environment: "production".into(),
+        public_origin: "https://oa.example.edu.cn".into(),
+        cookie_secure: true,
+        ..Default::default()
+    };
+    let prod_mismatch = test::TestRequest::post()
+        .insert_header(("Origin", "https://other.example.edu.cn"))
+        .insert_header(("Host", "other.example.edu.cn"))
+        .insert_header(("Sec-Fetch-Site", "same-origin"))
+        .to_http_request();
+    assert!(auth_service::ensure_origin(&prod_mismatch, &prod_auth).is_err());
 }

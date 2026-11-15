@@ -1,6 +1,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { Bullhorn, ChevronRight } from "reicon-react";
 import type { LoginAnnouncement } from "@/features/auth/loginPageApi";
+import { formatSingaporeDate } from "@/services/dateFormat";
 import { ActionButton } from "../common/ActionButton";
 
 export function AnnouncementBoard({
@@ -39,7 +40,7 @@ export function AnnouncementBoard({
 							<Dialog.Root>
 								<Dialog.Trigger className="announcement-link">
 									<time dateTime={item.published_at ?? undefined}>
-										{item.published_at?.slice(0, 10)}
+										{formatSingaporeDate(item.published_at)}
 									</time>
 									<span>{item.title}</span>
 									<ChevronRight aria-hidden="true" />
@@ -57,7 +58,7 @@ export function AnnouncementBoard({
 											className="muted"
 											dateTime={item.published_at ?? undefined}
 										>
-											{item.published_at?.slice(0, 10)}
+											{formatSingaporeDate(item.published_at)}
 										</time>
 										<Dialog.Description className="notice-body">
 											{item.content}

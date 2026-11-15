@@ -1,9 +1,21 @@
 import type { TeacherProfile } from "@/features/auth/api";
 export const subjectLabels: Record<string, string> = {
-	math: "数学",
 	chinese: "语文",
+	math: "数学",
 	english: "英语",
 	information_technology: "信息技术",
+	physics: "物理",
+	chemistry: "化学",
+	biology: "生物",
+	history: "历史",
+	geography: "地理",
+	politics: "政治",
+	pe: "体育",
+	music: "音乐",
+	art: "美术",
+	education_management: "教育管理",
+	moral_education: "德育",
+	other: "其他",
 };
 export function ProfileFields({ profile }: { profile: TeacherProfile }) {
 	return (

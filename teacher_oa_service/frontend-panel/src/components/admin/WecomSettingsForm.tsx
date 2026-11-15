@@ -63,6 +63,8 @@ export function WecomSettingsForm({
 			setBusy(false);
 		}
 	};
+	const corpChanged = corp.trim() !== saved.corp_id;
+	const secretRequired = enabled && (corpChanged || !saved.secret_configured);
 	return (
 		<form
 			className="panel settings-form"
@@ -81,7 +83,7 @@ export function WecomSettingsForm({
 					disabled={busy}
 					onChange={(e) => setEnabled(e.target.checked)}
 				/>
-				启用企业微信登录
+				<span>启用企业微信登录</span>
 			</label>
 			<FormField id="corp" label="企业ID">
 				<input
@@ -106,8 +108,15 @@ export function WecomSettingsForm({
 			<FormField
 				id="wecom-secret"
 				label={
-					saved.secret_configured ? "应用 Secret（留空保留）" : "应用 Secret"
+					corpChanged
+						? enabled
+							? "应用 Secret（更换企业须重新填写）"
+							: "应用 Secret（更换企业将清空原密钥）"
+						: saved.secret_configured
+							? "应用 Secret（留空保留）"
+							: "应用 Secret"
 				}
+				required={secretRequired}
 			>
 				<input
 					id="wecom-secret"
@@ -116,7 +125,7 @@ export function WecomSettingsForm({
 					value={secret}
 					disabled={busy}
 					maxLength={2048}
-					required={enabled && !saved.secret_configured}
+					required={secretRequired}
 					onChange={(e) => setSecret(e.target.value)}
 				/>
 			</FormField>

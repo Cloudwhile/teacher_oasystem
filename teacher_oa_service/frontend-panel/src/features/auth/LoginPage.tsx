@@ -47,7 +47,12 @@ export function LoginPage() {
 	useEffect(() => {
 		void loadOptions();
 	}, [loadOptions]);
-	if (status === "ready" && params.get("preview") !== "1")
+	const preview = params.get("preview") === "1";
+	const settings = page.data ?? defaultLoginPage;
+	useEffect(() => {
+		document.title = `${settings.title || "TeacherOA"} · 登录`;
+	}, [settings.title]);
+	if (status === "ready" && !preview)
 		return (
 			<Navigate
 				to={
@@ -60,7 +65,7 @@ export function LoginPage() {
 		);
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
-		if (pending.current) return;
+		if (preview || pending.current) return;
 		pending.current = true;
 		setBusy(true);
 		setError("");
@@ -76,7 +81,7 @@ export function LoginPage() {
 	const mode = /wxwork/i.test(navigator.userAgent) ? "h5" : "web";
 	return (
 		<LoginPageLayout
-			settings={page.data ?? defaultLoginPage}
+			settings={settings}
 			loading={page.loading}
 			error={Boolean(page.error)}
 			onRetry={page.reload}
@@ -85,6 +90,16 @@ export function LoginPage() {
 				<h1 id="login-title" className="visually-hidden">
 					登录
 				</h1>
+				{preview && (
+					<p className="login-preview-note" role="status">
+						当前为登录页预览模式，登录与授权跳转已停用。
+					</p>
+				)}
+				{(error || params.has("error")) && (
+					<p className="inline-error" role="alert">
+						{error || "企业微信登录未完成，请确认已开通账号并绑定企业微信。"}
+					</p>
+				)}
 				<LoginMethods
 					wecomEnabled={Boolean(options?.wecom_enabled)}
 					busy={busy}
@@ -102,7 +117,7 @@ export function LoginPage() {
 								onChange={(e) => setUsername(e.target.value)}
 								maxLength={64}
 								required
-								disabled={busy}
+								disabled={busy || preview}
 								autoCapitalize="none"
 								spellCheck={false}
 							/>
@@ -112,20 +127,16 @@ export function LoginPage() {
 								value={password}
 								onChange={setPassword}
 								autoComplete="current-password"
-								disabled={busy}
+								disabled={busy || preview}
 							/>
-							{(error || params.has("error")) && (
-								<p className="inline-error" role="alert">
-									{error ||
-										"企业微信登录未完成，请确认已开通账号并绑定企业微信。"}
-								</p>
-							)}
 							<ActionButton
 								type="submit"
 								variant="primary"
 								className="login-submit"
 								aria-busy={busy}
-								disabled={busy || status === "loading" || status === "ready"}
+								disabled={
+									preview || busy || status === "loading" || status === "ready"
+								}
 							>
 								{busy ? "正在登录" : "登录"}
 							</ActionButton>
@@ -134,12 +145,22 @@ export function LoginPage() {
 					wecom={
 						<div className="wecom-login">
 							<Qr aria-hidden="true" />
-							<a
-								className="action-button action-button-primary login-submit"
-								href={`/api/v1/auth/wecom/login?mode=${mode}&next=${encodeURIComponent(next)}`}
-							>
-								{mode === "h5" ? "企业微信登录" : "企业微信扫码登录"}
-							</a>
+							{preview ? (
+								<ActionButton
+									variant="primary"
+									className="login-submit"
+									disabled
+								>
+									{mode === "h5" ? "企业微信登录" : "企业微信扫码登录"}
+								</ActionButton>
+							) : (
+								<a
+									className="action-button action-button-primary login-submit"
+									href={`/api/v1/auth/wecom/login?mode=${mode}&next=${encodeURIComponent(next)}`}
+								>
+									{mode === "h5" ? "企业微信登录" : "企业微信扫码登录"}
+								</a>
+							)}
 						</div>
 					}
 				/>

@@ -17,6 +17,7 @@ import { useResource } from "@/services/useResource";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import {
 	type AchievementInput,
+	type AchievementSchema,
 	achievementApi,
 	type Catalog,
 	errorMessage,
@@ -72,7 +73,35 @@ export function AchievementDetailPage() {
 				achievementApi.catalog(signal),
 				achievementApi.revisions(Number(id), signal),
 			]);
-			return { detail, catalog, revisions };
+			const schemas: Record<number, AchievementSchema> = {
+				[detail.schema.version]: detail.schema,
+			};
+			const extraVersions = Array.from(
+				new Set(
+					revisions
+						.map((revision) => revision.schema_version)
+						.filter(
+							(version): version is number =>
+								typeof version === "number" &&
+								version > 0 &&
+								version !== detail.schema.version,
+						),
+				),
+			);
+			await Promise.all(
+				extraVersions.map(async (version) => {
+					try {
+						schemas[version] = await achievementApi.schema(
+							detail.record.type_code,
+							version,
+							signal,
+						);
+					} catch {
+						// Fallback to detail.schema if historical version lookup is unavailable.
+					}
+				}),
+			);
+			return { detail, catalog, revisions, schemas };
 		},
 		[id],
 	);
@@ -126,7 +155,7 @@ export function AchievementDetailPage() {
 		return (
 			<Feedback message={errorMessage(result.error)} onRetry={result.reload} />
 		);
-	const { detail, catalog, revisions } = result.data;
+	const { detail, catalog, revisions, schemas } = result.data;
 	return (
 		<>
 			<PageHeading
@@ -260,44 +289,54 @@ export function AchievementDetailPage() {
 						<p className="empty-message">尚未提交审核</p>
 					)}
 				</section>
-				<section className="panel">
-					<div className="section-heading">
-						<h2>历史修订</h2>
-					</div>
-					{revisions.map((revision) => (
-						<details className="revision-row" key={revision.version}>
-							<summary>
-								第 {revision.version} 次修订 ·{" "}
-								{new Date(revision.created_at).toLocaleString("zh-CN", {
-									timeZone: "Asia/Singapore",
-								})}
-							</summary>
-							<p>
-								{revision.snapshot.data.title} ·{" "}
-								{statusLabels[revision.snapshot.status]}
-							</p>
-							<dl className="achievement-fields">
-								{detail.schema.fields
-									.filter(
-										(field) =>
-											field.visible &&
-											!["file_list", "participant_list"].includes(field.type),
-									)
-									.map((field) => (
-										<div key={field.key}>
-											<dt>{field.label}</dt>
-											<dd>{display(revision.snapshot.data, field, catalog)}</dd>
-										</div>
-									))}
-							</dl>
-							<ParticipantList
-								participants={revision.snapshot.data.participants ?? []}
-								catalog={catalog}
-							/>
-							<MaterialList files={revision.files} />
-						</details>
-					))}
-				</section>
+				{revisions.length > 0 && (
+					<section className="panel">
+						<div className="section-heading">
+							<h2>历史修订</h2>
+						</div>
+						{revisions.map((revision) => {
+							const revisionSchema =
+								schemas[revision.schema_version] ?? detail.schema;
+							return (
+								<details className="revision-row" key={revision.version}>
+									<summary>
+										第 {revision.version} 次修订 ·{" "}
+										{new Date(revision.created_at).toLocaleString("zh-CN", {
+											timeZone: "Asia/Singapore",
+										})}
+									</summary>
+									<p>
+										{revision.snapshot.data.title} ·{" "}
+										{statusLabels[revision.snapshot.status]}
+									</p>
+									<dl className="achievement-fields">
+										{revisionSchema.fields
+											.filter(
+												(field) =>
+													field.visible &&
+													!["file_list", "participant_list"].includes(
+														field.type,
+													),
+											)
+											.map((field) => (
+												<div key={field.key}>
+													<dt>{field.label}</dt>
+													<dd>
+														{display(revision.snapshot.data, field, catalog)}
+													</dd>
+												</div>
+											))}
+									</dl>
+									<ParticipantList
+										participants={revision.snapshot.data.participants ?? []}
+										catalog={catalog}
+									/>
+									<MaterialList files={revision.files} />
+								</details>
+							);
+						})}
+					</section>
+				)}
 			</div>
 		</>
 	);

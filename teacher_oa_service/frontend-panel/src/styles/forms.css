@@ -4,12 +4,14 @@
 	min-width: 0;
 	min-height: 48px;
 	padding: 0 4px 0 12px;
-	border: 1px solid #8794a8;
+	border: 1px solid var(--oa-border-strong);
 	border-radius: 10px;
-	background: #fff;
+	background: var(--oa-surface);
+	box-shadow: inset 0 1px 2px rgb(15 23 42 / 3%);
 	transition:
-		border-color 150ms ease-out,
-		box-shadow 150ms ease-out;
+		border-color 150ms var(--oa-ease-out),
+		background-color 150ms var(--oa-ease-out),
+		box-shadow 150ms var(--oa-ease-out);
 }
 .input-control > input {
 	flex: 1;
@@ -20,7 +22,7 @@
 	border: 0;
 	border-radius: 9px;
 	background: transparent;
-	font-size: 16px;
+	font-size: 15px;
 	box-shadow: none;
 }
 .input-control > input:focus {
@@ -28,14 +30,16 @@
 }
 .input-control:has(input:focus) {
 	border-color: var(--oa-focus);
-	box-shadow: 0 0 0 3px rgb(18 100 209 / 14%);
+	background: #fff;
+	box-shadow: var(--oa-ring);
 }
 .input-control:has(input[aria-invalid="true"]) {
 	border-color: #c84c50;
+	box-shadow: 0 0 0 3px rgb(200 76 80 / 12%);
 }
 .input-control:has(input:disabled),
 .input-control > input:disabled {
-	background: #f7f8fb;
+	background: #f6f8fc;
 }
 .input-control > input::-ms-reveal {
 	display: none;
@@ -48,17 +52,22 @@
 	flex-shrink: 0;
 }
 .input-leading {
-	color: #627089;
+	color: var(--oa-text-muted);
+	transition: color 150ms var(--oa-ease-out);
+}
+.input-control:has(input:focus) .input-leading {
+	color: var(--oa-brand);
 }
 .input-leading svg {
 	width: 18px;
 	height: 18px;
 }
 .input-trailing .password-toggle {
-	width: 44px;
-	height: 44px;
+	width: 40px;
+	height: 40px;
 	border: 1px solid transparent;
 	background: transparent;
+	box-shadow: none;
 	border-radius: 8px;
 }
 .input-trailing .password-toggle:focus-visible {
@@ -67,16 +76,25 @@
 }
 @media (hover: hover) {
 	.input-control:hover:not(:has(input:disabled, input:focus)) {
-		border-color: #627089;
+		border-color: #5b6d88;
 	}
 	.input-trailing .password-toggle:hover:not(:disabled) {
 		border-color: transparent;
 		background: var(--oa-hover);
 		color: var(--oa-brand-strong);
+		box-shadow: none;
+		translate: none;
+	}
+}
+@media (max-width: 720px) {
+	.input-trailing .password-toggle {
+		width: 44px;
+		height: 44px;
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.input-control {
+	.input-control,
+	.input-leading {
 		transition: none;
 	}
 }

@@ -101,3 +101,42 @@ it("会话失效时停止剩余上传并触发重新认证", async () => {
 	expect(expired).toHaveBeenCalledOnce();
 	expect(upload).toHaveBeenCalledOnce();
 });
+
+it("支持拖拽文件到上传区域并显示拖拽高亮状态", async () => {
+	const upload = vi.spyOn(achievementApi, "upload").mockResolvedValueOnce({
+		id: 9,
+		filename: "dragged.pdf",
+		size_bytes: 2048,
+		mime_type: "application/pdf",
+		sha256: "drag",
+		uploaded_by: 91001,
+		upload_status: "ready",
+		created_at: "2026-10-25T00:00:00Z",
+	});
+	const onAdd = vi.fn();
+	const { container } = render(
+		<MaterialUpload
+			files={[]}
+			csrf="test"
+			disabled={false}
+			onAdd={onAdd}
+			onRemove={vi.fn()}
+			onBusy={vi.fn()}
+		/>,
+	);
+	const section = container.querySelector(".material-upload-panel");
+	expect(section).not.toBeNull();
+	if (!section) return;
+	fireEvent.dragOver(section);
+	expect(section.className).toContain("is-dragging");
+	fireEvent.drop(section, {
+		dataTransfer: {
+			files: [
+				new File(["pdf"], "dragged.pdf", { type: "application/pdf" }),
+			] as unknown as FileList,
+		},
+	});
+	expect(section.className).not.toContain("is-dragging");
+	await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+	expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }));
+});

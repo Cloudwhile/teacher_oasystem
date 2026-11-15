@@ -57,7 +57,9 @@ export const achievementApi = {
 			call<"achievement_types">("/api/v1/achievement-types", { signal }),
 			call<"academic_terms">("/api/v1/academic-terms", { signal }),
 			call<"dictionaries">("/api/v1/dictionaries", { signal }),
-			call<"teacher_options">("/api/v1/teachers", { signal }),
+			call<"collaboration_teachers">("/api/v1/collaboration-teachers", {
+				signal,
+			}),
 		]);
 		return { types, terms, dictionaries, teachers };
 	},

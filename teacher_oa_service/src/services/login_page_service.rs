@@ -184,5 +184,16 @@ pub async fn save(
     )
     .await?;
     txn.commit().await?;
+    for previous_url in [&old.background_url, &old.logo_url] {
+        if let Some(key) = previous_url.strip_prefix(ASSET_PREFIX)
+            && previous_url != &settings.background_url
+            && previous_url != &settings.logo_url
+        {
+            let path = object_store::path::Path::from(format!("login-page/{key}"));
+            let _ =
+                tokio::time::timeout(std::time::Duration::from_secs(5), state.files.delete(&path))
+                    .await;
+        }
+    }
     Ok(settings)
 }

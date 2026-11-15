@@ -1,6 +1,9 @@
 import type { CurrentUser } from "./api";
 
-export type Permission = "reviews:write" | "admin:manage";
+export type Permission =
+	| "achievements:write"
+	| "reviews:write"
+	| "admin:manage";
 
 /** UI visibility only; the API enforces every permission independently. */
 export function hasPermission(

@@ -42,6 +42,7 @@ use utoipa::OpenApi;
         crate::api::routes::catalog::terms,
         crate::api::routes::catalog::dictionaries,
         crate::api::routes::catalog::teachers,
+        crate::api::routes::catalog::collaboration_teachers,
         crate::api::routes::achievements::list,
         crate::api::routes::achievements::create,
         crate::api::routes::achievements::detail,

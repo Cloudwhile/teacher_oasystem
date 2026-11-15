@@ -101,6 +101,7 @@ export function ReviewActions({
 					aria-invalid={Boolean(error)}
 					aria-describedby={error ? "review-opinion-error" : undefined}
 					onChange={(event) => {
+						if (error && !stale) setError("");
 						setOpinion(event.target.value);
 						onOpinionChange?.(event.target.value);
 					}}

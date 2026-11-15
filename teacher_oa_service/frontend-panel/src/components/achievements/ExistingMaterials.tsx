@@ -8,6 +8,7 @@ import {
 	errorMessage,
 	type FileMetadata,
 } from "@/features/achievements/api";
+import { formatSingaporeDate } from "@/services/dateFormat";
 import { useResource } from "@/services/useResource";
 import { MaterialAssociation } from "./MaterialAssociation";
 export function ExistingMaterials({
@@ -45,7 +46,7 @@ export function ExistingMaterials({
 									<small>
 										{selected.some((f) => f.id === file.id)
 											? "已选入本次成果"
-											: new Date(file.created_at).toLocaleDateString("zh-CN")}
+											: formatSingaporeDate(file.created_at)}
 										<MaterialAssociation file={file} />
 									</small>
 								</div>

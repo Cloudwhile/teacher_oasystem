@@ -53,7 +53,11 @@ export function AccountEditor({
 			await adminApi.saveAccount(data, csrf);
 			guard.allowLeave();
 			onDone();
-			if (self && data.name !== account?.name) void refresh();
+			if (
+				self &&
+				(data.name !== account?.name || data.department !== account?.department)
+			)
+				void refresh();
 		} catch (error) {
 			if (error instanceof HttpError && error.status === 401) void refresh();
 			setError(errorMessage(error));
@@ -103,7 +107,9 @@ export function AccountEditor({
 								id={key}
 								value={data[key] ?? ""}
 								required={key !== "wecom_userid"}
-								maxLength={key === "username" ? 64 : 100}
+								maxLength={
+									key === "username" ? 64 : key === "wecom_userid" ? 128 : 100
+								}
 								disabled={busy || (key === "username" && Boolean(account))}
 								autoComplete="off"
 								onChange={(e) => setData({ ...data, [key]: e.target.value })}
@@ -143,7 +149,7 @@ export function AccountEditor({
 					disabled={busy || self}
 					onChange={(e) => setData({ ...data, active: e.target.checked })}
 				/>
-				启用账号
+				<span>启用账号</span>
 			</label>
 			{error && (
 				<p className="inline-error" role="alert">

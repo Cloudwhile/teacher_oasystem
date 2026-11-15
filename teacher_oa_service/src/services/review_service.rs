@@ -50,6 +50,9 @@ pub async fn review(
         return Err(ApiError::Conflict("记录状态或版本已变化，请重新加载"));
     }
     let opinion = request.opinion.trim();
+    if opinion.contains('\0') {
+        return Err(ApiError::Invalid("审核意见包含无效字符"));
+    }
     if matches!(action, ReviewAction::Return) && opinion.is_empty() {
         return Err(ApiError::Invalid("请填写退回意见"));
     }

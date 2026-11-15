@@ -22,8 +22,12 @@ pub const COMMON_KEYS: [&str; 9] = [
 
 pub fn values(input: &AchievementInput) -> BTreeMap<String, Value> {
     let mut map = input.attributes.clone();
-    map.insert("title".into(), json!(input.title));
-    map.insert("remarks".into(), json!(input.remarks));
+    if !input.title.is_empty() {
+        map.insert("title".into(), json!(input.title));
+    }
+    if !input.remarks.is_empty() {
+        map.insert("remarks".into(), json!(input.remarks));
+    }
     for (key, value) in [
         ("subject_code", json!(input.subject_code)),
         ("academic_term_id", json!(input.academic_term_id)),
@@ -35,8 +39,12 @@ pub fn values(input: &AchievementInput) -> BTreeMap<String, Value> {
             map.insert(key.into(), value);
         }
     }
-    map.insert("participants".into(), json!(input.participants));
-    map.insert("files".into(), json!(input.file_ids));
+    if !input.participants.is_empty() {
+        map.insert("participants".into(), json!(input.participants));
+    }
+    if !input.file_ids.is_empty() {
+        map.insert("files".into(), json!(input.file_ids));
+    }
     map
 }
 pub fn error_key(key: &str) -> String {
@@ -83,7 +91,7 @@ pub fn validate(
     let mut funding = None;
     for field in &schema.fields {
         let value = map.get(&field.key);
-        let empty = value.is_none_or(|v| {
+        let blank_required = value.is_none_or(|v| {
             v.is_null()
                 || v.as_str().is_some_and(|v| v.trim().is_empty())
                 || (matches!(
@@ -91,15 +99,19 @@ pub fn validate(
                     FieldType::MultiSelect | FieldType::ParticipantList | FieldType::FileList
                 ) && v.as_array().is_some_and(Vec::is_empty))
         });
-        if field.required && (submitting || field.key == "title") && empty {
+        if field.required && (submitting || field.key == "title") && blank_required {
             errors.insert(error_key(&field.key), format!("请填写{}", field.label));
             continue;
         }
-        if empty
-            && value.is_none_or(|v| {
-                v.is_null() || !matches!(field.kind, FieldType::Text | FieldType::Textarea)
-            })
-        {
+        let omitted = value.is_none_or(|v| {
+            v.is_null()
+                || v.as_str().is_some_and(str::is_empty)
+                || (matches!(
+                    field.kind,
+                    FieldType::MultiSelect | FieldType::ParticipantList | FieldType::FileList
+                ) && v.as_array().is_some_and(Vec::is_empty))
+        });
+        if omitted {
             continue;
         }
         let Some(value) = value else { continue };

@@ -17,12 +17,14 @@ export function SidebarAccount({
 	activeKey,
 	leaving,
 	error,
+	mustChangePassword = false,
 	onLogout,
 }: {
 	user: CurrentUser | undefined;
 	activeKey: NavKey | null;
 	leaving: boolean;
 	error: string;
+	mustChangePassword?: boolean;
 	onLogout: () => void;
 }) {
 	const [open, setOpen] = useOpenUntilNavigation();
@@ -30,7 +32,10 @@ export function SidebarAccount({
 	const menuId = useId();
 	const name = user?.display_name ?? "";
 	const department = user?.teacher.department_name ?? "";
-	const current = accountLinks.some((link) => link.key === activeKey);
+	const links = mustChangePassword
+		? accountLinks.filter((link) => link.key === "account")
+		: accountLinks;
+	const current = links.some((link) => link.key === activeKey);
 	const closeOnEscape = (event: KeyboardEvent) => {
 		if (event.key !== "Escape" || !open) return;
 		event.stopPropagation();
@@ -70,7 +75,7 @@ export function SidebarAccount({
 			</div>
 			<div id={menuId} className="account-menu" hidden={!open}>
 				<ul>
-					{accountLinks.map((link) => (
+					{links.map((link) => (
 						<li key={link.key}>
 							<Link
 								to={link.to}

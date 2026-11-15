@@ -154,7 +154,8 @@ export async function mockApi(
 		if (
 			path === "/academic-terms" ||
 			path === "/dictionaries" ||
-			path === "/teachers"
+			path === "/teachers" ||
+			path === "/collaboration-teachers"
 		)
 			return ok(route, []);
 		if (path === "/files")

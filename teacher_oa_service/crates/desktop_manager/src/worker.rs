@@ -15,6 +15,7 @@ pub enum Command {
     Stop,
     Restart,
     ForceStop,
+    ForceExit,
     Refresh,
     ReadConfig,
     SaveConfig(SaveConfig),
@@ -88,6 +89,21 @@ pub fn run(settings: LauncherSettings, commands: Receiver<Command>, events: Sync
                         restart = false;
                         feedback(&events, supervisor.force_stop(), "服务已结束");
                     }
+                    Command::ForceExit => {
+                        restart = false;
+                        exiting = false;
+                        if supervisor.pid().is_none() {
+                            let _ = events.send(Event::Quit);
+                            return;
+                        }
+                        match supervisor.force_stop() {
+                            Ok(()) => {
+                                let _ = events.send(Event::Quit);
+                                return;
+                            }
+                            Err(error) => feedback(&events, Err(error), ""),
+                        }
+                    }
                     Command::Refresh => {}
                     Command::ReadConfig => match supervisor.config() {
                         Ok(snapshot) => {
@@ -132,7 +148,7 @@ pub fn run(settings: LauncherSettings, commands: Receiver<Command>, events: Sync
                     }
                     Command::ClearLogs => {
                         if let Ok(mut logs) = supervisor.logs.lock() {
-                            logs.clear();
+                            logs.clear_view();
                         }
                     }
                     Command::ExportLogs(path) => {
@@ -199,7 +215,7 @@ pub fn run(settings: LauncherSettings, commands: Receiver<Command>, events: Sync
             && logs.generation() != generation
         {
             // Native dialogs can pause UI delivery. Keep queued log snapshots bounded as well.
-            match events.try_send(Event::Logs(logs.text(""))) {
+            match events.try_send(Event::Logs(logs.view_text(""))) {
                 Ok(()) => generation = logs.generation(),
                 Err(TrySendError::Full(_)) => {}
                 Err(TrySendError::Disconnected(_)) => return,

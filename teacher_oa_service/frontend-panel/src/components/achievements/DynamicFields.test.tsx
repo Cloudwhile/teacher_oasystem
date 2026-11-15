@@ -6,6 +6,8 @@ import type {
 	Catalog,
 	FieldDefinition,
 } from "@/features/achievements/api";
+import { draftFingerprint } from "@/features/achievements/draftFingerprint";
+import { formatSingaporeDate } from "@/services/dateFormat";
 import { changeField, DynamicFields } from "./DynamicFields";
 
 const input: AchievementInput = {
@@ -116,5 +118,20 @@ describe("动态字段", () => {
 		fireEvent.change(field, { target: { value: "0.01" } });
 		expect(change.mock.calls[0][0].attributes.project_funding).toBe("0.01");
 		expect(screen.getByRole("alert").textContent).toBe("最多两位小数");
+	});
+	it("多选清空后移除空数组且新加坡时区日期跨日格式化准确", () => {
+		const multiField: FieldDefinition = {
+			...base,
+			key: "tags",
+			label: "标签",
+			type: "multi_select",
+			options: ["核心"],
+		};
+		const checked = changeField(input, multiField, ["核心"]);
+		expect(checked.attributes?.tags).toEqual(["核心"]);
+		const unchecked = changeField(checked, multiField, []);
+		expect("tags" in (unchecked.attributes ?? {})).toBe(false);
+		expect(draftFingerprint(unchecked)).toBe(draftFingerprint(input));
+		expect(formatSingaporeDate("2026-11-15T18:30:00Z")).toBe("2026-11-16");
 	});
 });

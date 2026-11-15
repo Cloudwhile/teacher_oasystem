@@ -26,6 +26,11 @@ pub async fn validate_relations(
     submitting: bool,
 ) -> Result<Option<rust_decimal::Decimal>, ApiError> {
     let funding = achievement_validation::validate(input, schema, submitting)?;
+    input.attributes.retain(|_, value| {
+        !value.is_null()
+            && !value.as_str().is_some_and(str::is_empty)
+            && !value.as_array().is_some_and(Vec::is_empty)
+    });
     let mut errors = BTreeMap::new();
     let values = achievement_validation::values(input);
     for field in &schema.fields {
@@ -91,7 +96,8 @@ pub async fn validate_relations(
                     ApiError::NotFound => ApiError::Invalid("关联教师不存在"),
                     other => other,
                 })?;
-            if !user.can_read_teacher(&profile) {
+            if !repo::has_permission(user, "achievements:write") && !user.can_read_teacher(&profile)
+            {
                 return Err(ApiError::Forbidden);
             }
             if profile.employment_status != "active" {
@@ -100,8 +106,10 @@ pub async fn validate_relations(
                     "关联教师已离职".into(),
                 );
             }
+            person.teacher_name = Some(profile.name.clone());
             person.external_name = profile.name;
         } else {
+            person.teacher_name = None;
             person.external_name = person.external_name.trim().to_string();
         }
     }
@@ -165,11 +173,15 @@ pub(super) async fn snapshot(
     record: &achievement::Model,
     input: &AchievementInput,
 ) -> Result<(), ApiError> {
+    let mut stored = input.clone();
+    for person in &mut stored.participants {
+        person.teacher_name = None;
+    }
     let revision = revision::ActiveModel {
         achievement_id: Set(record.id),
         version: Set(record.version),
         schema_version: Set(record.schema_version),
-        snapshot: Set(json!({"status":record.status,"data":input})),
+        snapshot: Set(json!({"status":record.status,"data":stored})),
         modified_by: Set(actor),
         created_at: Set(Utc::now()),
         ..Default::default()

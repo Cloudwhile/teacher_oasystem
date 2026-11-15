@@ -31,7 +31,11 @@ function DirtyPage() {
 	useUnsavedChanges(true, false);
 	return <p>未保存的填报</p>;
 }
-function show(path: string, permissions: string[] = [], state?: unknown) {
+function show(
+	path: string,
+	permissions: string[] = ["achievements:write"],
+	state?: unknown,
+) {
 	auth.session.user.grants = permissions.map((permission) => ({
 		permission,
 		scope: "ALL",
@@ -100,6 +104,9 @@ it.each([
 		).toEqual(["成员与账号", "登录设置", "登录页与公告"]);
 	for (const missing of ["统计报表", "成果类型", "学年学期", "个人档案"])
 		expect(within(nav()).queryByText(missing)).toBeNull();
+	expect(within(nav()).queryByRole("link", { name: "新建成果" }) !== null).toBe(
+		permissions.includes("achievements:write"),
+	);
 });
 
 it("展开收起成果管理不改变地址，二级入口指向成果范围", async () => {

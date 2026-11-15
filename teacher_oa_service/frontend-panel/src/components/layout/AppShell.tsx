@@ -10,8 +10,10 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { GraduationCap, Menu, Plus, X } from "reicon-react";
 import { IconButton } from "@/components/common/IconButton";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { hasPermission } from "@/features/auth/permissions";
 import { resolveNavigation } from "@/routes/navigationState";
 import { appPaths } from "@/routes/routePaths";
+import { formatSingaporeDate } from "@/services/dateFormat";
 import { useMediaQuery } from "@/services/useMediaQuery";
 import { useOpenUntilNavigation } from "@/services/useOpenUntilNavigation";
 import { LeaveGuardContext } from "@/services/useUnsavedChanges";
@@ -31,6 +33,9 @@ export function AppShell() {
 		location.search,
 		location.state?.from,
 	);
+	useEffect(() => {
+		document.title = `${nav.title} · TeacherOA`;
+	}, [nav.title]);
 	const mobile = useMediaQuery(mobileDrawerQuery);
 	const [menuOpen, setMenuOpen] = useOpenUntilNavigation();
 	if (menuOpen && !mobile) setMenuOpen(false);
@@ -110,9 +115,18 @@ export function AppShell() {
 			setLeaving(false);
 		}
 	};
+	const mustChangePassword = Boolean(session?.must_change_password);
+	const canWriteAchievement = hasPermission(
+		session?.user,
+		"achievements:write",
+	);
+	const now = new Date();
 	return (
 		<LeaveGuardContext.Provider value={guards}>
 			<div className={`app-shell${drawerOpen ? " drawer-open" : ""}`}>
+				<a className="skip-link" href="#main-content">
+					跳至主要内容
+				</a>
 				{/* Pointer shortcut only; the close button and Escape serve keyboard users. */}
 				<div
 					className="drawer-backdrop"
@@ -131,7 +145,14 @@ export function AppShell() {
 					})}
 				>
 					<div className="sidebar-header">
-						<Link to={appPaths.dashboard} className="brand">
+						<Link
+							to={
+								mustChangePassword
+									? location.pathname + location.search
+									: appPaths.dashboard
+							}
+							className="brand"
+						>
 							<GraduationCap aria-hidden="true" />
 							<span>
 								TeacherOA<small>教师综合 OA</small>
@@ -147,17 +168,29 @@ export function AppShell() {
 						</IconButton>
 					</div>
 					<nav className="sidebar-nav" aria-label="主导航">
-						<Link to={navPaths.achievementsNew} className="sidebar-create">
-							<Plus aria-hidden="true" />
-							<span>新建成果</span>
-						</Link>
-						<Navigation state={nav} />
+						{mustChangePassword ? (
+							<p className="nav-group-label">请先修改初始密码后使用其他功能</p>
+						) : (
+							<>
+								{canWriteAchievement && (
+									<Link
+										to={navPaths.achievementsNew}
+										className="sidebar-create"
+									>
+										<Plus aria-hidden="true" />
+										<span>新建成果</span>
+									</Link>
+								)}
+								<Navigation state={nav} />
+							</>
+						)}
 					</nav>
 					<SidebarAccount
 						user={session?.user}
 						activeKey={nav.activeKey}
 						leaving={leaving}
 						error={error}
+						mustChangePassword={mustChangePassword}
 						onLogout={() => {
 							void leave();
 						}}
@@ -187,13 +220,13 @@ export function AppShell() {
 								),
 							)}
 						</div>
-						<time dateTime={new Date().toISOString().slice(0, 10)}>
+						<time dateTime={formatSingaporeDate(now)}>
 							{new Intl.DateTimeFormat("zh-CN", {
 								year: "numeric",
 								month: "long",
 								day: "numeric",
 								timeZone: "Asia/Singapore",
-							}).format(new Date())}
+							}).format(now)}
 						</time>
 					</header>
 					<main

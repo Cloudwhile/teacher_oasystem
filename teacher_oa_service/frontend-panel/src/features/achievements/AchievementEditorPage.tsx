@@ -69,10 +69,12 @@ export function AchievementEditorPage() {
 	const [baseline, setBaseline] = useState("");
 	const [conflict, setConflict] = useState(false);
 	const pending = useRef(false);
+	const savedId = useRef<number | null>(null);
 	const form = useRef<HTMLFormElement>(null);
 	const dirty = data !== null && draftFingerprint(data) !== baseline;
 	const guard = useUnsavedChanges(!loading && dirty, busy || uploading);
 	useEffect(() => {
+		if (id && savedId.current === Number(id)) return;
 		const controller = new AbortController();
 		setLoading(true);
 		setLoadError("");
@@ -87,6 +89,7 @@ export function AchievementEditorPage() {
 						controller.signal,
 					);
 					if (controller.signal.aborted) return;
+					savedId.current = detail.record.id;
 					setSaved(detail);
 					setData(detail.data);
 					setBaseline(draftFingerprint(detail.data));
@@ -99,6 +102,7 @@ export function AchievementEditorPage() {
 						controller.signal,
 					);
 					if (controller.signal.aborted) return;
+					savedId.current = null;
 					setSchema(next);
 					setSaved(null);
 					const draft = emptyDraft(next);
@@ -126,15 +130,16 @@ export function AchievementEditorPage() {
 				?.focus();
 	}, [errors]);
 	const save = async (submit: boolean) => {
-		if (
-			pending.current ||
-			busy ||
-			uploading ||
-			!data ||
-			!session ||
-			!form.current?.reportValidity()
-		)
+		if (pending.current || busy || uploading || !data || !session) return;
+		if (!submit) {
+			if (!data.title.trim()) {
+				setErrors({ title: "请填写成果名称" });
+				setError("请先填写成果名称再保存草稿。");
+				return;
+			}
+		} else if (!form.current?.reportValidity()) {
 			return;
+		}
 		if (submit && schema) {
 			const missing: Record<string, string> = {};
 			for (const field of schema.fields.filter(
@@ -173,8 +178,10 @@ export function AchievementEditorPage() {
 								session.csrf_token,
 							)
 						: await achievementApi.create(data, session.csrf_token);
+			savedId.current = detail.record.id;
 			setSaved(detail);
 			setData(detail.data);
+			setFiles(detail.files);
 			setBaseline(draftFingerprint(detail.data));
 			persisted = detail;
 			if (submit) {
@@ -184,6 +191,7 @@ export function AchievementEditorPage() {
 					session.csrf_token,
 				);
 				setSaved(detail);
+				setFiles(detail.files);
 			}
 			guard.allowLeave();
 			navigate(`/achievements/${detail.record.id}`, { state: { from: back } });
@@ -193,6 +201,13 @@ export function AchievementEditorPage() {
 			);
 			setErrors(validationErrors(error));
 			setConflict(error instanceof HttpError && error.status === 409);
+			if (!id && persisted) {
+				guard.allowLeave();
+				navigate(`/achievements/${persisted.record.id}/edit`, {
+					replace: true,
+					state: { from: back },
+				});
+			}
 			if (
 				error &&
 				typeof error === "object" &&
@@ -330,6 +345,14 @@ export function AchievementEditorPage() {
 						disabled={busy || uploading}
 						errors={errors}
 						onChange={setData}
+						onClearError={(key) =>
+							setErrors((previous) => {
+								if (!(key in previous)) return previous;
+								const next = { ...previous };
+								delete next[key];
+								return next;
+							})
+						}
 					/>
 					{data.occurred_at &&
 						data.academic_term_id &&
@@ -345,14 +368,21 @@ export function AchievementEditorPage() {
 										type="checkbox"
 										disabled={busy || uploading}
 										checked={data.term_mismatch_confirmed ?? false}
-										onChange={(event) =>
+										onChange={(event) => {
+											setErrors((previous) => {
+												if (!("term_mismatch_confirmed" in previous))
+													return previous;
+												const next = { ...previous };
+												delete next.term_mismatch_confirmed;
+												return next;
+											});
 											setData({
 												...data,
 												term_mismatch_confirmed: event.target.checked,
-											})
-										}
+											});
+										}}
 									/>
-									日期不在所选学期，我已核对归属学期。
+									<span>日期不在所选学期，我已核对归属学期。</span>
 								</label>
 							) : null;
 						})()}
@@ -367,7 +397,23 @@ export function AchievementEditorPage() {
 							catalog={catalogData}
 							errors={errors}
 							disabled={busy || uploading}
-							onChange={(participants) => setData({ ...data, participants })}
+							onChange={(participants) => {
+								setErrors((previous) => {
+									const next = { ...previous };
+									let changed = false;
+									for (const key of Object.keys(next)) {
+										if (
+											key === "participants" ||
+											key.startsWith("participants.")
+										) {
+											delete next[key];
+											changed = true;
+										}
+									}
+									return changed ? next : previous;
+								});
+								setData({ ...data, participants });
+							}}
 						/>
 					))}
 				<MaterialUpload

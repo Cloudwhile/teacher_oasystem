@@ -122,3 +122,30 @@ it("企业微信链接携带原目标且不泄露密钥", async () => {
 		(screen.getByRole("textbox", { name: "账号" }) as HTMLInputElement).value,
 	).toBe("teacher");
 });
+it("预览模式停用企微跳转且企微错误在切换分页后仍可见", async () => {
+	vi.spyOn(authApi, "options").mockResolvedValue({
+		password_enabled: true,
+		mock_enabled: false,
+		wecom_enabled: true,
+	});
+	auth.status = "ready";
+	auth.session = { must_change_password: false };
+	show("/login?preview=1&error=wecom_denied");
+	expect(
+		await screen.findByText("当前为登录页预览模式，登录与授权跳转已停用。"),
+	).toBeTruthy();
+	const wecom = screen.getByRole("tab", { name: "企业微信登录" });
+	await waitFor(() =>
+		expect(wecom.getAttribute("aria-disabled")).not.toBe("true"),
+	);
+	fireEvent.click(wecom);
+	expect(screen.getByRole("alert").textContent).toContain("企业微信登录未完成");
+	expect(screen.queryByRole("link", { name: "企业微信扫码登录" })).toBeNull();
+	expect(
+		(
+			screen.getByRole("button", {
+				name: "企业微信扫码登录",
+			}) as HTMLButtonElement
+		).disabled,
+	).toBe(true);
+});

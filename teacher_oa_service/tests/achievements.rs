@@ -801,3 +801,125 @@ async fn published_schema_changes_do_not_change_existing_records() {
         StatusCode::OK
     );
 }
+
+#[actix_web::test]
+async fn collaboration_picker_file_redaction_and_nulls_last_sorting_work() {
+    use teacher_oa_service::repositories::entities::user_role;
+    let (state, _database) = setup().await;
+    let app = create_test_app!(state.clone());
+    let (cookie, csrf) = login!(app, "teacher");
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/collaboration-teachers")
+            .cookie(cookie.clone())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let collab: Value = test::read_body_json(response).await;
+    let collab_ids: Vec<i64> = collab["data"]
+        .as_array()
+        .expect("collab array")
+        .iter()
+        .map(|item| item["id"].as_i64().expect("id"))
+        .collect();
+    assert!(collab_ids.contains(&91003));
+
+    let dated_file_id = upload!(app, cookie, csrf);
+    let file_id = upload!(app, cookie, csrf);
+    let mut with_date = draft("open_class", vec![dated_file_id]);
+    with_date["title"] = json!("有日期成果");
+    with_date["occurred_at"] = json!("2026-10-01");
+    let created = mutation!(app, post, "/api/v1/achievements", cookie, csrf, &with_date);
+    assert_eq!(created.status(), StatusCode::OK);
+    let created_body: Value = test::read_body_json(created).await;
+    let dated_id = created_body["data"]["record"]["id"].as_i64().expect("id");
+
+    let mut without_date = draft("research_project", vec![file_id]);
+    without_date["title"] = json!("无日期合著成果");
+    without_date["participants"] = json!([
+        {"teacher_id": 91001, "external_name": "", "role_code": "host", "sort_order": 0},
+        {"teacher_id": 91003, "external_name": "", "role_code": "participant", "sort_order": 1}
+    ]);
+    let created2 = mutation!(
+        app,
+        post,
+        "/api/v1/achievements",
+        cookie,
+        csrf,
+        &without_date
+    );
+    assert_eq!(created2.status(), StatusCode::OK);
+    let created2_body: Value = test::read_body_json(created2).await;
+    let undated_id = created2_body["data"]["record"]["id"].as_i64().expect("id");
+    assert_eq!(
+        created2_body["data"]["data"]["participants"][1]["teacher_name"],
+        "测试审核员"
+    );
+
+    let sorted = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/achievements?sort=occurred_at_desc")
+            .cookie(cookie.clone())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(sorted.status(), StatusCode::OK);
+    let sorted_body: Value = test::read_body_json(sorted).await;
+    assert_eq!(sorted_body["data"]["items"][0]["id"], dated_id);
+    assert_eq!(sorted_body["data"]["items"][1]["id"], undated_id);
+
+    assert_eq!(
+        mutation!(
+            app,
+            post,
+            &format!("/api/v1/achievements/{dated_id}/submit"),
+            cookie,
+            csrf,
+            json!({"version": 1})
+        )
+        .status(),
+        StatusCode::OK
+    );
+
+    user_role::Entity::delete_by_id((91003, "reviewer".to_string()))
+        .exec(state.db_handles.writer())
+        .await
+        .expect("strip reviewer");
+    teacher_oa_service::repositories::entities::role_permission::ActiveModel {
+        role_code: Set("group_leader".into()),
+        permission_code: Set("achievements:read".into()),
+    }
+    .insert(state.db_handles.writer())
+    .await
+    .ok();
+    let mut reader =
+        teacher_oa_service::repositories::identity::current_user(state.db_handles.writer(), 91003)
+            .await
+            .expect("reader");
+    reader
+        .grants
+        .push(teacher_oa_service::domain::identity::PermissionGrant {
+            permission: "achievements:read".into(),
+            scope: teacher_oa_service::domain::identity::DataScope::All,
+        });
+    let row = teacher_oa_service::repositories::achievements::accessible(
+        state.db_handles.writer(),
+        &reader,
+        dated_id,
+    )
+    .await
+    .expect("accessible");
+    let redacted = teacher_oa_service::repositories::achievements::detail(
+        state.db_handles.writer(),
+        &reader,
+        &row,
+    )
+    .await
+    .expect("detail without file grant");
+    assert!(redacted.files.is_empty());
+    assert!(redacted.data.file_ids.is_empty());
+}

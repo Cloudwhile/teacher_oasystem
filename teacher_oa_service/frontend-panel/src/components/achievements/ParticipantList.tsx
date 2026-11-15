@@ -8,7 +8,12 @@ export function ParticipantList({
 }) {
 	if (!participants.length) return null;
 	return (
-		<div className="table-scroll">
+		<section
+			className="table-scroll"
+			// biome-ignore lint/a11y/noNoninteractiveTabindex: horizontal scrolling must be keyboard accessible.
+			tabIndex={0}
+			aria-label="相关人员列表"
+		>
 			<table>
 				<thead>
 					<tr>
@@ -19,10 +24,13 @@ export function ParticipantList({
 				</thead>
 				<tbody>
 					{participants.map((person, index) => (
-						<tr key={person.sort_order}>
+						<tr
+							key={`${person.sort_order}-${person.teacher_id ?? person.external_name}`}
+						>
 							<td>{index + 1}</td>
 							<td>
 								{person.external_name.trim() ||
+									person.teacher_name ||
 									catalog.teachers.find(
 										(teacher) => teacher.id === person.teacher_id,
 									)?.name ||
@@ -39,6 +47,6 @@ export function ParticipantList({
 					))}
 				</tbody>
 			</table>
-		</div>
+		</section>
 	);
 }

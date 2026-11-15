@@ -93,10 +93,16 @@ pub async fn pending(
         if let Some(term) = query.academic_term_id {
             select = select.filter(achievement::Column::AcademicTermId.eq(term));
         }
-        let pager = select
-            .order_by_asc(achievement::Column::UpdatedAt)
-            .order_by_asc(achievement::Column::Id)
-            .paginate(state.db_handles.writer(), page_size);
+        let ordered = if status == "pending" {
+            select
+                .order_by_asc(achievement::Column::UpdatedAt)
+                .order_by_asc(achievement::Column::Id)
+        } else {
+            select
+                .order_by_desc(achievement::Column::UpdatedAt)
+                .order_by_desc(achievement::Column::Id)
+        };
+        let pager = ordered.paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
         let page = page.min(total.div_ceil(page_size).max(1));
         let mut items = Vec::new();

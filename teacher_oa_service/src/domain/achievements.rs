@@ -66,6 +66,8 @@ pub struct AchievementType {
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct ParticipantInput {
     pub teacher_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub teacher_name: Option<String>,
     pub external_name: String,
     pub role_code: String,
     pub sort_order: i32,

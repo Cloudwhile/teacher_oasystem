@@ -23,8 +23,10 @@ export function MyProfilePage() {
 				if (!signal?.aborted) setProfile(value);
 			} catch (error) {
 				if (!signal?.aborted) {
-					if (error instanceof HttpError && [401, 403].includes(error.status)) {
+					if (error instanceof HttpError && error.status === 401) {
 						await refresh();
+					} else if (error instanceof HttpError && error.status === 403) {
+						setError("当前账号无权查看档案。");
 					} else setError("档案暂时无法读取，请稍后重试。");
 				}
 			} finally {

@@ -61,8 +61,25 @@ export default defineConfig({
 	},
 	server: {
 		proxy: {
-			"/api": backendTarget,
-			"/health": backendTarget,
+			"/api": {
+				target: backendTarget,
+				changeOrigin: true,
+				configure(proxy) {
+					proxy.on("proxyReq", (proxyReq, req) => {
+						const origin = req.headers.origin;
+						if (
+							origin &&
+							/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)
+						) {
+							proxyReq.setHeader("origin", backendTarget);
+						}
+					});
+				},
+			},
+			"/health": {
+				target: backendTarget,
+				changeOrigin: true,
+			},
 		},
 	},
 	build: {

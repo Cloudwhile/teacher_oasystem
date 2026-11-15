@@ -63,7 +63,7 @@ pub async fn initialize_admin(
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder, Set, TransactionTrait, sea_query::Expr,
+    Set, TransactionTrait, sea_query::Expr,
 };
 use serde::{Deserialize, Serialize};
 
@@ -122,7 +122,10 @@ pub async fn credential_for(
         .await?)
 }
 pub fn check_password(password: &str) -> Result<(), ApiError> {
-    if !(12..=128).contains(&password.chars().count()) || password.trim() != password {
+    if !(12..=128).contains(&password.chars().count())
+        || password.trim() != password
+        || password.contains('\0')
+    {
         return Err(ApiError::Invalid("密码须为12至128位，首尾不能有空格"));
     }
     Ok(())
@@ -245,49 +248,87 @@ pub async fn change(
     Ok(row.version + 1)
 }
 pub async fn accounts(db: &DatabaseConnection) -> Result<Accounts, ApiError> {
-    let mut items = Vec::new();
-    for row in credential::Entity::find()
-        .order_by_asc(credential::Column::Username)
+    let corp = crate::repositories::entities::login_settings::Entity::find_by_id(1)
+        .one(db)
+        .await?
+        .map(|row| row.corp_id)
+        .unwrap_or_default();
+    accounts_for_corp(db, &corp).await
+}
+
+pub async fn accounts_for_corp(db: &DatabaseConnection, corp: &str) -> Result<Accounts, ApiError> {
+    use std::collections::BTreeMap;
+    let teachers: BTreeMap<i64, teacher::Model> = teacher::Entity::find()
         .all(db)
         .await?
-    {
-        let person = teacher::Entity::find()
-            .filter(teacher::Column::UserId.eq(row.user_id))
-            .one(db)
-            .await?
-            .ok_or(ApiError::Internal)?;
-        let department = department::Entity::find_by_id(person.department_id)
-            .one(db)
-            .await?
-            .ok_or(ApiError::Internal)?;
-        let account = user::Entity::find_by_id(row.user_id)
-            .one(db)
-            .await?
-            .ok_or(ApiError::Internal)?;
-        let roles = user_role::Entity::find()
-            .filter(user_role::Column::UserId.eq(row.user_id))
-            .all(db)
-            .await?;
-        let binding = identity::Entity::find()
-            .filter(identity::Column::UserId.eq(row.user_id))
+        .into_iter()
+        .map(|row| (row.user_id, row))
+        .collect();
+    let departments: BTreeMap<i64, String> = department::Entity::find()
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|row| (row.id, row.name))
+        .collect();
+    let users: BTreeMap<i64, user::Model> = user::Entity::find()
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|row| (row.id, row))
+        .collect();
+    let mut roles: BTreeMap<i64, Vec<String>> = BTreeMap::new();
+    for row in user_role::Entity::find().all(db).await? {
+        roles.entry(row.user_id).or_default().push(row.role_code);
+    }
+    let credentials: BTreeMap<i64, credential::Model> = credential::Entity::find()
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|row| (row.user_id, row))
+        .collect();
+    let mut bindings: BTreeMap<i64, String> = BTreeMap::new();
+    if !corp.trim().is_empty() {
+        for row in identity::Entity::find()
             .filter(identity::Column::Provider.eq("wecom"))
-            .one(db)
-            .await?;
+            .filter(identity::Column::CorpId.eq(corp.trim()))
+            .all(db)
+            .await?
+        {
+            bindings.insert(row.user_id, row.provider_userid);
+        }
+    }
+    let mut items = Vec::new();
+    for (&user_id, person) in &teachers {
+        let account = users.get(&user_id).ok_or(ApiError::Internal)?;
+        let department = departments
+            .get(&person.department_id)
+            .cloned()
+            .ok_or(ApiError::Internal)?;
+        let cred = credentials.get(&user_id);
+        let username = cred
+            .map(|row| row.username.clone())
+            .unwrap_or_else(|| person.employee_no.to_ascii_lowercase());
+        let role = roles
+            .get(&user_id)
+            .and_then(|list| list.iter().find(|code| code.as_str() != "teacher"))
+            .cloned()
+            .unwrap_or_else(|| "teacher".into());
         items.push(AccountItem {
-            id: row.user_id,
-            username: row.username,
-            name: person.name,
-            department: department.name,
-            role: roles
-                .iter()
-                .find(|r| r.role_code != "teacher")
-                .map(|r| r.role_code.clone())
-                .unwrap_or("teacher".into()),
+            id: user_id,
+            username,
+            name: person.name.clone(),
+            department,
+            role,
             active: account.status == "active",
-            wecom_userid: binding.map(|b| b.provider_userid),
-            must_change: row.must_change,
+            wecom_userid: bindings.get(&user_id).cloned(),
+            must_change: cred.is_some_and(|row| row.must_change),
         });
     }
+    items.sort_by(|left, right| {
+        left.username
+            .cmp(&right.username)
+            .then_with(|| left.id.cmp(&right.id))
+    });
     Ok(Accounts { items })
 }
 pub async fn save(
@@ -308,8 +349,10 @@ pub async fn save(
     }
     if input.name.trim().is_empty()
         || input.name.chars().count() > 100
+        || input.name.contains('\0')
         || input.department.trim().is_empty()
         || input.department.chars().count() > 100
+        || input.department.contains('\0')
     {
         return Err(ApiError::Invalid("请填写有效姓名和部门"));
     }
@@ -319,8 +362,9 @@ pub async fn save(
     if input.id.is_some() && input.id == actor && (!input.active || input.role != "admin") {
         return Err(ApiError::Invalid("不能停用自己或移除自己的管理员角色"));
     }
+    let corp = corp.trim();
     let member = input.wecom_userid.as_deref().unwrap_or("").trim();
-    if member.len() > 128 || member.chars().any(char::is_whitespace) {
+    if member.len() > 128 || member.chars().any(|c| c.is_whitespace() || c.is_control()) {
         return Err(ApiError::Invalid("企业微信成员账号无效"));
     }
     if !member.is_empty() && corp.is_empty() {
@@ -339,27 +383,47 @@ pub async fn save(
     if input.id.is_none() && password_hash.is_none() {
         return Err(ApiError::Invalid("请设置初始密码"));
     }
-    let txn = db.begin().await?;
-    let existing = credential::Entity::find_by_id(&username).one(&txn).await?;
-    if existing.as_ref().map(|r| r.user_id) != input.id {
-        return Err(ApiError::Conflict("账号已存在或账号信息已变更"));
-    }
+    let dept_name = input.department.trim();
     let dept = match department::Entity::find()
-        .filter(department::Column::Name.eq(input.department.trim()))
-        .one(&txn)
+        .filter(department::Column::Name.eq(dept_name))
+        .one(db)
         .await?
     {
         Some(d) => d,
-        None => {
-            department::ActiveModel {
-                name: Set(input.department.trim().into()),
-                ..Default::default()
-            }
-            .insert(&txn)
-            .await?
-        }
+        None => match (department::ActiveModel {
+            name: Set(dept_name.into()),
+            ..Default::default()
+        })
+        .insert(db)
+        .await
+        {
+            Ok(d) => d,
+            Err(_) => department::Entity::find()
+                .filter(department::Column::Name.eq(dept_name))
+                .one(db)
+                .await?
+                .ok_or(ApiError::Internal)?,
+        },
     };
+    let txn = db.begin().await?;
+    let existing = credential::Entity::find_by_id(&username).one(&txn).await?;
+    if existing
+        .as_ref()
+        .is_some_and(|row| Some(row.user_id) != input.id)
+    {
+        return Err(ApiError::Conflict("账号已存在或账号信息已变更"));
+    }
     let id = if let Some(id) = input.id {
+        if user::Entity::find_by_id(id).one(&txn).await?.is_none() {
+            return Err(ApiError::NotFound);
+        }
+        let current_cred = credential_for(&txn, id).await?;
+        if current_cred
+            .as_ref()
+            .is_some_and(|cred| cred.username != username)
+        {
+            return Err(ApiError::Conflict("账号已存在或账号信息已变更"));
+        }
         user::Entity::update_many()
             .col_expr(user::Column::DisplayName, Expr::value(input.name.trim()))
             .col_expr(
@@ -375,29 +439,51 @@ pub async fn save(
             .filter(teacher::Column::UserId.eq(id))
             .exec(&txn)
             .await?;
-        // Increment the persisted version atomically; ordinary profile saves leave it alone.
-        if password_hash.is_some() || !input.active {
-            let mut update = credential::Entity::update_many().col_expr(
-                credential::Column::Version,
-                Expr::col(credential::Column::Version).add(1),
-            );
-            if let Some(hash) = password_hash {
-                update = update
-                    .col_expr(credential::Column::PasswordHash, Expr::value(hash))
-                    .col_expr(credential::Column::MustChange, Expr::value(true))
-                    .col_expr(credential::Column::FailedAttempts, Expr::value(0))
-                    .col_expr(
-                        credential::Column::LockedUntil,
-                        Expr::value(None::<chrono::DateTime<Utc>>),
-                    );
+        if current_cred.is_some() {
+            // Increment the persisted version atomically; ordinary profile saves leave it alone.
+            if password_hash.is_some() || !input.active {
+                let mut update = credential::Entity::update_many().col_expr(
+                    credential::Column::Version,
+                    Expr::col(credential::Column::Version).add(1),
+                );
+                if let Some(hash) = password_hash {
+                    update = update
+                        .col_expr(credential::Column::PasswordHash, Expr::value(hash))
+                        .col_expr(credential::Column::MustChange, Expr::value(true))
+                        .col_expr(credential::Column::FailedAttempts, Expr::value(0))
+                        .col_expr(
+                            credential::Column::LockedUntil,
+                            Expr::value(None::<chrono::DateTime<Utc>>),
+                        );
+                }
+                update
+                    .filter(credential::Column::UserId.eq(id))
+                    .exec(&txn)
+                    .await?;
             }
-            update
-                .filter(credential::Column::UserId.eq(id))
-                .exec(&txn)
-                .await?;
+        } else if let Some(hash) = password_hash {
+            credential::ActiveModel {
+                username: Set(username),
+                user_id: Set(id),
+                password_hash: Set(hash),
+                version: Set(1),
+                failed_attempts: Set(0),
+                locked_until: Set(None),
+                must_change: Set(true),
+            }
+            .insert(&txn)
+            .await?;
         }
         id
     } else {
+        if teacher::Entity::find()
+            .filter(teacher::Column::EmployeeNo.eq(format!("OA-{username}")))
+            .one(&txn)
+            .await?
+            .is_some()
+        {
+            return Err(ApiError::Conflict("账号已存在或账号信息已变更"));
+        }
         let account = user::ActiveModel {
             display_name: Set(input.name.trim().into()),
             status: Set(if input.active {

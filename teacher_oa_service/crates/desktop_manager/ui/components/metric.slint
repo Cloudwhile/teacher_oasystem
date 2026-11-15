@@ -1,20 +1,31 @@
 export component Metric inherits Rectangle {
     in property <string> label;
     in property <string> value;
-    in property <color> value-color: #182b43;
-    background: #ffffff;
+    in property <color> value-color: #152033;
+    background: metric-touch.has-hover ? #fafcff : #ffffff;
     border-width: 1px;
-    border-color: #e1e7ef;
-    border-radius: 6px;
-    min-height: 100px;
+    border-color: metric-touch.has-hover ? #b7cef2 : #dde5f0;
+    border-radius: 10px;
+    min-height: 102px;
     // Equal width per card regardless of value length.
     min-width: 0px;
     preferred-width: 0px;
     horizontal-stretch: 1;
+    animate border-color { duration: 150ms; }
+    animate background { duration: 150ms; }
+    metric-touch := TouchArea {}
+    Rectangle {
+        x: 16px;
+        y: 0px;
+        width: 36px;
+        height: 3px;
+        border-radius: 2px;
+        background: root.value-color;
+    }
     VerticalLayout {
         padding: 18px;
         spacing: 10px;
-        Text { text: root.label; color: #69788b; font-size: 13px; }
-        Text { text: root.value; color: root.value-color; font-size: 23px; font-weight: 600; overflow: elide; }
+        Text { text: root.label; color: #5b6a82; font-size: 13px; }
+        Text { text: root.value; color: root.value-color; font-size: 24px; font-weight: 650; overflow: elide; }
     }
 }

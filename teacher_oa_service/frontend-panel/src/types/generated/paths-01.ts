@@ -369,6 +369,22 @@ export interface PathsPart1 {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collaboration-teachers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["collaboration_teachers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -427,22 +443,6 @@ export interface PathsPart1 {
         get?: never;
         put?: never;
         post: operations["file_upload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/files/{id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["file_download"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;

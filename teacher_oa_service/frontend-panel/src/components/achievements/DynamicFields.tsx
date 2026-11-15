@@ -55,7 +55,12 @@ export function changeField(
 				: value || null,
 		};
 	const attributes = { ...data.attributes };
-	if (value === "" || value === null) delete attributes[field.key];
+	if (
+		value === "" ||
+		value === null ||
+		(Array.isArray(value) && value.length === 0)
+	)
+		delete attributes[field.key];
 	else attributes[field.key] = value;
 	return { ...data, attributes };
 }
@@ -66,6 +71,7 @@ export function DynamicFields({
 	disabled,
 	errors,
 	onChange,
+	onClearError,
 }: {
 	fields: FieldDefinition[];
 	data: AchievementInput;
@@ -73,7 +79,12 @@ export function DynamicFields({
 	disabled: boolean;
 	errors: Record<string, string>;
 	onChange: (data: AchievementInput) => void;
+	onClearError?: (key: string) => void;
 }) {
+	const updateField = (field: FieldDefinition, raw: string | string[]) => {
+		onClearError?.(fieldErrorKey(field.key));
+		onChange(changeField(data, field, raw));
+	};
 	return (
 		<div className="form-grid">
 			{fields
@@ -128,17 +139,14 @@ export function DynamicFields({
 										: String(value ?? "")
 								}
 								onChange={(event) =>
-									onChange(
-										changeField(
-											data,
-											field,
-											field.type === "multi_select"
-												? Array.from(
-														event.target.selectedOptions,
-														(option) => option.value,
-													)
-												: event.target.value,
-										),
+									updateField(
+										field,
+										field.type === "multi_select"
+											? Array.from(
+													event.target.selectedOptions,
+													(option) => option.value,
+												)
+											: event.target.value,
 									)
 								}
 							>
@@ -157,9 +165,7 @@ export function DynamicFields({
 								rows={3}
 								maxLength={field.maxLength ?? undefined}
 								value={String(value ?? "")}
-								onChange={(event) =>
-									onChange(changeField(data, field, event.target.value))
-								}
+								onChange={(event) => updateField(field, event.target.value)}
 							/>
 						);
 					else
@@ -179,9 +185,7 @@ export function DynamicFields({
 								maxLength={field.maxLength ?? undefined}
 								required={field.key === "title"}
 								value={String(value ?? "")}
-								onChange={(event) =>
-									onChange(changeField(data, field, event.target.value))
-								}
+								onChange={(event) => updateField(field, event.target.value)}
 							/>
 						);
 					return (

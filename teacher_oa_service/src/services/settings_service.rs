@@ -138,13 +138,12 @@ pub async fn adapter(state: &AppState) -> Result<(Arc<dyn WeComAdapter>, AuthCon
     config.wecom_corp_id = row.corp_id;
     config.wecom_agent_id = row.agent_id;
     config.wecom_redirect_uri = format!("{}/api/v1/auth/wecom/callback", config.public_origin);
-    let secret = if row.enabled {
-        decrypt(state, &row.secret_ciphertext)?
-    } else {
-        String::new()
-    };
+    if !row.enabled {
+        return Ok((wecom::disabled(), config));
+    }
+    let secret = decrypt(state, &row.secret_ciphertext)?;
     Ok((
-        wecom::build_with_secret(&config, secret).map_err(|_| ApiError::Unavailable)?,
+        wecom::cached_with_secret(&config, secret).map_err(|_| ApiError::Unavailable)?,
         config,
     ))
 }
@@ -157,20 +156,30 @@ pub async fn save(
     let agent = input.agent_id.trim();
     if corp.len() > 128
         || agent.len() > 64
-        || (!corp.is_empty() && !corp.bytes().all(|b| b.is_ascii_alphanumeric()))
+        || (!corp.is_empty()
+            && !corp
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'))
         || (!agent.is_empty() && !agent.bytes().all(|b| b.is_ascii_digit()))
     {
         return Err(ApiError::Invalid("企业ID或应用AgentId格式不正确"));
+    }
+    if !corp.is_empty()
+        && let Ok(allowed) = std::env::var("WECOM_ALLOWED_CORP_ID")
+        && !allowed.is_empty()
+        && allowed != corp
+    {
+        return Err(ApiError::Invalid("企业ID不在系统允许范围内"));
     }
     let txn = state.db_handles.writer().begin().await?;
     let old = login_settings::Entity::find_by_id(1).one(&txn).await?;
     if old.as_ref().map_or(0, |r| r.version) != input.version {
         return Err(ApiError::Conflict("配置已更新，请刷新后重试"));
     }
-    if let Some(previous) = &old
-        && previous.corp_id != corp
-        && input.secret.as_deref().unwrap_or("").is_empty()
-    {
+    let corp_changed = old
+        .as_ref()
+        .is_some_and(|previous| previous.corp_id != corp);
+    if input.enabled && corp_changed && input.secret.as_deref().unwrap_or("").is_empty() {
         return Err(ApiError::Invalid("更换企业时请重新填写Secret"));
     }
     let ciphertext = match input.secret.filter(|v| !v.is_empty()) {
@@ -180,6 +189,7 @@ pub async fn save(
             }
             encrypt(state, &secret)?
         }
+        None if corp_changed => String::new(),
         None => match &old {
             Some(old) => old.secret_ciphertext.clone(),
             None => match std::env::var("WECOM_CORP_SECRET") {

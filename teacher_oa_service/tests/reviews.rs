@@ -356,3 +356,64 @@ async fn drafts_are_private_and_repeated_transitions_apply_once() {
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     assert_eq!(events("submit", raced).await, 1);
 }
+
+#[actix_web::test]
+async fn participant_reviewers_cannot_self_review_and_null_bytes_are_rejected() {
+    let (mut state, _database) = common::setup().await;
+    std::sync::Arc::make_mut(&mut state.config)
+        .auth
+        .mock_enabled = true;
+    let db = state.db_handles.writer();
+    development_seed::seed(db).await.expect("seed");
+    let owner = identity::current_user(db, 91001).await.unwrap();
+    let reviewer = identity::current_user(db, 91003).await.unwrap();
+    let file = file_service::upload(&state, &owner, "材料.png".into(), "image/png".into(), png())
+        .await
+        .unwrap();
+    let input: AchievementInput = serde_json::from_value(json!({
+        "type_code": "research_project",
+        "schema_version": 1,
+        "title": "合著成果防自审",
+        "participants": [
+            {"teacher_id": 91001, "external_name": "", "role_code": "host", "sort_order": 0},
+            {"teacher_id": 91003, "external_name": "", "role_code": "participant", "sort_order": 1}
+        ],
+        "file_ids": [file.id]
+    }))
+    .unwrap();
+    let created = achievements::create(db, &owner, input).await.unwrap();
+    let id = created.record.id;
+    achievements::submit(db, &owner, id, 1).await.unwrap();
+
+    let model = repo::accessible(db, &reviewer, id).await.unwrap();
+    let detail = repo::detail(db, &reviewer, &model).await.unwrap();
+    assert!(!detail.can_review);
+    assert!(!detail.can_archive);
+    assert!(matches!(
+        review(db, &reviewer, id, request(2, "自审"), ReviewAction::Approve).await,
+        Err(ApiError::Forbidden)
+    ));
+
+    let clean_input: AchievementInput = serde_json::from_value(json!({
+        "type_code": "open_class",
+        "schema_version": 1,
+        "title": "正常待审记录",
+        "file_ids": [file.id]
+    }))
+    .unwrap();
+    let clean = achievements::create(db, &owner, clean_input).await.unwrap();
+    achievements::submit(db, &owner, clean.record.id, 1)
+        .await
+        .unwrap();
+    assert!(matches!(
+        review(
+            db,
+            &reviewer,
+            clean.record.id,
+            request(2, "含空字节\0意见"),
+            ReviewAction::Approve
+        )
+        .await,
+        Err(ApiError::Invalid(_))
+    ));
+}

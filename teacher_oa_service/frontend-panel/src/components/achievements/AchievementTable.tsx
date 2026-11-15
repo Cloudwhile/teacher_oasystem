@@ -19,12 +19,12 @@ export function AchievementTable({
 			<table className="achievement-table">
 				<thead>
 					<tr>
-						<th>成果名称</th>
-						<th>类型</th>
-						<th>填报教师</th>
-						<th>日期</th>
-						<th>状态</th>
-						<th>
+						<th scope="col">成果名称</th>
+						<th scope="col">类型</th>
+						<th scope="col">填报教师</th>
+						<th scope="col">日期</th>
+						<th scope="col">状态</th>
+						<th scope="col">
 							<span className="visually-hidden">操作</span>
 						</th>
 					</tr>
@@ -32,7 +32,7 @@ export function AchievementTable({
 				<tbody>
 					{items.map((item) => (
 						<tr key={item.id}>
-							<td>
+							<td data-label="成果名称">
 								<Link
 									className="record-title"
 									to={`/achievements/${item.id}`}
@@ -41,15 +41,15 @@ export function AchievementTable({
 									{item.title}
 								</Link>
 							</td>
-							<td>{item.type_name}</td>
-							<td>{item.teacher_name}</td>
-							<td>{item.occurred_at ?? "—"}</td>
-							<td>
+							<td data-label="类型">{item.type_name}</td>
+							<td data-label="填报教师">{item.teacher_name}</td>
+							<td data-label="日期">{item.occurred_at ?? "—"}</td>
+							<td data-label="状态">
 								<span className={`achievement-status status-${item.status}`}>
 									{statusLabels[item.status]}
 								</span>
 							</td>
-							<td>
+							<td data-label="操作">
 								<Link
 									className="icon-button"
 									to={`/achievements/${item.id}`}

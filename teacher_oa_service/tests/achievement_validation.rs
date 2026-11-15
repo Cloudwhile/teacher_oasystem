@@ -79,3 +79,40 @@ fn participant_identity_and_contiguous_order_are_enforced() {
         Err(ApiError::Validation(_))
     ));
 }
+
+#[test]
+fn whitespace_non_text_values_fail_and_hidden_defaults_pass() {
+    for (code, key) in [
+        ("research_project", "project_funding"),
+        ("research_project", "completed_at"),
+    ] {
+        let mut data = input(code);
+        data.attributes.insert(key.into(), json!("   "));
+        assert!(
+            matches!(
+                validate(&data, &schema(code), false),
+                Err(ApiError::Validation(_))
+            ),
+            "{key} whitespace must not bypass validation"
+        );
+    }
+    let mut hidden_schema = schema("open_class");
+    for field in &mut hidden_schema.fields {
+        if field.key == "remarks" || field.key == "venue" {
+            field.visible = false;
+        }
+    }
+    let mut clean = input("open_class");
+    assert!(
+        validate(&clean, &hidden_schema, false).is_ok(),
+        "default empty remarks must not fail when hidden"
+    );
+    clean.attributes.insert("venue".into(), json!("   "));
+    assert!(
+        matches!(
+            validate(&clean, &hidden_schema, false),
+            Err(ApiError::Validation(_))
+        ),
+        "explicit whitespace on hidden field must fail"
+    );
+}
