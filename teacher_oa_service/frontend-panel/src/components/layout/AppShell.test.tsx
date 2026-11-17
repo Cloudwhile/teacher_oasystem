@@ -5,7 +5,6 @@ import {
 	fireEvent,
 	render,
 	screen,
-	waitFor,
 	within,
 } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -193,14 +192,13 @@ it("账户菜单提供档案与安全入口，被拦截的导航保持页面与�
 	expect(screen.queryByRole("link", { name: "个人档案" })).toBeNull();
 	fireEvent.click(trigger);
 	expect(trigger.getAttribute("aria-expanded")).toBe("true");
-	const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
 	fireEvent.click(screen.getByRole("link", { name: "个人档案" }));
-	await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+	fireEvent.click(await screen.findByRole("button", { name: "继续编辑" }));
 	expect(router.state.location.pathname).toBe("/achievements/new");
 	expect(screen.getByText("未保存的填报")).toBeTruthy();
 	expect(trigger.getAttribute("aria-expanded")).toBe("true");
-	confirm.mockReturnValue(true);
 	fireEvent.click(screen.getByRole("link", { name: "账号安全" }));
+	fireEvent.click(await screen.findByRole("button", { name: "放弃并离开" }));
 	await screen.findByText("账号页");
 	expect(trigger.getAttribute("aria-expanded")).toBe("false");
 	fireEvent.click(trigger);
@@ -214,14 +212,13 @@ it("账户菜单提供档案与安全入口，被拦截的导航保持页面与�
 	expect(document.activeElement).toBe(trigger);
 });
 
-it("展开收起成果管理不触发离开确认，退出仍走离开保护", () => {
+it("展开收起成果管理不触发离开确认，退出仍走离开保护", async () => {
 	show("/achievements/new");
-	const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
 	fireEvent.click(group());
 	fireEvent.click(group());
-	expect(confirm).not.toHaveBeenCalled();
+	expect(screen.queryByRole("alertdialog")).toBeNull();
 	fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
-	expect(confirm).toHaveBeenCalledOnce();
+	fireEvent.click(await screen.findByRole("button", { name: "继续编辑" }));
 	expect(auth.logout).not.toHaveBeenCalled();
 });
 

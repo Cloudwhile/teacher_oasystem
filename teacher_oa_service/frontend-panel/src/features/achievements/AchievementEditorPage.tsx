@@ -17,11 +17,16 @@ import { MaterialUpload } from "@/components/achievements/MaterialUpload";
 import { ParticipantsEditor } from "@/components/achievements/ParticipantsEditor";
 import { ActionButton } from "@/components/common/ActionButton";
 import { Feedback } from "@/components/common/Feedback";
-import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
+import { FormSkeleton } from "@/components/common/Skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { formatAppDateTime } from "@/services/dateFormat";
 import { HttpError } from "@/services/httpClient";
-import { safeReturnPath } from "@/services/returnPath";
+import { notifySuccess } from "@/services/notify";
+import {
+	readLastAchievementListPath,
+	safeReturnPath,
+} from "@/services/returnPath";
 import { useResource } from "@/services/useResource";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import {
@@ -35,6 +40,43 @@ import {
 } from "./api";
 import { draftFingerprint } from "./draftFingerprint";
 
+type StoredAchievementDraft = {
+	data: AchievementInput;
+	files: FileMetadata[];
+	savedAt: string;
+};
+
+function buildDraftStorageKey(
+	userId: number | undefined,
+	id: string | undefined,
+	code: string,
+) {
+	if (!userId) return "";
+	return `teacher-oa:achievement-draft:${userId}:${id ? `edit:${id}` : `new:${code}`}`;
+}
+
+function readStoredDraft(key: string): StoredAchievementDraft | null {
+	if (!key || typeof window === "undefined") return null;
+	try {
+		const raw = window.localStorage.getItem(key);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as StoredAchievementDraft;
+		if (!parsed || typeof parsed !== "object" || !parsed.data) return null;
+		return parsed;
+	} catch {
+		return null;
+	}
+}
+
+function clearStoredDraft(key: string) {
+	if (!key || typeof window === "undefined") return;
+	try {
+		window.localStorage.removeItem(key);
+	} catch {
+		// Ignore storage errors.
+	}
+}
+
 export function emptyDraft(schema: AchievementSchema): AchievementInput {
 	return {
 		type_code: schema.code,
@@ -47,15 +89,20 @@ export function emptyDraft(schema: AchievementSchema): AchievementInput {
 		term_mismatch_confirmed: false,
 	};
 }
+
 export function AchievementEditorPage() {
 	const { id } = useParams();
 	const [params, setParams] = useSearchParams();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const back = safeReturnPath(location.state?.from, "/achievements");
+	const back = safeReturnPath(
+		location.state?.from,
+		readLastAchievementListPath("/achievements"),
+	);
 	const { session, refresh } = useAuth();
 	const catalog = useResource(achievementApi.catalog);
 	const code = params.get("type") ?? "open_class";
+	const storageKey = buildDraftStorageKey(session?.user.id, id, code);
 	const [schema, setSchema] = useState<AchievementSchema | null>(null);
 	const [data, setData] = useState<AchievementInput | null>(null);
 	const [saved, setSaved] = useState<AchievementDetail | null>(null);
@@ -68,11 +115,15 @@ export function AchievementEditorPage() {
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [baseline, setBaseline] = useState("");
 	const [conflict, setConflict] = useState(false);
+	const [recoverableDraft, setRecoverableDraft] =
+		useState<StoredAchievementDraft | null>(null);
+	const [autoSavedAt, setAutoSavedAt] = useState("");
 	const pending = useRef(false);
 	const savedId = useRef<number | null>(null);
 	const form = useRef<HTMLFormElement>(null);
 	const dirty = data !== null && draftFingerprint(data) !== baseline;
 	const guard = useUnsavedChanges(!loading && dirty, busy || uploading);
+
 	useEffect(() => {
 		if (id && savedId.current === Number(id)) return;
 		const controller = new AbortController();
@@ -81,6 +132,8 @@ export function AchievementEditorPage() {
 		setError("");
 		setErrors({});
 		setConflict(false);
+		setAutoSavedAt("");
+		setRecoverableDraft(null);
 		const load = async () => {
 			try {
 				if (id) {
@@ -92,9 +145,14 @@ export function AchievementEditorPage() {
 					savedId.current = detail.record.id;
 					setSaved(detail);
 					setData(detail.data);
-					setBaseline(draftFingerprint(detail.data));
+					const baseFp = draftFingerprint(detail.data);
+					setBaseline(baseFp);
 					setFiles(detail.files);
 					setSchema(detail.schema);
+					const cached = readStoredDraft(storageKey);
+					if (cached && draftFingerprint(cached.data) !== baseFp) {
+						setRecoverableDraft(cached);
+					}
 				} else {
 					const next = await achievementApi.schema(
 						code,
@@ -106,9 +164,14 @@ export function AchievementEditorPage() {
 					setSchema(next);
 					setSaved(null);
 					const draft = emptyDraft(next);
+					const baseFp = draftFingerprint(draft);
 					setData(draft);
-					setBaseline(draftFingerprint(draft));
+					setBaseline(baseFp);
 					setFiles([]);
+					const cached = readStoredDraft(storageKey);
+					if (cached && draftFingerprint(cached.data) !== baseFp) {
+						setRecoverableDraft(cached);
+					}
 				}
 			} catch (error) {
 				if (!controller.signal.aborted) {
@@ -122,13 +185,35 @@ export function AchievementEditorPage() {
 		};
 		void load();
 		return () => controller.abort();
-	}, [id, code, refresh]);
+	}, [id, code, refresh, storageKey]);
+
+	useEffect(() => {
+		if (loading || !storageKey || !data) return;
+		if (!dirty) return;
+		const timer = setTimeout(() => {
+			try {
+				const savedAt = new Date().toISOString();
+				const payload: StoredAchievementDraft = {
+					data,
+					files,
+					savedAt,
+				};
+				window.localStorage.setItem(storageKey, JSON.stringify(payload));
+				setAutoSavedAt(savedAt);
+			} catch {
+				// Ignore localStorage quota failures.
+			}
+		}, 400);
+		return () => clearTimeout(timer);
+	}, [loading, storageKey, data, files, dirty]);
+
 	useEffect(() => {
 		if (Object.keys(errors).length)
 			form.current
 				?.querySelector<HTMLElement>('[aria-invalid="true"]')
 				?.focus();
 	}, [errors]);
+
 	const save = async (submit: boolean) => {
 		if (pending.current || busy || uploading || !data || !session) return;
 		if (!submit) {
@@ -193,6 +278,10 @@ export function AchievementEditorPage() {
 				setSaved(detail);
 				setFiles(detail.files);
 			}
+			clearStoredDraft(storageKey);
+			setRecoverableDraft(null);
+			setAutoSavedAt("");
+			notifySuccess(submit ? "成果已提交审核" : "草稿已保存");
 			guard.allowLeave();
 			navigate(`/achievements/${detail.record.id}`, { state: { from: back } });
 		} catch (error) {
@@ -202,6 +291,7 @@ export function AchievementEditorPage() {
 			setErrors(validationErrors(error));
 			setConflict(error instanceof HttpError && error.status === 409);
 			if (!id && persisted) {
+				clearStoredDraft(storageKey);
 				guard.allowLeave();
 				navigate(`/achievements/${persisted.record.id}/edit`, {
 					replace: true,
@@ -225,7 +315,7 @@ export function AchievementEditorPage() {
 		void save(true);
 	};
 	if (loading || catalog.loading)
-		return <Feedback loading message="正在读取填报信息…" />;
+		return <FormSkeleton message="正在读取填报信息…" />;
 	if (
 		loadError ||
 		catalog.error ||
@@ -249,6 +339,11 @@ export function AchievementEditorPage() {
 				title={id || saved ? "编辑成果" : "新建成果"}
 				eyebrow={schema.name}
 			>
+				{autoSavedAt && dirty && (
+					<span className="autosave-status" role="status">
+						本地已暂存
+					</span>
+				)}
 				<Link
 					to={saved ? `/achievements/${saved.record.id}` : back}
 					state={{ from: back }}
@@ -280,6 +375,37 @@ export function AchievementEditorPage() {
 					提交审核
 				</ActionButton>
 			</PageHeading>
+			{recoverableDraft && (
+				<div className="draft-recovery-banner" role="status">
+					<span>
+						检测到上次未提交的本地暂存草稿（保存于{" "}
+						{formatAppDateTime(recoverableDraft.savedAt)}），是否恢复？
+					</span>
+					<div className="row-actions">
+						<ActionButton
+							variant="secondary"
+							size="sm"
+							onClick={() => {
+								setData(recoverableDraft.data);
+								setFiles(recoverableDraft.files ?? []);
+								setRecoverableDraft(null);
+							}}
+						>
+							恢复暂存草稿
+						</ActionButton>
+						<ActionButton
+							variant="tertiary"
+							size="sm"
+							onClick={() => {
+								clearStoredDraft(storageKey);
+								setRecoverableDraft(null);
+							}}
+						>
+							忽略暂存
+						</ActionButton>
+					</div>
+				</div>
+			)}
 			{saved && <CorrectionNotice detail={saved} />}
 			{busy && (
 				<p className="form-note" role="status">
@@ -293,20 +419,28 @@ export function AchievementEditorPage() {
 						<p key={key}>{message}</p>
 					))}
 					{conflict && (
-						<IconButton
-							label="重新加载成果"
-							onClick={() => {
-								if (!guard.confirmLeave()) return;
-								guard.allowLeave();
-								window.location.assign(
-									saved
-										? `/achievements/${saved.record.id}/edit`
-										: window.location.href,
-								);
-							}}
-						>
-							<Refresh />
-						</IconButton>
+						<div className="row-actions">
+							<ActionButton
+								variant="secondary"
+								size="sm"
+								aria-label="重新加载成果"
+								onClick={() => {
+									void guard.confirmLeave().then((allowed) => {
+										if (!allowed) return;
+										clearStoredDraft(storageKey);
+										guard.allowLeave();
+										window.location.assign(
+											saved
+												? `/achievements/${saved.record.id}/edit`
+												: window.location.href,
+										);
+									});
+								}}
+							>
+								<Refresh aria-hidden="true" />
+								重新加载成果
+							</ActionButton>
+						</div>
 					)}
 				</div>
 			)}
@@ -344,7 +478,10 @@ export function AchievementEditorPage() {
 						catalog={catalogData}
 						disabled={busy || uploading}
 						errors={errors}
-						onChange={setData}
+						onChange={(nextData) => {
+							if (recoverableDraft) setRecoverableDraft(null);
+							setData(nextData);
+						}}
 						onClearError={(key) =>
 							setErrors((previous) => {
 								if (!(key in previous)) return previous;

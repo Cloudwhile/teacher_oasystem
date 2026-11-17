@@ -8,18 +8,75 @@
     <meta http-equiv="Content-Security-Policy" content="%ASTER_SERVICE_CSP%" />
     <meta name="aster-service-actix-version" content="%ASTER_SERVICE_VERSION%" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1264d1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        const scheme = localStorage.getItem("teacher-oa:color-scheme");
+        if (scheme === "light" || scheme === "dark") {
+          const meta = document.querySelector('meta[name="color-scheme"]');
+          if (meta) meta.content = scheme;
+          document.documentElement.dataset.theme = scheme;
+        }
+      } catch (_e) {}
+    </script>
+    <meta name="theme-color" content="#1b56c4" />
     <title>%ASTER_SERVICE_TITLE%</title>
+    <style>
+      [data-aster-boot-loading] {
+        display: grid;
+        min-height: 100svh;
+        place-items: center;
+        background: var(--color-surface, #f5f6f7);
+        color: var(--color-text, #1a1c21);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) [data-aster-boot-loading] {
+          background: #111318;
+          color: #eceef2;
+        }
+      }
+      :root[data-theme="dark"] [data-aster-boot-loading] {
+        background: #111318;
+        color: #eceef2;
+      }
+      [data-aster-boot-spinner] {
+        width: 20px;
+        height: 20px;
+        border-radius: 9999px;
+        border: 2px solid #c6cbd2;
+        border-top-color: #1b56c4;
+        animation: aster-boot-spin 0.8s linear infinite;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) [data-aster-boot-spinner] {
+          border-color: #3b4354;
+          border-top-color: #60a5fa;
+        }
+      }
+      :root[data-theme="dark"] [data-aster-boot-spinner] {
+        border-color: #3b4354;
+        border-top-color: #60a5fa;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        [data-aster-boot-spinner] {
+          animation: none;
+        }
+      }
+      @keyframes aster-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root">
       <div
-        class="grid min-h-svh place-items-center bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50"
         data-aster-boot-loading
         role="status"
-        aria-label="Loading"
+        aria-label="正在启动 TeacherOA"
       >
-        <div class="size-5 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600 dark:border-slate-700 dark:border-t-blue-300"></div>
+        <div data-aster-boot-spinner></div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
+		"sync-tokens": "node scripts/sync-tokens.mjs",
 		"generate-api": "bunx --package 'typescript@npm:@typescript/typescript6@6.0.2' --package 'openapi-typescript@7.13.0' openapi-typescript ./generated/openapi.json -o ./generated/api.raw.ts && node scripts/split-api.mjs",
 		"check": "tsc -b && biome check .",
 		"check:fix": "biome check --write .",

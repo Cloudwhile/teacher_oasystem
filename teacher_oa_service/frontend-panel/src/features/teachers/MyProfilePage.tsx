@@ -5,6 +5,7 @@ import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { ProfileFields } from "@/components/common/ProfileFields";
+import { DetailSkeleton } from "@/components/common/Skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { authApi, type TeacherProfile } from "@/features/auth/api";
 import { roleLabels } from "@/features/dashboard/DashboardPage";
@@ -14,10 +15,12 @@ export function MyProfilePage() {
 	const { session, refresh } = useAuth();
 	const [profile, setProfile] = useState<TeacherProfile | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState("");
 	const load = useCallback(
-		async (signal?: AbortSignal) => {
-			setLoading(true);
+		async (signal?: AbortSignal, isReload = false) => {
+			if (isReload) setRefreshing(true);
+			else setLoading(true);
 			setError("");
 			try {
 				const value = await authApi.profile(signal);
@@ -31,14 +34,17 @@ export function MyProfilePage() {
 					} else setError("档案暂时无法读取，请稍后重试。");
 				}
 			} finally {
-				if (!signal?.aborted) setLoading(false);
+				if (!signal?.aborted) {
+					setLoading(false);
+					setRefreshing(false);
+				}
 			}
 		},
 		[refresh],
 	);
 	useEffect(() => {
 		const controller = new AbortController();
-		void load(controller.signal);
+		void load(controller.signal, false);
 		return () => controller.abort();
 	}, [load]);
 	return (
@@ -46,16 +52,16 @@ export function MyProfilePage() {
 			<PageHeading title="个人档案">
 				<IconButton
 					label="刷新档案"
-					disabled={loading}
+					disabled={loading || refreshing}
 					onClick={() => {
-						void load();
+						void load(undefined, Boolean(profile));
 					}}
 				>
-					<Refresh />
+					<Refresh className={refreshing ? "spin" : undefined} />
 				</IconButton>
 			</PageHeading>
-			{loading ? (
-				<Feedback message="正在读取档案…" loading />
+			{loading && !profile ? (
+				<DetailSkeleton message="正在读取档案…" />
 			) : error ? (
 				<Feedback
 					message={error}

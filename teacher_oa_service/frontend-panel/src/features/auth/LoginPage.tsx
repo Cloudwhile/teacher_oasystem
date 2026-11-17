@@ -19,18 +19,31 @@ import { useResource } from "@/services/useResource";
 import { useAuth } from "./AuthProvider";
 import { authApi, type LoginOptions } from "./api";
 import { defaultLoginPage, loginPageApi } from "./loginPageApi";
+
 export function LoginPage() {
-	const { status, session, login } = useAuth();
+	const { status, session, sessionExpired, login } = useAuth();
 	const location = useLocation();
 	const [params] = useSearchParams();
 	const next = safeReturnPath(params.get("next") ?? location.state?.from);
+	const expiredNotice = Boolean(
+		sessionExpired ||
+			(location.state &&
+				typeof location.state === "object" &&
+				"expired" in location.state &&
+				location.state.expired),
+	);
 	const [options, setOptions] = useState<LoginOptions | null>(null);
 	const [optionError, setOptionError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
+	const [fieldErrors, setFieldErrors] = useState<{
+		username?: string;
+		password?: string;
+	}>({});
 	const [busy, setBusy] = useState(false);
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
+	const formRef = useRef<HTMLFormElement>(null);
 	const pending = useRef(false);
 	const page = useResource(loginPageApi.public);
 	const loadOptions = useCallback(async () => {
@@ -66,11 +79,21 @@ export function LoginPage() {
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		if (preview || pending.current) return;
+		const nextFieldErrors: { username?: string; password?: string } = {};
+		if (!username.trim()) nextFieldErrors.username = "请输入登录账号";
+		if (!password) nextFieldErrors.password = "请输入登录密码";
+		if (nextFieldErrors.username || nextFieldErrors.password) {
+			setFieldErrors(nextFieldErrors);
+			const firstId = nextFieldErrors.username ? "#username" : "#password";
+			formRef.current?.querySelector<HTMLElement>(firstId)?.focus();
+			return;
+		}
 		pending.current = true;
 		setBusy(true);
 		setError("");
+		setFieldErrors({});
 		try {
-			await login(username, password);
+			await login(username.trim(), password);
 		} catch (error) {
 			setError(errorMessage(error, "登录失败，请重试"));
 		} finally {
@@ -95,6 +118,11 @@ export function LoginPage() {
 						当前为登录页预览模式，登录与授权跳转已停用。
 					</p>
 				)}
+				{expiredNotice && !preview && (
+					<p className="login-preview-note" role="status">
+						登录状态已过期，请重新登录。若此前正在填报成果，重新登录后可恢复本地暂存草稿。
+					</p>
+				)}
 				{(error || params.has("error")) && (
 					<p className="inline-error" role="alert">
 						{error || "企业微信登录未完成，请确认已开通账号并绑定企业微信。"}
@@ -105,6 +133,8 @@ export function LoginPage() {
 					busy={busy}
 					account={
 						<form
+							ref={formRef}
+							noValidate
 							className="login-fields"
 							onSubmit={(event) => void submit(event)}
 						>
@@ -114,7 +144,15 @@ export function LoginPage() {
 								icon={<User />}
 								autoComplete="username"
 								value={username}
-								onChange={(e) => setUsername(e.target.value)}
+								error={fieldErrors.username}
+								onChange={(e) => {
+									setUsername(e.target.value);
+									if (fieldErrors.username)
+										setFieldErrors((prev) => ({
+											...prev,
+											username: undefined,
+										}));
+								}}
 								maxLength={64}
 								required
 								disabled={busy || preview}
@@ -125,7 +163,15 @@ export function LoginPage() {
 								id="password"
 								label="密码"
 								value={password}
-								onChange={setPassword}
+								error={fieldErrors.password}
+								onChange={(val) => {
+									setPassword(val);
+									if (fieldErrors.password)
+										setFieldErrors((prev) => ({
+											...prev,
+											password: undefined,
+										}));
+								}}
 								autoComplete="current-password"
 								disabled={busy || preview}
 							/>

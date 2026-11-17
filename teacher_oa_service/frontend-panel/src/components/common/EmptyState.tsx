@@ -10,14 +10,16 @@ export function EmptyState({
 	title,
 	description,
 	action,
+	compact = false,
 }: {
 	icon: ReactNode;
 	title: string;
 	description?: string;
 	action?: ReactNode;
+	compact?: boolean;
 }) {
 	return (
-		<div className="empty-state">
+		<div className={`empty-state${compact ? " empty-state-compact" : ""}`}>
 			<span className="empty-state-icon" aria-hidden="true">
 				{icon}
 			</span>

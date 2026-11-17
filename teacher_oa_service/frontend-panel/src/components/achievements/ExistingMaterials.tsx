@@ -1,16 +1,19 @@
 import { useCallback, useState } from "react";
-import { Plus } from "reicon-react";
+import { FolderOpen, Plus } from "reicon-react";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { Pagination } from "@/components/common/Pagination";
+import { TableSkeleton } from "@/components/common/Skeleton";
 import {
 	achievementApi,
 	errorMessage,
 	type FileMetadata,
 } from "@/features/achievements/api";
-import { formatSingaporeDate } from "@/services/dateFormat";
+import { formatAppDate } from "@/services/dateFormat";
 import { useResource } from "@/services/useResource";
 import { MaterialAssociation } from "./MaterialAssociation";
+
 export function ExistingMaterials({
 	selected,
 	onAdd,
@@ -29,8 +32,8 @@ export function ExistingMaterials({
 	return (
 		<div className="existing-materials">
 			<h3>我的材料</h3>
-			{result.loading ? (
-				<Feedback loading message="正在读取材料…" />
+			{result.loading && !result.data ? (
+				<TableSkeleton rows={3} message="正在读取材料…" />
 			) : result.error || !result.data ? (
 				<Feedback
 					message={errorMessage(result.error)}
@@ -46,7 +49,7 @@ export function ExistingMaterials({
 									<small>
 										{selected.some((f) => f.id === file.id)
 											? "已选入本次成果"
-											: formatSingaporeDate(file.created_at)}
+											: formatAppDate(file.created_at)}
 										<MaterialAssociation file={file} />
 									</small>
 								</div>
@@ -65,7 +68,12 @@ export function ExistingMaterials({
 						))}
 					</ul>
 					{!result.data.items.length && (
-						<p className="empty-message">暂无已上传材料</p>
+						<EmptyState
+							compact
+							icon={<FolderOpen />}
+							title="暂无已上传材料"
+							description="上传过证明材料后，可在此快速复用。"
+						/>
 					)}
 					<Pagination
 						page={result.data.page}

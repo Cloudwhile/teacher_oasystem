@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { vi } from "vitest";
+import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import type { AuthResponse } from "@/features/auth/api";
@@ -74,7 +75,9 @@ export function showPage(page: ReactNode, path: string) {
 	);
 	render(
 		<AuthProvider>
-			<RouterProvider router={router} />
+			<ConfirmProvider>
+				<RouterProvider router={router} />
+			</ConfirmProvider>
 		</AuthProvider>,
 	);
 	return router;

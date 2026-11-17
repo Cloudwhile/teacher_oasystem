@@ -1,10 +1,12 @@
-import { LineEdit, ScrollView, ComboBox } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "tokens.slint";
 import { ActionButton as Button } from "components/action-button.slint";
 import { Metric } from "components/metric.slint";
 import { Field } from "components/field.slint";
 import { CaptionButton } from "components/caption-button.slint";
 import { NavItem } from "components/nav-item.slint";
+import { SelectBox } from "components/select-box.slint";
+import { TextInputField } from "components/text-input.slint";
 import { ToggleCheck } from "components/toggle-check.slint";
 
 export component AppWindow inherits Window {
@@ -338,7 +340,7 @@ export component AppWindow inherits Window {
                         HorizontalLayout {
                             padding: Theme.space-3;
                             spacing: Theme.space-3;
-                            LineEdit { text <=> root.log-filter; placeholder-text: "筛选日志"; accessible-label: "筛选日志"; }
+                            TextInputField { text <=> root.log-filter; placeholder-text: "筛选日志"; accessible-name: "筛选日志"; }
                             ToggleCheck { text: "暂停"; checked <=> root.log-paused; }
                             ToggleCheck { text: "跟随"; checked <=> root.follow-logs; }
                             Button { text: "导出"; enabled: !root.busy; clicked => { root.export-logs(); } }
@@ -489,13 +491,13 @@ export component AppWindow inherits Window {
                                         spacing: Theme.space-4;
                                         VerticalLayout {
                                             spacing: Theme.space-1;
-                                            Text { text: "日志级别"; color: Theme.text-secondary; font-size: Theme.text-sm; font-weight: 600; }
-                                            ComboBox { model: ["trace", "debug", "info", "warn", "error"]; current-index <=> root.log-level-index; enabled: root.config-loaded && root.connected && !root.busy; accessible-label: "日志级别"; selected => { root.config-dirty = true; } }
+                                            Text { text: "日志级别"; color: Theme.text-secondary; font-size: Theme.text-sm; font-weight: Theme.weight-semibold; }
+                                            SelectBox { model: ["trace", "debug", "info", "warn", "error"]; current-index <=> root.log-level-index; enabled: root.config-loaded && root.connected && !root.busy; accessible-name: "日志级别"; selected => { root.config-dirty = true; } }
                                         }
                                         VerticalLayout {
                                             spacing: Theme.space-1;
-                                            Text { text: "日志格式"; color: Theme.text-secondary; font-size: Theme.text-sm; font-weight: 600; }
-                                            ComboBox { model: ["text", "json"]; current-index <=> root.log-format-index; enabled: root.config-loaded && root.connected && !root.busy; accessible-label: "日志格式"; selected => { root.config-dirty = true; } }
+                                            Text { text: "日志格式"; color: Theme.text-secondary; font-size: Theme.text-sm; font-weight: Theme.weight-semibold; }
+                                            SelectBox { model: ["text", "json"]; current-index <=> root.log-format-index; enabled: root.config-loaded && root.connected && !root.busy; accessible-name: "日志格式"; selected => { root.config-dirty = true; } }
                                         }
                                     }
                                 }

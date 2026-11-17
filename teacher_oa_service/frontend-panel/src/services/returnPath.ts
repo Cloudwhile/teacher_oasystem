@@ -26,3 +26,30 @@ export function safeReturnPath(
 		? value
 		: fallback;
 }
+
+const lastListStorageKey = "teacher-oa:last-list-path";
+
+export function rememberListPath(pathname: string, search: string) {
+	if (typeof window === "undefined") return;
+	if (pathname !== "/achievements" && pathname !== "/reviews") return;
+	try {
+		window.sessionStorage.setItem(lastListStorageKey, pathname + search);
+	} catch {
+		// Ignore storage errors.
+	}
+}
+
+export function readLastAchievementListPath(
+	fallback = "/achievements",
+): string {
+	if (typeof window === "undefined") return fallback;
+	try {
+		const saved = window.sessionStorage.getItem(lastListStorageKey);
+		if (saved?.startsWith("/achievements")) {
+			return safeReturnPath(saved, fallback);
+		}
+	} catch {
+		return fallback;
+	}
+	return fallback;
+}

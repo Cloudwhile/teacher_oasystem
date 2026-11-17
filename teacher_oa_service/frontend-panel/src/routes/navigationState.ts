@@ -1,3 +1,4 @@
+import { safeReturnPath } from "@/services/returnPath";
 import { appPaths } from "./routePaths";
 
 export type NavKey =
@@ -26,6 +27,11 @@ export type NavigationState = {
 	trail: string[];
 };
 
+export type TrailPart = {
+	label: string;
+	to?: string;
+};
+
 export const navLabels: Record<NavKey, string> = {
 	dashboard: "工作台",
 	"achievements-mine": "我的成果",
@@ -44,15 +50,38 @@ export const navGroupLabels: Record<NavGroupKey, string> = {
 	achievements: "成果管理",
 };
 
-const pages: Record<string, { key: NavKey; parent?: string }> = {
+const pages: Record<
+	string,
+	{ key: NavKey; parent?: string; parentTo?: string }
+> = {
 	[appPaths.dashboard]: { key: "dashboard" },
 	"/reviews": { key: "reviews" },
 	"/files": { key: "files" },
-	[appPaths.profile]: { key: "profile", parent: "个人账户" },
-	"/account": { key: "account", parent: "个人账户" },
-	"/admin/accounts": { key: "admin-accounts", parent: "系统管理" },
-	"/admin/login": { key: "admin-login", parent: "系统管理" },
-	"/admin/login-page": { key: "admin-login-page", parent: "系统管理" },
+	[appPaths.profile]: {
+		key: "profile",
+		parent: "个人账户",
+		parentTo: appPaths.profile,
+	},
+	"/account": {
+		key: "account",
+		parent: "个人账户",
+		parentTo: appPaths.profile,
+	},
+	"/admin/accounts": {
+		key: "admin-accounts",
+		parent: "系统管理",
+		parentTo: "/admin/accounts",
+	},
+	"/admin/login": {
+		key: "admin-login",
+		parent: "系统管理",
+		parentTo: "/admin/accounts",
+	},
+	"/admin/login-page": {
+		key: "admin-login-page",
+		parent: "系统管理",
+		parentTo: "/admin/accounts",
+	},
 };
 
 const groupLabel = navGroupLabels.achievements;
@@ -138,4 +167,58 @@ export function resolveNavigation(
 		title: "页面未找到",
 		trail: ["页面未找到"],
 	};
+}
+
+export function resolveTrailLinks(
+	pathname: string,
+	search: string,
+	from: unknown,
+): TrailPart[] {
+	const path = trimPath(pathname);
+	if (path === "/achievements") {
+		const key = listKey(search);
+		return [{ label: groupLabel }, { label: navLabels[key] }];
+	}
+	if (path === "/achievements/new") {
+		return [
+			{ label: groupLabel, to: "/achievements?scope=mine" },
+			{ label: navLabels["achievements-new"] },
+		];
+	}
+	const record = /^\/achievements\/([^/]+)(\/edit)?$/.exec(path);
+	if (record) {
+		const title = record[2] ? "编辑成果" : "成果详情";
+		const source = sourceKey(from);
+		const safeFrom = safeReturnPath(
+			from,
+			source === "reviews" ? "/reviews" : "/achievements?scope=mine",
+		);
+		if (source === "reviews") {
+			return [{ label: navLabels.reviews, to: safeFrom }, { label: title }];
+		}
+		if (source) {
+			return [
+				{ label: groupLabel, to: "/achievements?scope=mine" },
+				{ label: navLabels[source], to: safeFrom },
+				{ label: title },
+			];
+		}
+		return [
+			{ label: groupLabel, to: "/achievements?scope=mine" },
+			{ label: title },
+		];
+	}
+	const page = pages[path];
+	if (page) {
+		return page.parent
+			? [
+					{
+						label: page.parent,
+						to: page.parentTo !== path ? page.parentTo : undefined,
+					},
+					{ label: navLabels[page.key] },
+				]
+			: [{ label: navLabels[page.key] }];
+	}
+	return [{ label: "页面未找到" }];
 }

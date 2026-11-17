@@ -1,20 +1,25 @@
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ActionButton } from "@/components/common/ActionButton";
 import { Feedback } from "@/components/common/Feedback";
+import { DashboardSkeleton } from "@/components/common/Skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { appPaths } from "@/routes/routePaths";
 
 export function ProtectedRoute() {
-	const { status, session, refresh, logout } = useAuth();
+	const { status, session, sessionExpired, refresh, logout } = useAuth();
 	const location = useLocation();
 	const navigate = useNavigate();
-	if (status === "loading") return <Feedback message="正在读取身份…" loading />;
+	if (status === "loading")
+		return <DashboardSkeleton message="正在读取身份…" />;
 	if (status === "anonymous")
 		return (
 			<Navigate
 				to={appPaths.login}
 				replace
-				state={{ from: location.pathname + location.search }}
+				state={{
+					from: location.pathname + location.search,
+					expired: Boolean(sessionExpired),
+				}}
 			/>
 		);
 	if (status === "forbidden")

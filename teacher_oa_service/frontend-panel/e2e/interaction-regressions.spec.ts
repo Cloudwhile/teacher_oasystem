@@ -33,21 +33,21 @@ test("未保存内容在取消切换、离开、后退和退出时保留，类�
 	await login(page);
 	await page.getByRole("link", { name: "成果填报", exact: true }).click();
 	await page.locator("#title").fill("尚未保存的公开课");
-	page.once("dialog", (dialog) => dialog.dismiss());
 	await page.getByLabel("成果类型").selectOption("research_project");
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page.getByLabel("成果类型")).toHaveValue("open_class");
 	await expect(page.locator("#title")).toHaveValue("尚未保存的公开课");
-	page.once("dialog", (dialog) => dialog.dismiss());
 	await page.getByRole("link", { name: "我的成果", exact: true }).click();
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page).toHaveURL(/\/achievements\/new$/);
-	page.once("dialog", (dialog) => dialog.dismiss());
 	await page.goBack();
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page).toHaveURL(/\/achievements\/new$/);
-	page.once("dialog", (dialog) => dialog.dismiss());
 	await page.getByRole("button", { name: "退出登录" }).click();
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page.locator("#title")).toHaveValue("尚未保存的公开课");
-	page.once("dialog", (dialog) => dialog.accept());
 	await page.getByLabel("成果类型").selectOption("research_project");
+	await page.getByRole("button", { name: "放弃并离开", exact: true }).click();
 	await expect(page.getByLabel("成果类型")).toHaveValue("research_project");
 	await expect(page.locator("#title")).toHaveValue("");
 	await expect(page.getByLabel("项目经费（元）")).toBeVisible();
@@ -154,18 +154,19 @@ test("审核意见在页面刷新后恢复，取消离开保留且成功退回�
 	page.once("dialog", (dialog) => dialog.accept());
 	await page.reload();
 	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
-	page.once("dialog", (dialog) => dialog.dismiss());
 	await page.getByRole("link", { name: "返回审核列表" }).click();
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/achievements/${draft.record.id}$`));
 	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
-	page.once("dialog", (dialog) => dialog.accept());
 	await page.getByRole("link", { name: "返回审核列表" }).click();
+	await page.getByRole("button", { name: "放弃并离开", exact: true }).click();
 	await expect(page).toHaveURL(/\/reviews\?status=pending/);
 	await page
 		.getByRole("link", { name: draft.record.title, exact: true })
 		.click();
 	await expect(page.getByLabel("办理意见")).toHaveValue(opinion);
 	await page.getByRole("button", { name: "退回补正" }).click();
+	await page.getByRole("button", { name: "确认退回", exact: true }).click();
 	await expect(page.getByText(opinion, { exact: true })).toBeVisible();
 	await page.getByRole("link", { name: "返回审核列表" }).click();
 	await page.getByLabel("办理状态").selectOption("returned");
@@ -264,8 +265,8 @@ test("旧版本保存保留本地内容，确认重载后读取最新成果", as
 		"填报内容已保存",
 	);
 	await expect(page.locator("#title")).toHaveValue("本地尚未保存的修改");
-	page.once("dialog", (dialog) => dialog.accept());
 	await page.getByRole("button", { name: "重新加载成果", exact: true }).click();
+	await page.getByRole("button", { name: "放弃并离开", exact: true }).click();
 	await expect(page.locator("#title")).toHaveValue("其他窗口已保存的修改");
 });
 

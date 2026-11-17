@@ -77,7 +77,9 @@ export function AccountEditor({
 						label="取消编辑账号"
 						disabled={busy}
 						onClick={() => {
-							if (guard.confirmLeave()) onCancel();
+							void guard.confirmLeave().then((ok) => {
+								if (ok) onCancel();
+							});
 						}}
 					>
 						<X />

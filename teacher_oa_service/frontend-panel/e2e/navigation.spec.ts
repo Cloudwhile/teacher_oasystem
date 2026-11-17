@@ -179,38 +179,32 @@ test("未保存填报：折叠不确认，取消离开保留内容和抽屉，�
 	await page.setViewportSize({ width: 390, height: 844 });
 	await open(page, "teacher", "/achievements/new");
 	await page.locator("#title").fill("尚未保存的公开课");
-	let dialogs = 0;
-	let accept = false;
-	page.on("dialog", (dialog) => {
-		dialogs++;
-		void (accept ? dialog.accept() : dialog.dismiss());
-	});
 	await page.getByRole("button", { name: "展开导航" }).click();
 	const drawer = page.getByRole("dialog", { name: "导航菜单" });
 	await expect(drawer).toBeVisible();
 	await group(page).click();
 	await group(page).press("Enter");
 	await expect(group(page)).toHaveAttribute("aria-expanded", "true");
-	expect(dialogs).toBe(0);
+	await expect(page.getByRole("alertdialog")).toHaveCount(0);
 	await nav(page).getByRole("link", { name: "我的成果", exact: true }).click();
-	await expect.poll(() => dialogs).toBe(1);
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page).toHaveURL(/\/achievements\/new$/);
 	await expect(drawer).toBeVisible();
 	await page.getByRole("button", { name: /^账户菜单/ }).click();
 	await page.getByRole("link", { name: "个人档案", exact: true }).click();
-	await expect.poll(() => dialogs).toBe(2);
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(drawer).toBeVisible();
 	await expect(page.getByRole("link", { name: "个人档案" })).toBeVisible();
 	await page.getByRole("button", { name: "退出登录" }).click();
-	await expect.poll(() => dialogs).toBe(3);
+	await page.getByRole("button", { name: "继续编辑", exact: true }).click();
 	await expect(page).toHaveURL(/\/achievements\/new$/);
 	await page.keyboard.press("Escape");
 	await page.keyboard.press("Escape");
 	await expect(drawer).toBeHidden();
 	await expect(page.locator("#title")).toHaveValue("尚未保存的公开课");
-	accept = true;
 	await page.getByRole("button", { name: "展开导航" }).click();
 	await nav(page).getByRole("link", { name: "我的成果", exact: true }).click();
+	await page.getByRole("button", { name: "放弃并离开", exact: true }).click();
 	await expect(page).toHaveURL(/\/achievements\?scope=mine$/);
 	await expect(drawer).toBeHidden();
 	await expect(page.locator("#main-content")).toBeFocused();
@@ -460,4 +454,80 @@ test("退出失败提示错误，重试后回到登录页", async ({ page }) => 
 	options.logoutFails = false;
 	await page.getByRole("button", { name: "退出登录" }).click();
 	await expect(page).toHaveURL(/\/login$/);
+	await expect(page.getByText("已退出登录")).toBeVisible();
+});
+
+test("深色模式：跟随系统深浅色与手动切换持久化", async ({ page }) => {
+	await page.emulateMedia({ colorScheme: "dark" });
+	await open(page, "teacher", "/account");
+	await expect(heading(page, "账号安全")).toBeVisible();
+	expect(
+		await page.evaluate(
+			() => getComputedStyle(document.documentElement).backgroundColor,
+		),
+	).toBe("rgb(17, 19, 24)");
+	expect(
+		await page
+			.locator(".panel")
+			.first()
+			.evaluate((el) => getComputedStyle(el).backgroundColor),
+	).toBe("rgb(27, 31, 41)");
+
+	await page.locator(".theme-option", { hasText: "浅色" }).click();
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+	expect(
+		await page.evaluate(
+			() => getComputedStyle(document.documentElement).backgroundColor,
+		),
+	).toBe("rgb(245, 246, 247)");
+
+	await page.reload();
+	await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+	expect(
+		await page.evaluate(
+			() => getComputedStyle(document.documentElement).backgroundColor,
+		),
+	).toBe("rgb(245, 246, 247)");
+});
+
+test("移动端触控热区 ≥ 44px 与平板容器查询表格卡片化无溢出", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await open(page, "teacher", "/dashboard");
+	await expect(heading(page, "工作台")).toBeVisible();
+	const toggleBox = await page
+		.getByRole("button", { name: "展开导航" })
+		.boundingBox();
+	const refreshBox = await page
+		.getByRole("button", { name: "刷新工作台" })
+		.boundingBox();
+	expect(toggleBox?.width).toBeGreaterThanOrEqual(44);
+	expect(toggleBox?.height).toBeGreaterThanOrEqual(44);
+	expect(refreshBox?.width).toBeGreaterThanOrEqual(44);
+	expect(refreshBox?.height).toBeGreaterThanOrEqual(44);
+
+	await page.setViewportSize({ width: 768, height: 1024 });
+	await page.goto("/achievements?scope=mine");
+	await expect(heading(page, "我的成果")).toBeVisible();
+	expect(await noHorizontalOverflow(page)).toBe(true);
+	expect(
+		await page
+			.locator(".achievement-table tbody tr")
+			.first()
+			.evaluate((el) => getComputedStyle(el).display),
+	).toBe("grid");
+});
+
+test("面包屑支持直接点击回跳上级列表并保留筛选参数", async ({ page }) => {
+	await open(page, "teacher", "/achievements?scope=all&search=函数");
+	await expect(heading(page, "成果查询")).toBeVisible();
+	await page
+		.getByRole("link", { name: "全部成果-函数-第1页", exact: true })
+		.click();
+	await expect(heading(page, "成果11")).toBeVisible();
+	await crumbs(page).getByRole("link", { name: "成果查询" }).click();
+	await expect(page).toHaveURL(
+		/\/achievements\?scope=all&search=%E5%87%BD%E6%95%B0$/,
+	);
 });

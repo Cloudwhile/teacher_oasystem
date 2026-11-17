@@ -6,22 +6,29 @@ import {
 	useRef,
 } from "react";
 import { useBeforeUnload, useBlocker } from "react-router-dom";
+import { useConfirm } from "@/components/common/ConfirmDialog";
 
 export const LeaveGuardContext = createContext<{
-	register: (guard: () => boolean) => () => void;
+	register: (guard: () => Promise<boolean>) => () => void;
 } | null>(null);
 
 export function useUnsavedChanges(dirty: boolean, busy: boolean) {
 	const registry = useContext(LeaveGuardContext);
+	const confirm = useConfirm();
 	const bypass = useRef(false);
-	const confirmLeave = useCallback(
-		() =>
-			!busy &&
-			(bypass.current ||
-				!dirty ||
-				window.confirm("尚有未保存的内容，确定放弃并离开吗？")),
-		[busy, dirty],
-	);
+
+	const confirmLeave = useCallback(async () => {
+		if (busy) return false;
+		if (bypass.current || !dirty) return true;
+		return confirm({
+			title: "放弃未保存的内容？",
+			description: "当前页面尚有未保存的修改，离开后这些修改将不会自动提交。",
+			confirmLabel: "放弃并离开",
+			cancelLabel: "继续编辑",
+			tone: "danger",
+		});
+	}, [busy, dirty, confirm]);
+
 	const blocker = useBlocker(
 		useCallback(
 			({ currentLocation, nextLocation }) =>
@@ -32,12 +39,26 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
 			[dirty, busy],
 		),
 	);
+
 	useEffect(() => {
 		if (blocker.state !== "blocked") return;
-		if (confirmLeave()) blocker.proceed();
-		else blocker.reset();
-	}, [blocker, confirmLeave]);
+		if (busy) {
+			blocker.reset();
+			return;
+		}
+		let cancelled = false;
+		void confirmLeave().then((allowed) => {
+			if (cancelled) return;
+			if (allowed) blocker.proceed();
+			else blocker.reset();
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [blocker, busy, confirmLeave]);
+
 	useEffect(() => registry?.register(confirmLeave), [registry, confirmLeave]);
+
 	useBeforeUnload(
 		useCallback(
 			(event) => {
@@ -46,6 +67,7 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
 			[dirty, busy],
 		),
 	);
+
 	return {
 		confirmLeave,
 		allowLeave: () => {

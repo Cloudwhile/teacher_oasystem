@@ -1,14 +1,14 @@
 {
 	"$meta": {
 		"name": "TeacherOA Design System",
-		"source": "refactoring-ui skill, Workflow A + Workflow C refinement",
+		"source": "refactoring-ui skill, Workflow A + Workflow C refinement (Light + Dark)",
 		"personality": {
 			"formality": "serious-institutional",
 			"era": "modern",
 			"density": "comfortable-dense",
 			"grey-temperature": "cool-slate"
 		},
-		"pairs-note": "Every foreground/background pair verified against WCAG AA (4.5:1 normal, 3:1 large). Decorative 1px borders and dividers are excluded per §2.7.2 and reinforced under prefers-contrast: more."
+		"pairs-note": "Every light and dark foreground/background pair verified against WCAG AA (4.5:1 normal, 3:1 large). Decorative 1px borders and dividers are excluded per §2.7.2 and reinforced under prefers-contrast: more."
 	},
 	"primitive": {
 		"color": {
@@ -82,7 +82,7 @@
 			}
 		},
 		"font": {
-			"sans": "\"Geist Variable\", \"Microsoft YaHei\", ui-sans-serif, system-ui, sans-serif",
+			"sans": "\"Geist Variable\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", ui-sans-serif, system-ui, sans-serif",
 			"mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 		},
 		"text": {
@@ -142,6 +142,15 @@
 			"scrim": "0.4",
 			"subtle": "0.72"
 		},
+		"z": {
+			"dropdown": "10",
+			"topbar": "20",
+			"backdrop": "30",
+			"drawer": "40",
+			"dialog": "50",
+			"toast": "60",
+			"skip-link": "70"
+		},
 		"shadow": {
 			"sm": "0 1px 2px rgb(16 17 20 / 5%)",
 			"DEFAULT": "0 2px 5px rgb(16 17 20 / 7%), 0 1px 2px rgb(16 17 20 / 4%)",
@@ -156,6 +165,7 @@
 			"surface": "{color.neutral.100}",
 			"surface-subtle": "{color.neutral.50}",
 			"surface-raised": "#ffffff",
+			"surface-overlay": "#ffffff",
 			"surface-sunken": "{color.neutral.200}",
 			"text": "{color.neutral.900}",
 			"text-secondary": "{color.neutral.700}",
@@ -167,9 +177,14 @@
 			"action-hover": "{color.primary.600}",
 			"action-active": "{color.primary.700}",
 			"action-highlight": "{color.primary.400}",
+			"action-text": "{color.primary.500}",
+			"action-text-hover": "{color.primary.600}",
+			"on-action": "#ffffff",
 			"action-subtle": "{color.primary.100}",
+			"action-subtle-border": "{color.primary.200}",
 			"action-subtle-text": "{color.primary.700}",
 			"danger": "{color.danger.600}",
+			"danger-fg": "{color.danger.600}",
 			"danger-surface": "{color.danger.100}",
 			"danger-border": "{color.danger.200}",
 			"danger-text": "{color.danger.700}",
@@ -185,33 +200,159 @@
 			"info-surface": "{color.info.100}",
 			"info-border": "{color.info.200}",
 			"info-text": "{color.info.700}"
+		},
+		"ring": {
+			"action": "0 0 0 3px rgb(27 86 196 / 16%)",
+			"danger": "0 0 0 3px rgb(173 50 54 / 14%)"
+		}
+	},
+	"dark": {
+		"color": {
+			"surface": "#111318",
+			"surface-subtle": "#151820",
+			"surface-raised": "#1b1f29",
+			"surface-overlay": "#222735",
+			"surface-sunken": "#252b38",
+			"text": "#eceef2",
+			"text-secondary": "#c5cad4",
+			"text-muted": "#9aa2b1",
+			"icon": "#848d9d",
+			"border": "#2a303d",
+			"border-strong": "#3b4354",
+			"action": "#2563eb",
+			"action-hover": "#1d4ed8",
+			"action-active": "#1e40af",
+			"action-highlight": "#60a5fa",
+			"action-text": "#74abfa",
+			"action-text-hover": "#93c5fd",
+			"on-action": "#ffffff",
+			"action-subtle": "#16243d",
+			"action-subtle-border": "#264173",
+			"action-subtle-text": "#a3c7fb",
+			"danger": "#b83539",
+			"danger-fg": "#f48a91",
+			"danger-surface": "#2d1619",
+			"danger-border": "#5c2328",
+			"danger-text": "#f7a8ae",
+			"warning": "#e9a932",
+			"warning-surface": "#2b1f0e",
+			"warning-border": "#593d14",
+			"warning-text": "#f8cb74",
+			"success": "#43b585",
+			"success-surface": "#11281f",
+			"success-border": "#1d4d38",
+			"success-text": "#8ce0ba",
+			"info": "#5399ba",
+			"info-surface": "#132430",
+			"info-border": "#214459",
+			"info-text": "#93cbe3"
+		},
+		"shadow": {
+			"sm": "0 1px 2px rgb(0 0 0 / 28%)",
+			"DEFAULT": "0 2px 6px rgb(0 0 0 / 34%), 0 1px 2px rgb(0 0 0 / 22%)",
+			"md": "0 8px 18px -4px rgb(0 0 0 / 42%), 0 2px 6px -1px rgb(0 0 0 / 26%)",
+			"lg": "0 14px 28px -6px rgb(0 0 0 / 50%), 0 4px 10px -2px rgb(0 0 0 / 30%)",
+			"xl": "0 24px 48px -12px rgb(0 0 0 / 62%)",
+			"inner": "inset 0 1px 2px rgb(0 0 0 / 26%)"
+		},
+		"ring": {
+			"action": "0 0 0 3px rgb(96 165 250 / 28%)",
+			"danger": "0 0 0 3px rgb(244 138 145 / 24%)"
 		}
 	},
 	"pairs": [
-		{ "name": "primary text on white card", "fg": "#1a1c21", "bg": "#ffffff" },
 		{
-			"name": "secondary text on white card",
+			"name": "light: primary text on white card",
+			"fg": "#1a1c21",
+			"bg": "#ffffff"
+		},
+		{
+			"name": "light: secondary text on white card",
 			"fg": "#43464e",
 			"bg": "#ffffff"
 		},
-		{ "name": "muted text on white card", "fg": "#5c6069", "bg": "#ffffff" },
-		{ "name": "primary text on canvas", "fg": "#1a1c21", "bg": "#f5f6f7" },
-		{ "name": "secondary text on canvas", "fg": "#43464e", "bg": "#f5f6f7" },
-		{ "name": "muted text on canvas", "fg": "#5c6069", "bg": "#f5f6f7" },
 		{
-			"name": "active nav text on sunken neutral",
+			"name": "light: muted text on white card",
+			"fg": "#5c6069",
+			"bg": "#ffffff"
+		},
+		{
+			"name": "light: primary text on canvas",
+			"fg": "#1a1c21",
+			"bg": "#f5f6f7"
+		},
+		{
+			"name": "light: secondary text on canvas",
+			"fg": "#43464e",
+			"bg": "#f5f6f7"
+		},
+		{ "name": "light: muted text on canvas", "fg": "#5c6069", "bg": "#f5f6f7" },
+		{
+			"name": "light: active nav text on sunken neutral",
 			"fg": "#1a1c21",
 			"bg": "#e3e5e8"
 		},
-		{ "name": "primary button", "fg": "#ffffff", "bg": "#1b56c4" },
-		{ "name": "primary button hover", "fg": "#ffffff", "bg": "#1443ae" },
-		{ "name": "primary link on white", "fg": "#1b56c4", "bg": "#ffffff" },
-		{ "name": "subtle action tint", "fg": "#0d3198", "bg": "#eff5fc" },
-		{ "name": "danger alert primary", "fg": "#761619", "bg": "#fef1f2" },
-		{ "name": "danger alert secondary", "fg": "#912326", "bg": "#fef1f2" },
-		{ "name": "danger link on white", "fg": "#ad3236", "bg": "#ffffff" },
-		{ "name": "warning badge/notice", "fg": "#802d00", "bg": "#fef9ec" },
-		{ "name": "success badge/notice", "fg": "#10683b", "bg": "#eefaf5" },
-		{ "name": "info badge", "fg": "#224b70", "bg": "#eef6fa" }
+		{ "name": "light: primary button", "fg": "#ffffff", "bg": "#1b56c4" },
+		{ "name": "light: primary button hover", "fg": "#ffffff", "bg": "#1443ae" },
+		{
+			"name": "light: primary link on white",
+			"fg": "#1b56c4",
+			"bg": "#ffffff"
+		},
+		{ "name": "light: subtle action tint", "fg": "#0d3198", "bg": "#eff5fc" },
+		{ "name": "light: danger alert primary", "fg": "#761619", "bg": "#fef1f2" },
+		{
+			"name": "light: danger alert secondary",
+			"fg": "#912326",
+			"bg": "#fef1f2"
+		},
+		{ "name": "light: danger link on white", "fg": "#ad3236", "bg": "#ffffff" },
+		{ "name": "light: warning badge/notice", "fg": "#802d00", "bg": "#fef9ec" },
+		{ "name": "light: success badge/notice", "fg": "#10683b", "bg": "#eefaf5" },
+		{ "name": "light: info badge", "fg": "#224b70", "bg": "#eef6fa" },
+		{
+			"name": "dark: primary text on raised card",
+			"fg": "#eceef2",
+			"bg": "#1b1f29"
+		},
+		{
+			"name": "dark: secondary text on raised card",
+			"fg": "#c5cad4",
+			"bg": "#1b1f29"
+		},
+		{
+			"name": "dark: muted text on raised card",
+			"fg": "#9aa2b1",
+			"bg": "#1b1f29"
+		},
+		{
+			"name": "dark: primary text on canvas",
+			"fg": "#eceef2",
+			"bg": "#111318"
+		},
+		{ "name": "dark: muted text on canvas", "fg": "#9aa2b1", "bg": "#111318" },
+		{
+			"name": "dark: active nav text on sunken",
+			"fg": "#eceef2",
+			"bg": "#252b38"
+		},
+		{ "name": "dark: muted text on sunken", "fg": "#9aa2b1", "bg": "#252b38" },
+		{ "name": "dark: primary button", "fg": "#ffffff", "bg": "#2563eb" },
+		{
+			"name": "dark: primary link on raised card",
+			"fg": "#74abfa",
+			"bg": "#1b1f29"
+		},
+		{ "name": "dark: subtle action tint", "fg": "#a3c7fb", "bg": "#16243d" },
+		{ "name": "dark: danger button", "fg": "#ffffff", "bg": "#b83539" },
+		{
+			"name": "dark: danger fg on raised card",
+			"fg": "#f48a91",
+			"bg": "#1b1f29"
+		},
+		{ "name": "dark: danger alert text", "fg": "#f7a8ae", "bg": "#2d1619" },
+		{ "name": "dark: warning badge/notice", "fg": "#f8cb74", "bg": "#2b1f0e" },
+		{ "name": "dark: success badge/notice", "fg": "#8ce0ba", "bg": "#11281f" },
+		{ "name": "dark: info badge", "fg": "#93cbe3", "bg": "#132430" }
 	]
 }

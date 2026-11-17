@@ -37,7 +37,7 @@
 }
 .input-control:has(input[aria-invalid="true"]) {
 	border-color: var(--color-danger);
-	box-shadow: 0 0 0 3px rgb(173 50 54 / 14%);
+	box-shadow: var(--ring-danger);
 }
 .input-control:has(input:disabled),
 .input-control > input:disabled {
@@ -60,15 +60,15 @@
 	transition: color 120ms ease-out;
 }
 .input-control:has(input:focus) .input-leading {
-	color: var(--color-action);
+	color: var(--color-action-text);
 }
 .input-leading svg {
 	width: var(--space-4);
 	height: var(--space-4);
 }
 .input-trailing .password-toggle {
-	width: 34px;
-	height: 34px;
+	width: 36px;
+	height: 36px;
 	border: var(--border-thin) solid transparent;
 	background: transparent;
 	box-shadow: none;
@@ -87,6 +87,15 @@
 		background: var(--color-surface);
 		color: var(--color-text);
 		box-shadow: none;
+	}
+}
+@media (pointer: coarse) {
+	.input-control {
+		min-height: 44px;
+	}
+	.input-trailing .password-toggle {
+		width: 44px;
+		height: 44px;
 	}
 }
 @media (max-width: 720px) {

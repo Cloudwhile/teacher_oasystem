@@ -8,6 +8,7 @@ import {
 	loginPageApi,
 } from "@/features/auth/loginPageApi";
 import { HttpError } from "@/services/httpClient";
+import { notifySuccess } from "@/services/notify";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import { AnnouncementManager } from "./AnnouncementManager";
 import { LoginImageField } from "./LoginImageField";
@@ -56,9 +57,11 @@ export function LoginPageSettingsForm({
 					version: result.version,
 				}));
 				setMessage("公告已更新");
+				notifySuccess("公告已更新");
 			} else {
 				setData(result);
 				setMessage("登录页设置已保存");
+				notifySuccess("登录页设置已保存");
 			}
 			return true;
 		} catch (error) {
@@ -86,7 +89,9 @@ export function LoginPageSettingsForm({
 				<ActionButton
 					disabled={busy}
 					onClick={() => {
-						if (guard.confirmLeave()) onReload();
+						void guard.confirmLeave().then((allowed) => {
+							if (allowed) onReload();
+						});
 					}}
 				>
 					加载最新设置

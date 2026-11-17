@@ -9,28 +9,8 @@
 @import "./styles/navigation.css";
 
 @theme {
-	--font-sans:
-		"Geist Variable", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
-	--color-primary-100: #eff5fc;
-	--color-primary-200: #cde0f7;
-	--color-primary-300: #8dbaf0;
-	--color-primary-400: #4b8ce3;
-	--color-primary-500: #1b56c4;
-	--color-primary-600: #1443ae;
-	--color-primary-700: #0d3198;
-	--color-primary-800: #072181;
-	--color-primary-900: #01136a;
-	--color-neutral-50: #fafbfc;
-	--color-neutral-100: #f5f6f7;
-	--color-neutral-200: #e3e5e8;
-	--color-neutral-300: #c6cbd2;
-	--color-neutral-400: #949aa4;
-	--color-neutral-500: #737882;
-	--color-neutral-600: #5c6069;
-	--color-neutral-700: #43464e;
-	--color-neutral-800: #2c2e35;
-	--color-neutral-900: #1a1c21;
-	--color-neutral-950: #101114;
+	--font-sans: var(--font-sans);
+	--font-mono: var(--font-mono);
 }
 
 @layer base {
@@ -38,9 +18,8 @@
 		--in-oklab: ;
 		--in-oklch: ;
 		--oa-sidebar-width: 244px;
-		--oa-ring: 0 0 0 3px rgb(27 86 196 / 16%);
+		--oa-ring: var(--ring-action);
 		--oa-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-		color-scheme: light;
 		accent-color: var(--color-action);
 		color: var(--color-text);
 		background-color: var(--color-surface);
@@ -52,8 +31,8 @@
 		-webkit-font-smoothing: antialiased;
 	}
 	::selection {
-		background-color: var(--color-primary-200);
-		color: var(--color-neutral-900);
+		background-color: var(--color-action-subtle);
+		color: var(--color-text);
 	}
 	@supports (background: linear-gradient(in oklab, white, black)) {
 		:root {
@@ -66,11 +45,13 @@
 			--color-border: CanvasText;
 			--color-border-strong: ButtonText;
 			--color-action: Highlight;
+			--color-action-text: LinkText;
 		}
 	}
 	body {
 		margin: 0;
 		min-width: 320px;
+		overflow-wrap: break-word;
 	}
 	.reicon {
 		width: 1em;
@@ -124,6 +105,15 @@
 	p {
 		margin: 0;
 	}
+	h1,
+	h2,
+	h3 {
+		text-wrap: balance;
+	}
+	p,
+	li {
+		text-wrap: pretty;
+	}
 	h1 {
 		font-size: var(--text-xl);
 		font-weight: var(--weight-semibold);
@@ -150,11 +140,11 @@
 	position: fixed;
 	top: var(--space-3);
 	left: var(--space-3);
-	z-index: 60;
+	z-index: var(--z-skip-link);
 	padding: var(--space-2) var(--space-4);
 	border-radius: var(--radius-DEFAULT);
 	background: var(--color-action);
-	color: var(--color-surface-raised);
+	color: var(--color-on-action);
 	font-weight: var(--weight-semibold);
 	box-shadow: var(--shadow-md);
 	translate: 0 -220%;
@@ -162,7 +152,7 @@
 }
 .skip-link:focus-visible {
 	translate: 0;
-	outline: 2px solid var(--color-surface-raised);
+	outline: 2px solid var(--color-on-action);
 	outline-offset: -4px;
 }
 .workspace {
@@ -173,7 +163,7 @@
 .topbar {
 	position: sticky;
 	top: 0;
-	z-index: 20;
+	z-index: var(--z-topbar);
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -191,6 +181,18 @@
 	gap: var(--space-2);
 	color: var(--color-text-muted);
 	font-size: var(--text-xs);
+}
+.breadcrumb a {
+	color: var(--color-text-muted);
+	border-radius: var(--radius-sm);
+	transition: color 120ms ease-out;
+}
+@media (hover: hover) {
+	.breadcrumb a:hover {
+		color: var(--color-action-text);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
 }
 .breadcrumb strong {
 	color: var(--color-text);
@@ -230,9 +232,11 @@
 	align-items: center;
 	gap: var(--space-2);
 }
+/* Target sizes: 40px default on desktop, 44px on coarse pointer / mobile. */
 .icon-button {
-	width: 36px;
-	height: 36px;
+	position: relative;
+	width: 40px;
+	height: 40px;
 	border: var(--border-thin) solid var(--color-border-strong);
 	color: var(--color-text-secondary);
 	background: var(--color-surface-raised);
@@ -253,7 +257,7 @@
 }
 .icon-button[aria-expanded="true"] {
 	color: var(--color-action-subtle-text);
-	border-color: var(--color-primary-300);
+	border-color: var(--color-action-subtle-border);
 	background: var(--color-action-subtle);
 }
 .icon-button:active:not(:disabled) {
@@ -262,8 +266,8 @@
 }
 /* §8.5 Quiet row-level icon actions inside tables to avoid a column of heavy boxes. */
 td .icon-button {
-	width: 32px;
-	height: 32px;
+	width: 36px;
+	height: 36px;
 	border-color: transparent;
 	background: transparent;
 	box-shadow: none;
@@ -362,6 +366,7 @@ td .icon-button {
 .table-scroll {
 	overflow-x: auto;
 	border-radius: var(--radius-DEFAULT);
+	container-type: inline-size;
 }
 table {
 	width: 100%;
@@ -413,7 +418,7 @@ tbody tr:not(:last-child) td {
 	gap: var(--space-3);
 	font-size: var(--text-sm);
 	font-weight: var(--weight-semibold);
-	color: var(--color-action);
+	color: var(--color-action-text);
 	transition:
 		color 120ms ease-out,
 		background-color 120ms ease-out,
@@ -424,7 +429,7 @@ tbody tr:not(:last-child) td {
 }
 @media (hover: hover) {
 	.action-row:hover {
-		color: var(--color-action-hover);
+		color: var(--color-action-text-hover);
 	}
 }
 /* §2.5.3 Demoted labels with open spacing rather than a boxed cell grid. */
@@ -482,6 +487,9 @@ tbody tr:not(:last-child) td {
 	padding: var(--space-12) var(--space-6);
 	gap: var(--space-2);
 }
+.empty-state-compact {
+	padding: var(--space-6) var(--space-4);
+}
 .empty-state-icon {
 	display: grid;
 	place-items: center;
@@ -501,6 +509,9 @@ tbody tr:not(:last-child) td {
 	font-size: var(--text-base);
 	font-weight: var(--weight-semibold);
 	color: var(--color-text);
+}
+.empty-state-compact .empty-state-title {
+	font-size: var(--text-sm);
 }
 .empty-state-description {
 	font-size: var(--text-sm);
@@ -541,7 +552,7 @@ tbody tr:not(:last-child) td {
 	color: var(--color-danger-text);
 }
 .feedback[role="alert"] > svg {
-	color: var(--color-danger);
+	color: var(--color-danger-fg);
 }
 .inline-error {
 	padding: var(--space-3) var(--space-4);
@@ -555,25 +566,18 @@ tbody tr:not(:last-child) td {
 	margin: var(--space-3) 0;
 	max-width: 65ch;
 }
-.empty-message {
-	font-size: var(--text-sm);
-	color: var(--color-text-muted);
-	padding: var(--space-6) 0;
-	line-height: var(--leading-normal);
-	max-width: 65ch;
-}
 .text-link {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--space-1);
-	color: var(--color-action);
+	color: var(--color-action-text);
 	font-size: var(--text-sm);
 	font-weight: var(--weight-normal);
 	transition: color 120ms ease-out;
 }
 @media (hover: hover) {
 	.text-link:hover {
-		color: var(--color-action-hover);
+		color: var(--color-action-text-hover);
 		text-decoration: underline;
 		text-underline-offset: 3px;
 	}
@@ -600,6 +604,7 @@ tbody tr:not(:last-child) td {
 .permission-feedback {
 	display: grid;
 	justify-items: center;
+	text-align: center;
 	gap: var(--space-4);
 	padding: var(--space-12) var(--space-6);
 }
@@ -607,6 +612,95 @@ tbody tr:not(:last-child) td {
 	border: 0;
 	min-height: var(--space-24);
 	padding: var(--space-2);
+}
+
+/* Structural Skeletons (UI-P0-2) */
+@keyframes skeleton-pulse {
+	0%,
+	100% {
+		opacity: 0.9;
+	}
+	50% {
+		opacity: 0.45;
+	}
+}
+.skeleton-block {
+	border-radius: var(--radius-sm);
+	background: var(--color-surface-sunken);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.skeleton-block {
+		animation: skeleton-pulse 1.5s ease-in-out infinite;
+	}
+}
+.skeleton-stack {
+	display: grid;
+	gap: var(--space-6);
+}
+.skeleton-rows {
+	display: grid;
+	gap: var(--space-3);
+}
+.skeleton-row {
+	display: grid;
+	grid-template-columns: 2fr 1fr 1fr 1fr auto;
+	gap: var(--space-4);
+	align-items: center;
+	padding: var(--space-3) 0;
+	border-top: var(--border-thin) solid var(--color-border);
+}
+
+/* Unified ConfirmDialog (UI-P0-3, §6.2.a, §2.8.1) */
+.confirm-dialog {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	z-index: var(--z-dialog);
+	transform: translate(-50%, -50%);
+	width: min(448px, calc(100% - 32px));
+	max-height: calc(100dvh - 48px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: var(--space-6);
+	border: var(--border-thin) solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface-overlay);
+	box-shadow: var(--shadow-xl);
+	display: grid;
+	gap: var(--space-4);
+}
+.confirm-dialog h2 {
+	font-size: var(--text-lg);
+	line-height: var(--leading-tight);
+	color: var(--color-text);
+}
+.confirm-dialog-description {
+	font-size: var(--text-sm);
+	line-height: var(--leading-normal);
+	color: var(--color-text-secondary);
+	max-width: 55ch;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.confirm-dialog-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	padding-top: var(--space-2);
+}
+
+/* Global Toast notifications (UX-P0-1) */
+[data-sonner-toaster] {
+	z-index: var(--z-toast);
+	font-family: var(--font-sans);
+}
+[data-sonner-toaster] [data-sonner-toast].oa-toast {
+	border: var(--border-thin) solid var(--color-border);
+	border-radius: var(--radius-DEFAULT);
+	background: var(--color-surface-overlay);
+	color: var(--color-text);
+	box-shadow: var(--shadow-lg);
 }
 
 @keyframes spin {
@@ -618,6 +712,32 @@ tbody tr:not(:last-child) td {
 @media (prefers-reduced-motion: no-preference) {
 	.spin {
 		animation: spin 0.9s linear infinite;
+	}
+}
+
+@media (max-width: 1100px) {
+	.topbar {
+		padding: var(--space-2) var(--space-6);
+	}
+	.page-content {
+		padding: var(--space-6) var(--space-6) var(--space-8);
+	}
+	.workspace-footer {
+		padding: var(--space-4) var(--space-6);
+	}
+}
+
+@media (pointer: coarse) {
+	.icon-button,
+	td .icon-button {
+		width: 44px;
+		height: 44px;
+	}
+	.text-link,
+	.breadcrumb a {
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
 	}
 }
 
@@ -643,6 +763,9 @@ tbody tr:not(:last-child) td {
 	}
 	.workspace-footer {
 		padding: var(--space-4);
+	}
+	.skeleton-row {
+		grid-template-columns: 1fr 1fr;
 	}
 }
 @media (prefers-reduced-motion: reduce) {

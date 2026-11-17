@@ -23,8 +23,8 @@ export default defineConfig({
 				name: "%ASTER_SERVICE_TITLE%",
 				short_name: "%ASTER_SERVICE_TITLE%",
 				description: "%ASTER_SERVICE_DESCRIPTION%",
-				theme_color: "#1264d1",
-				background_color: "#fafbfd",
+				theme_color: "#1b56c4",
+				background_color: "#f5f6f7",
 				display: "standalone",
 				icons: [
 					{

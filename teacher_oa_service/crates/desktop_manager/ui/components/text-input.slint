@@ -1,0 +1,62 @@
+import { Theme } from "../tokens.slint";
+
+// Custom Refactoring UI inset text input (§6.1.3).
+export component TextInputField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder-text;
+    in property <string> accessible-name;
+    in property <bool> enabled: true;
+    callback edited;
+
+    height: 34px;
+    min-width: 120px;
+    horizontal-stretch: 1;
+    border-radius: Theme.radius-default;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: !root.enabled
+        ? Theme.border
+        : input.has-focus
+            ? Theme.action
+            : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
+    background: root.enabled ? Theme.surface-raised : Theme.surface-subtle;
+    clip: true;
+    animate border-color { duration: 120ms; }
+    animate background { duration: 120ms; }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? MouseCursor.text : MouseCursor.default;
+        clicked => {
+            if (root.enabled) {
+                input.focus();
+            }
+        }
+    }
+
+    if root.text == "" && root.placeholder-text != "": Text {
+        x: Theme.space-3;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.placeholder-text;
+        color: Theme.text-muted;
+        font-size: Theme.text-sm;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    input := TextInput {
+        x: Theme.space-3;
+        width: parent.width - 24px;
+        height: parent.height;
+        text <=> root.text;
+        enabled: root.enabled;
+        single-line: true;
+        font-size: Theme.text-sm;
+        color: root.enabled ? Theme.text : Theme.text-muted;
+        selection-background-color: Theme.primary-200;
+        selection-foreground-color: Theme.neutral-900;
+        vertical-alignment: center;
+        accessible-label: root.accessible-name;
+        edited => { root.edited(); }
+    }
+}

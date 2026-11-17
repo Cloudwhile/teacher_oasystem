@@ -3,7 +3,7 @@
 	align-items: center;
 	justify-content: center;
 	gap: var(--space-2);
-	min-height: 36px;
+	min-height: 38px;
 	padding: var(--space-2) var(--space-4);
 	border: var(--border-thin) solid var(--color-border-strong);
 	border-radius: var(--radius-DEFAULT);
@@ -24,10 +24,11 @@
 	width: var(--space-4);
 	height: var(--space-4);
 }
+/* UI-P0-4: Never drop below 36px on desktop; 44px on coarse pointer / mobile. */
 .action-button-sm {
-	min-height: 32px;
+	min-height: 36px;
 	padding: var(--space-1) var(--space-3);
-	font-size: var(--text-xs);
+	font-size: var(--text-sm);
 }
 .action-button-lg {
 	min-height: 44px;
@@ -38,7 +39,7 @@
 .action-button-primary {
 	border-color: var(--color-action-hover);
 	background: var(--color-action);
-	color: var(--color-surface-raised);
+	color: var(--color-on-action);
 	box-shadow:
 		var(--shadow-sm),
 		inset 0 1px 0 var(--color-action-highlight);
@@ -53,14 +54,14 @@
 .action-button-danger-tertiary {
 	border-color: transparent;
 	background: transparent;
-	color: var(--color-danger);
+	color: var(--color-danger-fg);
 	box-shadow: none;
 	padding: var(--space-1) var(--space-3);
 }
 .action-button-danger {
-	border-color: var(--color-danger-text);
+	border-color: var(--color-danger);
 	background: var(--color-danger);
-	color: var(--color-surface-raised);
+	color: var(--color-on-action);
 	box-shadow: var(--shadow-sm);
 }
 .action-button:focus-visible {
@@ -99,7 +100,7 @@
 		background: var(--color-danger-surface);
 	}
 	.action-button-danger:hover:not(:disabled) {
-		background: var(--color-danger-text);
+		filter: brightness(0.93);
 	}
 }
 .action-button-secondary:active:not(:disabled),
@@ -114,8 +115,15 @@
 	border-color: var(--color-action-active);
 	background: var(--color-action-active);
 }
+@media (pointer: coarse) {
+	.action-button,
+	.action-button-sm {
+		min-height: 44px;
+	}
+}
 @media (max-width: 720px) {
-	.action-button {
+	.action-button,
+	.action-button-sm {
 		min-height: 44px;
 	}
 }

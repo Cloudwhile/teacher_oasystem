@@ -1,6 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { FileText, Plus, Search } from "reicon-react";
+import { FileText, Plus, Refresh, Search, X } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
 import { ActionButton } from "@/components/common/ActionButton";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -8,6 +8,7 @@ import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
+import { TableSkeleton } from "@/components/common/Skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { hasPermission } from "@/features/auth/permissions";
 import { useResource } from "@/services/useResource";
@@ -17,7 +18,21 @@ export function AchievementListPage() {
 	const { session } = useAuth();
 	const [params, setParams] = useSearchParams();
 	const location = useLocation();
-	const formRef = useRef<HTMLFormElement>(null);
+	const urlSearch = params.get("search") ?? "";
+	const [searchInput, setSearchInput] = useState(urlSearch);
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		setSearchInput(urlSearch);
+	}, [urlSearch]);
+
+	useEffect(
+		() => () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		},
+		[],
+	);
+
 	const queryParams = new URLSearchParams(params);
 	if (!queryParams.has("scope")) queryParams.set("scope", "mine");
 	const query = queryParams.toString();
@@ -27,44 +42,83 @@ export function AchievementListPage() {
 	);
 	const catalog = useResource(achievementApi.catalog);
 	const result = useResource(load);
-	const filter = (key: string, value: string) => {
-		const next = new URLSearchParams(params);
-		if (formRef.current && key !== "search") {
-			const searchText = String(
-				new FormData(formRef.current).get("search") ?? "",
-			).trim();
-			if (searchText) next.set("search", searchText);
-			else next.delete("search");
+
+	const commitParams = (
+		updater: (next: URLSearchParams) => void,
+		replace = false,
+	) => {
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
 		}
-		if (value) next.set(key, value);
-		else next.delete(key);
-		next.delete("page");
-		setParams(next);
+		const next = new URLSearchParams(params);
+		updater(next);
+		setParams(next, { replace });
 	};
+
+	const filter = (key: string, value: string) => {
+		const trimmedSearch = searchInput.trim();
+		commitParams((next) => {
+			if (key !== "search") {
+				if (trimmedSearch) next.set("search", trimmedSearch);
+				else next.delete("search");
+			}
+			if (value) next.set(key, value);
+			else next.delete(key);
+			next.delete("page");
+		});
+	};
+
+	const handleSearchChange = (value: string) => {
+		setSearchInput(value);
+		if (debounceRef.current) clearTimeout(debounceRef.current);
+		debounceRef.current = setTimeout(() => {
+			debounceRef.current = null;
+			const trimmed = value.trim();
+			if (trimmed === (params.get("search") ?? "")) return;
+			const next = new URLSearchParams(params);
+			if (trimmed) next.set("search", trimmed);
+			else next.delete("search");
+			next.delete("page");
+			setParams(next);
+		}, 350);
+	};
+
 	const clearFilters = () => {
-		const next = new URLSearchParams();
-		if (params.get("scope") === "all") next.set("scope", "all");
-		setParams(next);
+		setSearchInput("");
+		commitParams((next) => {
+			const keepAll = next.get("scope") === "all";
+			for (const key of Array.from(next.keys())) next.delete(key);
+			if (keepAll) next.set("scope", "all");
+		});
 	};
+
 	const hasFilters = Boolean(
 		params.get("search") ||
 			params.get("type_code") ||
 			params.get("academic_term_id") ||
 			params.get("status") ||
-			params.get("level_code"),
+			params.get("level_code") ||
+			(params.get("sort") && params.get("sort") !== "updated_at_desc"),
 	);
 	const canWrite = hasPermission(session?.user, "achievements:write");
 	const showHeaderCreate =
 		canWrite &&
-		(result.loading ||
-			Boolean(result.data?.items.length) ||
-			hasFilters ||
-			Boolean(result.error));
+		!result.loading &&
+		(Boolean(result.data?.items.length) || hasFilters || Boolean(result.error));
+
 	return (
 		<>
 			<PageHeading
 				title={params.get("scope") === "all" ? "成果查询" : "我的成果"}
 			>
+				<IconButton
+					label="刷新成果列表"
+					disabled={result.loading || result.refreshing}
+					onClick={result.reload}
+				>
+					<Refresh className={result.refreshing ? "spin" : undefined} />
+				</IconButton>
 				{showHeaderCreate && (
 					<Link
 						to="/achievements/new"
@@ -77,12 +131,10 @@ export function AchievementListPage() {
 				)}
 			</PageHeading>
 			<form
-				ref={formRef}
 				className="achievement-filters with-scope"
 				onSubmit={(event) => {
 					event.preventDefault();
-					const data = new FormData(event.currentTarget);
-					filter("search", String(data.get("search") ?? "").trim());
+					filter("search", searchInput.trim());
 				}}
 			>
 				<select
@@ -98,13 +150,24 @@ export function AchievementListPage() {
 						<Search />
 					</IconButton>
 					<input
-						key={params.get("search") ?? ""}
 						maxLength={100}
 						name="search"
 						aria-label="搜索成果名称"
 						placeholder="搜索成果名称"
-						defaultValue={params.get("search") ?? ""}
+						value={searchInput}
+						onChange={(event) => handleSearchChange(event.target.value)}
 					/>
+					{searchInput && (
+						<IconButton
+							label="清空搜索"
+							onClick={() => {
+								setSearchInput("");
+								filter("search", "");
+							}}
+						>
+							<X />
+						</IconButton>
+					)}
 				</div>
 				<select
 					aria-label="筛选成果类型"
@@ -156,12 +219,27 @@ export function AchievementListPage() {
 							</option>
 						))}
 				</select>
+				<select
+					aria-label="排序方式"
+					value={params.get("sort") ?? "updated_at_desc"}
+					onChange={(event) =>
+						filter(
+							"sort",
+							event.target.value === "updated_at_desc"
+								? ""
+								: event.target.value,
+						)
+					}
+				>
+					<option value="updated_at_desc">按最近更新</option>
+					<option value="occurred_at_desc">按成果日期</option>
+				</select>
 			</form>
 			{catalog.error && (
 				<Feedback message="筛选项暂时无法读取。" onRetry={catalog.reload} />
 			)}
-			{result.loading ? (
-				<Feedback loading message="正在读取成果…" />
+			{result.loading && !result.data ? (
+				<TableSkeleton message="正在读取成果…" />
 			) : result.error ? (
 				<Feedback
 					message={errorMessage(result.error)}
@@ -207,9 +285,16 @@ export function AchievementListPage() {
 							pageSize={result.data.page_size}
 							total={result.data.total}
 							onChange={(page) => {
-								const next = new URLSearchParams(params);
-								next.set("page", String(page));
-								setParams(next);
+								commitParams((next) => {
+									next.set("page", String(page));
+								});
+							}}
+							onPageSizeChange={(size) => {
+								commitParams((next) => {
+									if (size === 20) next.delete("page_size");
+									else next.set("page_size", String(size));
+									next.delete("page");
+								});
 							}}
 						/>
 					</section>

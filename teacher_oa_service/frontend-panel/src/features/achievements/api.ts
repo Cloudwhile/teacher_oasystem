@@ -109,7 +109,19 @@ export function errorMessage(
 ) {
 	if (error instanceof HttpError) {
 		const failure = error.payload as components["schemas"]["Failure"] | null;
-		return typeof failure?.msg === "string" ? failure.msg : fallback;
+		if (typeof failure?.msg === "string" && failure.msg.trim()) {
+			return failure.msg;
+		}
+		if (error.status === 403) return "当前账号无权执行此操作。";
+		if (error.status === 404) return "请求的记录不存在或已被移除。";
+		if (error.status === 409) return "记录已被更新，请重新加载后再试。";
+		if (error.status === 413)
+			return "上传文件超过大小限制（单文件最大 10MB）。";
+		if (error.status >= 500) return "服务暂时异常，请稍后重试。";
+		return fallback;
+	}
+	if (error instanceof TypeError) {
+		return "网络连接异常，请检查网络后重试。";
 	}
 	return fallback;
 }

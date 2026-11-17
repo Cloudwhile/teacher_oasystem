@@ -1,21 +1,46 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Monitor, Moon, Sun } from "reicon-react";
 import { ActionButton } from "@/components/common/ActionButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { PasswordField } from "@/components/common/PasswordField";
 import { errorMessage } from "@/features/achievements/api";
 import { HttpError } from "@/services/httpClient";
+import { notifySuccess } from "@/services/notify";
 import { safeReturnPath } from "@/services/returnPath";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
+import {
+	type ThemePreference,
+	useUiPreferencesStore,
+} from "@/stores/uiPreferencesStore";
 import { useAuth } from "./AuthProvider";
+
+const themeOptions: {
+	value: ThemePreference;
+	label: string;
+	icon: typeof Monitor;
+}[] = [
+	{ value: "system", label: "跟随系统", icon: Monitor },
+	{ value: "light", label: "浅色模式", icon: Sun },
+	{ value: "dark", label: "深色模式", icon: Moon },
+];
+
 export function AccountPage() {
 	const { session, changePassword, refresh } = useAuth();
+	const theme = useUiPreferencesStore((state) => state.theme);
+	const setTheme = useUiPreferencesStore((state) => state.setTheme);
 	const [current, setCurrent] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
+	const [fieldErrors, setFieldErrors] = useState<{
+		current?: string;
+		password?: string;
+		confirm?: string;
+	}>({});
 	const [busy, setBusy] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
+	const formRef = useRef<HTMLFormElement>(null);
 	const [params] = useSearchParams();
 	const navigate = useNavigate();
 	const guard = useUnsavedChanges(
@@ -25,12 +50,30 @@ export function AccountPage() {
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		if (busy) return;
-		if (password !== confirm) {
-			setError("两次新密码不一致");
+		const nextErrors: {
+			current?: string;
+			password?: string;
+			confirm?: string;
+		} = {};
+		if (!current) nextErrors.current = "请输入当前密码";
+		if (!password || password.length < 12)
+			nextErrors.password = "新密码长度不能少于 12 位";
+		if (!confirm) nextErrors.confirm = "请再次输入新密码";
+		else if (password !== confirm)
+			nextErrors.confirm = "两次输入的新密码不一致";
+		if (nextErrors.current || nextErrors.password || nextErrors.confirm) {
+			setFieldErrors(nextErrors);
+			const targetId = nextErrors.current
+				? "#current-password"
+				: nextErrors.password
+					? "#new-password"
+					: "#confirm-password";
+			formRef.current?.querySelector<HTMLElement>(targetId)?.focus();
 			return;
 		}
 		setBusy(true);
 		setError("");
+		setFieldErrors({});
 		setMessage("");
 		try {
 			await changePassword(current, password);
@@ -38,6 +81,7 @@ export function AccountPage() {
 			setPassword("");
 			setConfirm("");
 			setMessage("密码已更新");
+			notifySuccess("密码已更新");
 			if (session?.must_change_password) {
 				guard.allowLeave();
 				navigate(safeReturnPath(params.get("next")), { replace: true });
@@ -53,9 +97,14 @@ export function AccountPage() {
 		<>
 			<PageHeading title="账号安全" eyebrow={session?.user.display_name} />
 			<form
+				ref={formRef}
+				noValidate
 				className="panel settings-form"
 				onSubmit={(event) => void submit(event)}
 			>
+				<div className="section-heading">
+					<h2>修改登录密码</h2>
+				</div>
 				{session?.must_change_password && (
 					<p className="form-note">请先设置自己的登录密码。</p>
 				)}
@@ -63,7 +112,12 @@ export function AccountPage() {
 					id="current-password"
 					label="当前密码"
 					value={current}
-					onChange={setCurrent}
+					error={fieldErrors.current}
+					onChange={(val) => {
+						setCurrent(val);
+						if (fieldErrors.current)
+							setFieldErrors((prev) => ({ ...prev, current: undefined }));
+					}}
 					autoComplete="current-password"
 					disabled={busy}
 				/>
@@ -71,7 +125,13 @@ export function AccountPage() {
 					id="new-password"
 					label="新密码（至少12位）"
 					value={password}
-					onChange={setPassword}
+					error={fieldErrors.password}
+					hint="建议使用大小写字母、数字与符号组合。"
+					onChange={(val) => {
+						setPassword(val);
+						if (fieldErrors.password)
+							setFieldErrors((prev) => ({ ...prev, password: undefined }));
+					}}
 					minLength={12}
 					disabled={busy}
 				/>
@@ -79,7 +139,12 @@ export function AccountPage() {
 					id="confirm-password"
 					label="确认新密码"
 					value={confirm}
-					onChange={setConfirm}
+					error={fieldErrors.confirm}
+					onChange={(val) => {
+						setConfirm(val);
+						if (fieldErrors.confirm)
+							setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
+					}}
 					minLength={12}
 					disabled={busy}
 				/>
@@ -99,6 +164,38 @@ export function AccountPage() {
 					</ActionButton>
 				</div>
 			</form>
+			<section
+				className="panel settings-form"
+				aria-labelledby="appearance-heading"
+			>
+				<div className="section-heading">
+					<h2 id="appearance-heading">界面外观</h2>
+				</div>
+				<p className="field-hint">
+					选择工作台的颜色主题。默认跟随操作系统深浅色切换，也可在此固定当前浏览器的显示偏好。
+				</p>
+				<fieldset className="theme-segmented">
+					<legend className="visually-hidden">颜色主题</legend>
+					{themeOptions.map((option) => {
+						const Icon = option.icon;
+						const active = theme === option.value;
+						return (
+							<label key={option.value} className="theme-option">
+								<input
+									type="radio"
+									className="visually-hidden"
+									name="color-theme"
+									value={option.value}
+									checked={active}
+									onChange={() => setTheme(option.value)}
+								/>
+								<Icon aria-hidden="true" />
+								<span>{option.label}</span>
+							</label>
+						);
+					})}
+				</fieldset>
+			</section>
 		</>
 	);
 }

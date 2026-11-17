@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Pen, Refresh } from "reicon-react";
+import { ArrowLeft, Clock, Folder, Pen, Refresh } from "reicon-react";
 import { CorrectionNotice } from "@/components/achievements/CorrectionNotice";
 import { fieldValue } from "@/components/achievements/DynamicFields";
 import { MaterialList } from "@/components/achievements/MaterialList";
 import { ParticipantList } from "@/components/achievements/ParticipantList";
 import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
+import { DetailSkeleton } from "@/components/common/Skeleton";
 import { ReviewActions } from "@/components/reviews/ReviewActions";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { formatAppDateTime } from "@/services/dateFormat";
 import { HttpError } from "@/services/httpClient";
-import { safeReturnPath } from "@/services/returnPath";
+import { notifySuccess } from "@/services/notify";
+import {
+	readLastAchievementListPath,
+	safeReturnPath,
+} from "@/services/returnPath";
 import { useResource } from "@/services/useResource";
 import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 import {
@@ -57,7 +64,10 @@ function readOpinionDraft(key: string) {
 export function AchievementDetailPage() {
 	const { id } = useParams();
 	const location = useLocation();
-	const back = safeReturnPath(location.state?.from, "/achievements");
+	const back = safeReturnPath(
+		location.state?.from,
+		readLastAchievementListPath("/achievements"),
+	);
 	const { session, refresh } = useAuth();
 	const draftKey =
 		session && id ? `teacher-oa:review-opinion:${session.user.id}:${id}` : "";
@@ -140,6 +150,7 @@ export function AchievementDetailPage() {
 				result.data.detail.record.version,
 				session.csrf_token,
 			);
+			notifySuccess("成果已提交审核");
 			result.reload();
 		} catch (error) {
 			if (error instanceof HttpError && error.status === 401) void refresh();
@@ -150,12 +161,16 @@ export function AchievementDetailPage() {
 			setBusy(false);
 		}
 	};
-	if (result.loading) return <Feedback loading message="正在读取成果…" />;
+	if (result.loading && !result.data)
+		return <DetailSkeleton message="正在读取成果…" />;
 	if (result.error || !result.data)
 		return (
 			<Feedback message={errorMessage(result.error)} onRetry={result.reload} />
 		);
 	const { detail, catalog, revisions, schemas } = result.data;
+	const isReturnedEditable =
+		detail.can_edit && detail.record.status === "returned";
+
 	return (
 		<>
 			<PageHeading
@@ -171,8 +186,12 @@ export function AchievementDetailPage() {
 				>
 					<ArrowLeft />
 				</Link>
-				<IconButton label="刷新成果" disabled={busy} onClick={result.reload}>
-					<Refresh />
+				<IconButton
+					label="刷新成果"
+					disabled={busy || result.refreshing}
+					onClick={result.reload}
+				>
+					<Refresh className={result.refreshing ? "spin" : undefined} />
 				</IconButton>
 				{detail.can_edit && (
 					<>
@@ -186,7 +205,7 @@ export function AchievementDetailPage() {
 							<Pen />
 						</Link>
 						<ActionButton
-							variant="primary"
+							variant={isReturnedEditable ? "secondary" : "primary"}
 							disabled={busy}
 							onClick={() => {
 								void submit();
@@ -202,7 +221,7 @@ export function AchievementDetailPage() {
 					{statusLabels[detail.record.status]}
 				</span>
 				<span>{detail.record.teacher_name}</span>
-				<span>第 {detail.record.version} 次修订</span>
+				<span>当前第 {detail.record.version} 版</span>
 			</div>
 			{error && (
 				<p className="inline-error" role="alert">
@@ -210,12 +229,17 @@ export function AchievementDetailPage() {
 				</p>
 			)}
 			<div className="editor-sections">
-				<CorrectionNotice detail={detail} />
+				<CorrectionNotice
+					detail={detail}
+					editTo={detail.can_edit ? `/achievements/${id}/edit` : undefined}
+					from={back}
+				/>
 				<ReviewActions
 					key={`${id}-${detail.record.version}`}
 					detail={detail}
 					initialOpinion={opinion}
 					onOpinionChange={(opinion) => setDraft({ key: draftKey, opinion })}
+					onReload={result.reload}
 					onComplete={() => {
 						setDraft({ key: draftKey, opinion: "" });
 						result.reload();
@@ -259,7 +283,7 @@ export function AchievementDetailPage() {
 					{detail.files.length ? (
 						<MaterialList files={detail.files} />
 					) : (
-						<p className="empty-message">尚未关联证明材料</p>
+						<EmptyState compact icon={<Folder />} title="尚未关联证明材料" />
 					)}
 				</section>
 				<section className="panel">
@@ -278,21 +302,24 @@ export function AchievementDetailPage() {
 									<span>{event.reviewer_name}</span>
 									{event.opinion && <p>{event.opinion}</p>}
 									<time dateTime={event.created_at}>
-										{new Date(event.created_at).toLocaleString("zh-CN", {
-											timeZone: "Asia/Singapore",
-										})}
+										{formatAppDateTime(event.created_at)}
 									</time>
 								</li>
 							))}
 						</ol>
 					) : (
-						<p className="empty-message">尚未提交审核</p>
+						<EmptyState
+							compact
+							icon={<Clock />}
+							title="尚未提交审核"
+							description="提交审核后，办理时间与审核意见将在此展示。"
+						/>
 					)}
 				</section>
 				{revisions.length > 0 && (
 					<section className="panel">
 						<div className="section-heading">
-							<h2>历史修订</h2>
+							<h2>历史版本</h2>
 						</div>
 						{revisions.map((revision) => {
 							const revisionSchema =
@@ -300,10 +327,8 @@ export function AchievementDetailPage() {
 							return (
 								<details className="revision-row" key={revision.version}>
 									<summary>
-										第 {revision.version} 次修订 ·{" "}
-										{new Date(revision.created_at).toLocaleString("zh-CN", {
-											timeZone: "Asia/Singapore",
-										})}
+										第 {revision.version} 版 ·{" "}
+										{formatAppDateTime(revision.created_at)}
 									</summary>
 									<p>
 										{revision.snapshot.data.title} ·{" "}

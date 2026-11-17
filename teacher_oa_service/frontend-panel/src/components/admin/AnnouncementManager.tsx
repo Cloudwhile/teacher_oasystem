@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Bullhorn } from "reicon-react";
 import { ActionButton } from "@/components/common/ActionButton";
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FormField } from "@/components/common/FormField";
 import type { LoginAnnouncement } from "@/features/auth/loginPageApi";
-import { formatSingaporeDate } from "@/services/dateFormat";
+import { formatAppDate } from "@/services/dateFormat";
 
 type Draft = { id: string; title: string; content: string };
 const empty: Draft = { id: "", title: "", content: "" };
@@ -20,6 +21,7 @@ export function AnnouncementManager({
 	onSave: (items: LoginAnnouncement[]) => Promise<boolean>;
 	onDirty: (dirty: boolean) => void;
 }) {
+	const confirm = useConfirm();
 	const [draft, setDraft] = useState<Draft>(empty);
 	const [editing, setEditing] = useState(false);
 	const [dirty, setDirty] = useState(false);
@@ -29,8 +31,17 @@ export function AnnouncementManager({
 		setDirty(true);
 		onDirty(true);
 	};
-	const edit = (item?: LoginAnnouncement) => {
-		if (dirty && !window.confirm("放弃尚未保存的公告内容吗？")) return;
+	const edit = async (item?: LoginAnnouncement) => {
+		if (dirty) {
+			const discard = await confirm({
+				title: "放弃未保存的公告内容？",
+				description: "切换编辑对象将丢弃当前正在编写的公告草稿。",
+				confirmLabel: "放弃修改",
+				cancelLabel: "继续编辑",
+				tone: "danger",
+			});
+			if (!discard) return;
+		}
 		setDraft(
 			item ? { id: item.id, title: item.title, content: item.content } : empty,
 		);
@@ -39,8 +50,17 @@ export function AnnouncementManager({
 		onDirty(false);
 		setError("");
 	};
-	const close = () => {
-		if (dirty && !window.confirm("放弃尚未保存的公告内容吗？")) return;
+	const close = async () => {
+		if (dirty) {
+			const discard = await confirm({
+				title: "放弃未保存的公告内容？",
+				description: "关闭编辑器将丢弃当前尚未保存的公告内容。",
+				confirmLabel: "放弃并关闭",
+				cancelLabel: "继续编辑",
+				tone: "danger",
+			});
+			if (!discard) return;
+		}
 		setEditing(false);
 		setDirty(false);
 		onDirty(false);
@@ -76,7 +96,7 @@ export function AnnouncementManager({
 				{!editing && (
 					<ActionButton
 						disabled={disabled || items.length >= 30}
-						onClick={() => edit()}
+						onClick={() => void edit()}
 					>
 						新增公告
 					</ActionButton>
@@ -116,7 +136,7 @@ export function AnnouncementManager({
 						<ActionButton
 							variant="tertiary"
 							disabled={disabled}
-							onClick={close}
+							onClick={() => void close()}
 						>
 							取消
 						</ActionButton>
@@ -141,7 +161,7 @@ export function AnnouncementManager({
 								<strong>{item.title}</strong>
 								<span className="muted">
 									{item.published
-										? `已发布 · ${formatSingaporeDate(item.published_at)}`
+										? `已发布 · ${formatAppDate(item.published_at)}`
 										: "草稿"}
 								</span>
 							</div>
@@ -149,7 +169,7 @@ export function AnnouncementManager({
 								<ActionButton
 									size="sm"
 									disabled={disabled}
-									onClick={() => edit(item)}
+									onClick={() => void edit(item)}
 								>
 									编辑
 								</ActionButton>
@@ -175,10 +195,18 @@ export function AnnouncementManager({
 									size="sm"
 									disabled={disabled}
 									onClick={() => {
-										if (!window.confirm(`确定删除公告「${item.title}」吗？`))
-											return;
-										void onSave(items.filter((row) => row.id !== item.id)).then(
-											(ok) => {
+										void confirm({
+											title: `确定删除公告「${item.title}」吗？`,
+											description:
+												"删除后该公告将从登录页公告栏移除，且无法直接恢复。",
+											confirmLabel: "确认删除",
+											cancelLabel: "保留公告",
+											tone: "danger",
+										}).then((accepted) => {
+											if (!accepted) return;
+											void onSave(
+												items.filter((row) => row.id !== item.id),
+											).then((ok) => {
 												if (ok && draft.id === item.id) {
 													setDraft(empty);
 													setEditing(false);
@@ -186,8 +214,8 @@ export function AnnouncementManager({
 													onDirty(false);
 													setError("");
 												}
-											},
-										);
+											});
+										});
 									}}
 								>
 									删除
@@ -203,7 +231,7 @@ export function AnnouncementManager({
 						title="暂无公告"
 						description="发布学校通知或填报说明后，将显示在登录页公告栏。"
 						action={
-							<ActionButton disabled={disabled} onClick={() => edit()}>
+							<ActionButton disabled={disabled} onClick={() => void edit()}>
 								新增公告
 							</ActionButton>
 						}

@@ -138,7 +138,6 @@ it.each(["wecom", "appearance"] as const)(
 						},
 			);
 		});
-		const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
 		showPage(
 			kind === "wecom" ? <WecomSettingsPage /> : <LoginAppearancePage />,
 			kind === "wecom" ? "/admin/login" : "/admin/login-page",
@@ -152,13 +151,13 @@ it.each(["wecom", "appearance"] as const)(
 		fireEvent.click(
 			await screen.findByRole("button", { name: "加载最新设置" }),
 		);
+		fireEvent.click(await screen.findByRole("button", { name: "继续编辑" }));
 		expect(screen.getByLabelText(new RegExp(`^${label}`))).toHaveProperty(
 			"value",
 			"localdraft",
 		);
-		expect(confirm).toHaveBeenCalledOnce();
-		confirm.mockReturnValue(true);
 		fireEvent.click(screen.getByRole("button", { name: "加载最新设置" }));
+		fireEvent.click(await screen.findByRole("button", { name: "放弃并离开" }));
 		const field = await screen.findByDisplayValue(
 			kind === "wecom" ? "latestcorp" : "服务端新标题",
 		);
@@ -227,13 +226,13 @@ it("删除公告不会误提交尚未保存的外观草稿", async () => {
 		}
 		return json(pageWithNotice);
 	});
-	vi.spyOn(window, "confirm").mockReturnValue(true);
 	showPage(<LoginAppearancePage />, "/admin/login-page");
 	expect(await screen.findByText(/2026-11-16/)).toBeTruthy();
 	fireEvent.change(screen.getByLabelText(/^网站名称/), {
 		target: { value: "未保存新标题" },
 	});
 	fireEvent.click(screen.getByRole("button", { name: "删除" }));
+	fireEvent.click(await screen.findByRole("button", { name: "确认删除" }));
 	await screen.findByText("暂无公告");
 	expect(putBody).toMatchObject({
 		title: "已保存标题",

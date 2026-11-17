@@ -8,12 +8,18 @@ import {
 } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { GraduationCap, Menu, Plus, X } from "reicon-react";
+import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { IconButton } from "@/components/common/IconButton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { hasPermission } from "@/features/auth/permissions";
-import { resolveNavigation } from "@/routes/navigationState";
+import { resolveNavigation, resolveTrailLinks } from "@/routes/navigationState";
 import { appPaths } from "@/routes/routePaths";
-import { formatSingaporeDate } from "@/services/dateFormat";
+import { formatAppDate, formatAppLongDate } from "@/services/dateFormat";
+import { notifyInfo } from "@/services/notify";
+import {
+	readLastAchievementListPath,
+	rememberListPath,
+} from "@/services/returnPath";
 import { useMediaQuery } from "@/services/useMediaQuery";
 import { useOpenUntilNavigation } from "@/services/useOpenUntilNavigation";
 import { LeaveGuardContext } from "@/services/useUnsavedChanges";
@@ -23,12 +29,18 @@ import { SidebarAccount } from "./SidebarAccount";
 
 export const mobileDrawerQuery = "(max-width: 720px)";
 
-export function AppShell() {
+function AppShellInner() {
 	const { session, logout } = useAuth();
 	const [error, setError] = useState("");
 	const [leaving, setLeaving] = useState(false);
 	const location = useLocation();
+	const currentLocationPath = location.pathname + location.search;
 	const nav = resolveNavigation(
+		location.pathname,
+		location.search,
+		location.state?.from,
+	);
+	const trailLinks = resolveTrailLinks(
 		location.pathname,
 		location.search,
 		location.state?.from,
@@ -36,6 +48,9 @@ export function AppShell() {
 	useEffect(() => {
 		document.title = `${nav.title} · TeacherOA`;
 	}, [nav.title]);
+	useEffect(() => {
+		rememberListPath(location.pathname, location.search);
+	}, [location.pathname, location.search]);
 	const mobile = useMediaQuery(mobileDrawerQuery);
 	const [menuOpen, setMenuOpen] = useOpenUntilNavigation();
 	if (menuOpen && !mobile) setMenuOpen(false);
@@ -75,7 +90,7 @@ export function AppShell() {
 			if (event.key !== "Tab" || !drawer.current) return;
 			const controls = Array.from(
 				drawer.current.querySelectorAll<HTMLElement>(
-					'a[href], button:not(:disabled), [tabindex="0"]',
+					'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
 				),
 			).filter((element) => element.getClientRects().length > 0);
 			const first = controls.at(0);
@@ -91,10 +106,10 @@ export function AppShell() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [drawerOpen, closeDrawer]);
-	const leaveGuard = useRef<(() => boolean) | null>(null);
+	const leaveGuard = useRef<(() => Promise<boolean>) | null>(null);
 	const guards = useMemo(
 		() => ({
-			register: (guard: () => boolean) => {
+			register: (guard: () => Promise<boolean>) => {
 				leaveGuard.current = guard;
 				return () => {
 					if (leaveGuard.current === guard) leaveGuard.current = null;
@@ -104,11 +119,13 @@ export function AppShell() {
 		[],
 	);
 	const leave = async () => {
-		if (leaving || (leaveGuard.current && !leaveGuard.current())) return;
+		if (leaving) return;
+		if (leaveGuard.current && !(await leaveGuard.current())) return;
 		setLeaving(true);
 		setError("");
 		try {
 			await logout();
+			notifyInfo("已退出登录");
 		} catch {
 			setError("退出未完成，请重试。");
 		} finally {
@@ -120,6 +137,12 @@ export function AppShell() {
 		session?.user,
 		"achievements:write",
 	);
+	const composeFromState = {
+		from:
+			location.pathname === "/achievements" || location.pathname === "/reviews"
+				? currentLocationPath
+				: readLastAchievementListPath("/achievements"),
+	};
 	const now = new Date();
 	return (
 		<LeaveGuardContext.Provider value={guards}>
@@ -146,11 +169,7 @@ export function AppShell() {
 				>
 					<div className="sidebar-header">
 						<Link
-							to={
-								mustChangePassword
-									? location.pathname + location.search
-									: appPaths.dashboard
-							}
+							to={mustChangePassword ? currentLocationPath : appPaths.dashboard}
 							className="brand"
 						>
 							<GraduationCap aria-hidden="true" />
@@ -175,6 +194,7 @@ export function AppShell() {
 								{canWriteAchievement && (
 									<Link
 										to={navPaths.achievementsNew}
+										state={composeFromState}
 										className="sidebar-create"
 									>
 										<Plus aria-hidden="true" />
@@ -209,25 +229,24 @@ export function AppShell() {
 							>
 								<Menu />
 							</IconButton>
-							{nav.trail.map((part, index) =>
-								index === nav.trail.length - 1 ? (
-									<strong key={part}>{part}</strong>
+							{trailLinks.map((part, index) =>
+								index === trailLinks.length - 1 ? (
+									<strong key={part.label}>{part.label}</strong>
 								) : (
-									<Fragment key={part}>
-										<span>{part}</span>
+									<Fragment key={part.label}>
+										{part.to && !mustChangePassword ? (
+											<Link to={part.to} state={{ from: part.to }}>
+												{part.label}
+											</Link>
+										) : (
+											<span>{part.label}</span>
+										)}
 										<span aria-hidden="true">/</span>
 									</Fragment>
 								),
 							)}
 						</div>
-						<time dateTime={formatSingaporeDate(now)}>
-							{new Intl.DateTimeFormat("zh-CN", {
-								year: "numeric",
-								month: "long",
-								day: "numeric",
-								timeZone: "Asia/Singapore",
-							}).format(now)}
-						</time>
+						<time dateTime={formatAppDate(now)}>{formatAppLongDate(now)}</time>
 					</header>
 					<main
 						ref={main}
@@ -243,5 +262,13 @@ export function AppShell() {
 				</div>
 			</div>
 		</LeaveGuardContext.Provider>
+	);
+}
+
+export function AppShell() {
+	return (
+		<ConfirmProvider>
+			<AppShellInner />
+		</ConfirmProvider>
 	);
 }

@@ -4,6 +4,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import { HttpError } from "@/services/httpClient";
@@ -13,6 +14,7 @@ type AuthStatus = "loading" | "ready" | "anonymous" | "error" | "forbidden";
 type AuthContextValue = {
 	status: AuthStatus;
 	session: AuthResponse | null;
+	sessionExpired?: boolean;
 	refresh: () => Promise<void>;
 	login: (username: string, password: string) => Promise<void>;
 	changePassword: (current: string, password: string) => Promise<void>;
@@ -23,10 +25,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [status, setStatus] = useState<AuthStatus>("loading");
 	const [session, setSession] = useState<AuthResponse | null>(null);
+	const [sessionExpired, setSessionExpired] = useState(false);
+	const hadSessionRef = useRef(false);
 	const applyError = useCallback((error: unknown) => {
+		const isUnauthorized = error instanceof HttpError && error.status === 401;
+		if (isUnauthorized && hadSessionRef.current) {
+			setSessionExpired(true);
+		}
+		hadSessionRef.current = false;
 		setSession(null);
 		setStatus(
-			error instanceof HttpError && error.status === 401
+			isUnauthorized
 				? "anonymous"
 				: error instanceof HttpError && error.status === 403
 					? "forbidden"
@@ -36,7 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const refresh = useCallback(async () => {
 		setStatus((previous) => (previous === "ready" ? previous : "loading"));
 		try {
-			setSession(await authApi.me());
+			const nextSession = await authApi.me();
+			hadSessionRef.current = true;
+			setSessionExpired(false);
+			setSession(nextSession);
 			setStatus("ready");
 		} catch (error) {
 			applyError(error);
@@ -48,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			.me(controller.signal)
 			.then((value) => {
 				if (!controller.signal.aborted) {
+					hadSessionRef.current = true;
+					setSessionExpired(false);
 					setSession(value);
 					setStatus("ready");
 				}
@@ -58,7 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => controller.abort();
 	}, [applyError]);
 	const login = async (username: string, password: string) => {
-		setSession(await authApi.login({ username, password }));
+		const nextSession = await authApi.login({ username, password });
+		hadSessionRef.current = true;
+		setSessionExpired(false);
+		setSession(nextSession);
 		setStatus("ready");
 	};
 	const logout = async () => {
@@ -69,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				if (!(error instanceof HttpError && error.status === 401)) throw error;
 			}
 		}
+		hadSessionRef.current = false;
+		setSessionExpired(false);
 		setSession(null);
 		setStatus("anonymous");
 	};
@@ -80,7 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	};
 	return (
 		<AuthContext.Provider
-			value={{ status, session, refresh, login, logout, changePassword }}
+			value={{
+				status,
+				session,
+				sessionExpired,
+				refresh,
+				login,
+				logout,
+				changePassword,
+			}}
 		>
 			{children}
 		</AuthContext.Provider>

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash, Users } from "reicon-react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FormField } from "@/components/common/FormField";
@@ -26,6 +26,8 @@ export function ParticipantsEditor({
 }) {
 	const rowKeys = useRef<number[]>([]);
 	const nextRowKey = useRef(0);
+	const [rowFilters, setRowFilters] = useState<Record<number, string>>({});
+
 	while (rowKeys.current.length < value.length) {
 		rowKeys.current.push(nextRowKey.current);
 		nextRowKey.current += 1;
@@ -51,6 +53,8 @@ export function ParticipantsEditor({
 		[next[index], next[target]] = [next[target], next[index]];
 		onChange(next.map((person, i) => ({ ...person, sort_order: i })));
 	};
+	const showTeacherSearch = catalog.teachers.length > 8;
+
 	return (
 		<section className="panel">
 			<div className="section-heading">
@@ -65,7 +69,7 @@ export function ParticipantsEditor({
 				</h2>
 				<IconButton
 					label="添加相关人员"
-					aria-invalid={Boolean(errors.participants)}
+					aria-invalid={errors.participants ? "true" : undefined}
 					aria-describedby={
 						errors.participants ? "participants-error" : undefined
 					}
@@ -104,6 +108,15 @@ export function ParticipantsEditor({
 				const personId = `person-${index}`;
 				const nameId = `name-${index}`;
 				const roleId = `role-${index}`;
+				const filterQuery = (rowFilters[rowKey] ?? "").trim().toLowerCase();
+				const visibleTeachers = filterQuery
+					? catalog.teachers.filter(
+							(teacher) =>
+								teacher.id === person.teacher_id ||
+								teacher.name.toLowerCase().includes(filterQuery),
+						)
+					: catalog.teachers;
+
 				return (
 					<div className="participant-row" key={rowKey}>
 						<span className="participant-order">{index + 1}</span>
@@ -112,55 +125,75 @@ export function ParticipantsEditor({
 							label="关联教师"
 							error={errors[`participants.${index}.teacher_id`]}
 						>
-							<select
-								id={personId}
-								value={person.teacher_id ?? ""}
-								aria-invalid={Boolean(
-									errors[`participants.${index}.teacher_id`],
+							<div className="participant-teacher-picker">
+								{showTeacherSearch && (
+									<input
+										type="search"
+										className="participant-filter-input"
+										aria-label={`筛选第${index + 1}位关联教师`}
+										placeholder="输入姓名或部门快速筛选…"
+										value={rowFilters[rowKey] ?? ""}
+										disabled={disabled}
+										onChange={(event) =>
+											setRowFilters((prev) => ({
+												...prev,
+												[rowKey]: event.target.value,
+											}))
+										}
+									/>
 								)}
-								aria-describedby={
-									errors[`participants.${index}.teacher_id`]
-										? `${personId}-error`
-										: undefined
-								}
-								disabled={disabled}
-								onChange={(event) => {
-									const teacher = catalog.teachers.find(
-										(item) => item.id === Number(event.target.value),
-									);
-									update(index, {
-										...person,
-										teacher_id: teacher?.id ?? null,
-										teacher_name: teacher?.name,
-										external_name: teacher?.name ?? "",
-									});
-								}}
-							>
-								<option value="">校外 / 未关联人员</option>
-								{person.teacher_id &&
-									!catalog.teachers.some(
-										(teacher) => teacher.id === person.teacher_id,
-									) && (
-										<option value={person.teacher_id}>
-											{person.external_name.trim() ||
-												person.teacher_name ||
-												`已关联教师 (#${person.teacher_id})`}
-											（已关联）
-										</option>
-									)}
-								{catalog.teachers.map((teacher) => (
-									<option
-										key={teacher.id}
-										value={teacher.id}
-										disabled={value.some(
-											(item, i) =>
-												i !== index && item.teacher_id === teacher.id,
+								<select
+									id={personId}
+									value={person.teacher_id ?? ""}
+									aria-invalid={
+										errors[`participants.${index}.teacher_id`]
+											? "true"
+											: "false"
+									}
+									aria-describedby={
+										errors[`participants.${index}.teacher_id`]
+											? `${personId}-error`
+											: undefined
+									}
+									disabled={disabled}
+									onChange={(event) => {
+										const teacher = catalog.teachers.find(
+											(item) => item.id === Number(event.target.value),
+										);
+										update(index, {
+											...person,
+											teacher_id: teacher?.id ?? null,
+											teacher_name: teacher?.name,
+											external_name: teacher?.name ?? "",
+										});
+									}}
+								>
+									<option value="">校外 / 未关联人员</option>
+									{person.teacher_id &&
+										!catalog.teachers.some(
+											(teacher) => teacher.id === person.teacher_id,
+										) && (
+											<option value={person.teacher_id}>
+												{person.external_name.trim() ||
+													person.teacher_name ||
+													"原关联教师（不在当前名册）"}
+												（已关联）
+											</option>
 										)}
-									>
-										{teacher.name}
-									</option>
-								))}
-							</select>
+									{visibleTeachers.map((teacher) => (
+										<option
+											key={teacher.id}
+											value={teacher.id}
+											disabled={value.some(
+												(item, i) =>
+													i !== index && item.teacher_id === teacher.id,
+											)}
+										>
+											{teacher.name}
+										</option>
+									))}
+								</select>
+							</div>
 						</FormField>
 						<FormField
 							id={nameId}
@@ -173,14 +206,6 @@ export function ParticipantsEditor({
 								value={person.external_name}
 								maxLength={100}
 								required={!person.teacher_id}
-								aria-invalid={Boolean(
-									errors[`participants.${index}.external_name`],
-								)}
-								aria-describedby={
-									errors[`participants.${index}.external_name`]
-										? `${nameId}-error`
-										: undefined
-								}
 								disabled={disabled || Boolean(person.teacher_id)}
 								onChange={(event) =>
 									update(index, {
@@ -198,14 +223,6 @@ export function ParticipantsEditor({
 							<select
 								id={roleId}
 								value={person.role_code}
-								aria-invalid={Boolean(
-									errors[`participants.${index}.role_code`],
-								)}
-								aria-describedby={
-									errors[`participants.${index}.role_code`]
-										? `${roleId}-error`
-										: undefined
-								}
 								disabled={disabled}
 								onChange={(event) =>
 									update(index, { ...person, role_code: event.target.value })

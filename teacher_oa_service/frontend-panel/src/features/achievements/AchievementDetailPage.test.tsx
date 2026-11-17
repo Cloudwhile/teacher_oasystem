@@ -44,8 +44,8 @@ const detail = {
 	can_archive: false,
 	can_edit: false,
 } as unknown as AchievementDetail;
-function show() {
-	vi.spyOn(achievementApi, "detail").mockResolvedValue(detail);
+function show(overrideDetail: AchievementDetail = detail) {
+	vi.spyOn(achievementApi, "detail").mockResolvedValue(overrideDetail);
 	vi.spyOn(achievementApi, "catalog").mockResolvedValue({
 		dictionaries: [],
 		types: [],
@@ -59,6 +59,7 @@ function show() {
 				element: <AppShell />,
 				children: [
 					{ path: "/achievements/:id", element: <AchievementDetailPage /> },
+					{ path: "/achievements/:id/edit", element: <p>编辑成果页</p> },
 					{ path: "/reviews", element: <p>审核队列</p> },
 				],
 			},
@@ -108,15 +109,13 @@ it("刷新成果和冲突重载保留意见；取消返回和退出保护输入�
 		can_review: false,
 		can_archive: true,
 	} as AchievementDetail;
-	vi.mocked(achievementApi.detail)
-		.mockResolvedValueOnce(detail)
-		.mockResolvedValue(approvedDetail);
+	vi.mocked(achievementApi.detail).mockResolvedValue(approvedDetail);
 	const send = vi
 		.spyOn(achievementApi, "review")
 		.mockResolvedValue(approvedDetail);
-	const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
 	const input = await screen.findByLabelText("办理意见");
 	fireEvent.change(input, { target: { value: "请补充日期\n保留第二行" } });
+	vi.mocked(achievementApi.detail).mockResolvedValueOnce(detail);
 	fireEvent.click(screen.getByRole("button", { name: "刷新成果" }));
 	await waitFor(() =>
 		expect(
@@ -124,14 +123,16 @@ it("刷新成果和冲突重载保留意见；取消返回和退出保护输入�
 		).toBe("请补充日期\n保留第二行"),
 	);
 	fireEvent.click(screen.getByRole("link", { name: "返回审核列表" }));
-	await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+	fireEvent.click(await screen.findByRole("button", { name: "继续编辑" }));
 	expect(router.state.location.pathname).toBe("/achievements/12");
 	fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+	fireEvent.click(await screen.findByRole("button", { name: "继续编辑" }));
 	expect(auth.logout).not.toHaveBeenCalled();
 	expect(
 		(screen.getByLabelText("办理意见") as HTMLTextAreaElement).value,
 	).toContain("保留第二行");
 	fireEvent.click(screen.getByRole("button", { name: "审核通过" }));
+	fireEvent.click(await screen.findByRole("button", { name: "确认通过" }));
 	await waitFor(() =>
 		expect(send).toHaveBeenCalledWith(
 			12,
@@ -153,8 +154,8 @@ it("刷新成果和冲突重载保留意见；取消返回和退出保护输入�
 	);
 });
 
-it("审核详情保持审核导航和面包屑，历史展示当时人员与材料", async () => {
-	show();
+it("审核详情保持审核导航和可点击面包屑，历史展示当时人员与材料", async () => {
+	const router = show();
 	vi.mocked(achievementApi.revisions).mockResolvedValue([
 		{
 			version: 1,
@@ -182,7 +183,7 @@ it("审核详情保持审核导航和面包屑，历史展示当时人员与材�
 	await screen.findByText("旧署名老师");
 	const breadcrumb = document.querySelector(".breadcrumb");
 	expect(breadcrumb?.textContent).toContain("审核中心");
-	const nav = screen.getByRole("navigation");
+	const nav = screen.getByRole("navigation", { name: "主导航" });
 	expect(
 		within(nav).getByRole("link", { name: "审核中心" }).className,
 	).toContain("active");
@@ -194,4 +195,40 @@ it("审核详情保持审核导航和面包屑，历史展示当时人员与材�
 			.getByRole("link", { name: "预览旧证明.png", hidden: true })
 			.getAttribute("href"),
 	).toBe("/api/v1/files/99/preview");
+	// Clickable breadcrumb navigates back to the filtered review list
+	const crumbLink = within(breadcrumb as HTMLElement).getByRole("link", {
+		name: "审核中心",
+	});
+	fireEvent.click(crumbLink);
+	await screen.findByText("审核队列");
+	expect(router.state.location.search).toBe(
+		"?status=pending&page=3&search=公开课",
+	);
+});
+
+it("退回补正状态在退回意见区提供去修改并重新提交直达入口", async () => {
+	const router = show({
+		...detail,
+		record: { ...detail.record, status: "returned" },
+		can_review: false,
+		can_edit: true,
+		events: [
+			{
+				id: 1,
+				reviewer_id: 3,
+				reviewer_name: "审核员",
+				action: "return",
+				old_status: "pending",
+				new_status: "returned",
+				opinion: "请补充获奖证书原件扫描件",
+				created_at: "2026-11-01T08:00:00Z",
+			},
+		],
+	});
+	const editCta = await screen.findByRole("link", {
+		name: "去修改并重新提交",
+	});
+	fireEvent.click(editCta);
+	await screen.findByText("编辑成果页");
+	expect(router.state.location.pathname).toBe("/achievements/12/edit");
 });
