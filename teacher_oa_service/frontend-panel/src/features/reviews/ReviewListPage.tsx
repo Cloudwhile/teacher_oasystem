@@ -1,7 +1,9 @@
 import { useCallback, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Refresh, Search } from "reicon-react";
+import { Check, Refresh, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
+import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -10,6 +12,7 @@ import { achievementApi, errorMessage } from "@/features/achievements/api";
 import { appPaths } from "@/routes/routePaths";
 import { HttpError } from "@/services/httpClient";
 import { useResource } from "@/services/useResource";
+
 export function ReviewListPage() {
 	const [params, setParams] = useSearchParams();
 	const formRef = useRef<HTMLFormElement>(null);
@@ -35,10 +38,18 @@ export function ReviewListPage() {
 		next.delete("page");
 		setParams(next);
 	};
+	const clearFilters = () => setParams(new URLSearchParams());
+	const hasFilters = Boolean(
+		params.get("search") ||
+			params.get("teacher") ||
+			params.get("type_code") ||
+			params.get("academic_term_id") ||
+			(params.get("status") && params.get("status") !== "pending"),
+	);
 	if (result.error instanceof HttpError && result.error.status === 403) {
 		return (
 			<>
-				<PageHeading title="审核中心" eyebrow="成果管理" />
+				<PageHeading title="审核中心" />
 				<section className="panel permission-feedback">
 					<Feedback message="当前账号没有审核权限，无法查看审核待办。" />
 					<Link className="text-link" to={appPaths.dashboard}>
@@ -50,7 +61,7 @@ export function ReviewListPage() {
 	}
 	return (
 		<>
-			<PageHeading title="审核中心" eyebrow="成果管理">
+			<PageHeading title="审核中心">
 				<IconButton label="刷新待办" onClick={result.reload}>
 					<Refresh />
 				</IconButton>
@@ -143,7 +154,22 @@ export function ReviewListPage() {
 					{result.data.items.length ? (
 						<AchievementTable items={result.data.items} />
 					) : (
-						<p className="empty-message">暂无符合条件的记录</p>
+						<EmptyState
+							icon={hasFilters ? <Search /> : <Check />}
+							title="暂无符合条件的记录"
+							description={
+								hasFilters
+									? "请尝试调整搜索或筛选条件。"
+									: "当前待办已全部处理完毕。"
+							}
+							action={
+								hasFilters ? (
+									<ActionButton variant="secondary" onClick={clearFilters}>
+										清除筛选
+									</ActionButton>
+								) : undefined
+							}
+						/>
 					)}
 					<Pagination
 						page={result.data.page}

@@ -1,169 +1,127 @@
+/* Forms, dashboard metric ledger, tables and notices aligned to Refactoring UI. */
 .login-fields,
 .settings-form {
 	display: grid;
-	gap: 20px;
+	gap: var(--space-6);
 }
 .login-tabs {
 	display: flex;
 	align-items: center;
-	gap: 24px;
-	margin-bottom: 26px;
-	border-bottom: 1px solid #e1e8f2;
+	gap: var(--space-6);
+	margin-bottom: var(--space-6);
+	border-bottom: var(--border-thin) solid var(--color-border);
 }
 .login-tab {
 	position: relative;
-	min-height: 44px;
-	padding: 0 2px 12px;
+	min-height: 40px;
+	padding: 0 2px var(--space-3);
 	border: 0;
-	border-bottom: 2.5px solid transparent;
+	border-bottom: var(--border-thick) solid transparent;
 	border-radius: 0;
 	background: transparent;
-	color: var(--oa-text-muted);
-	font-size: 17px;
-	font-weight: 560;
-	line-height: 1.5;
+	color: var(--color-text-muted);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-normal);
 	white-space: nowrap;
 	transition:
-		color 150ms var(--oa-ease-out),
-		border-color 150ms var(--oa-ease-out);
+		color 120ms ease-out,
+		border-color 120ms ease-out;
 }
 .login-tab[data-active] {
-	border-bottom-color: var(--oa-brand);
-	color: #142033;
-	font-weight: 680;
+	border-bottom-color: var(--color-action);
+	color: var(--color-text);
 }
 .login-tab:disabled {
-	color: #9ba5b7;
+	color: var(--color-neutral-400);
 	cursor: not-allowed;
 	opacity: 1;
 }
 .login-tab:focus-visible,
 .login-method-panel:focus-visible {
-	outline: 2px solid var(--oa-focus);
+	outline: 2px solid var(--color-action);
 	outline-offset: 4px;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 }
 .login-method-panel:not([hidden]) {
-	min-height: 236px;
+	min-height: 212px;
 }
 .wecom-login {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 24px;
-	min-height: 236px;
-	padding: 16px;
-	border-radius: 12px;
-	background: #f8fbff;
-	border: 1px dashed #cdddf5;
+	gap: var(--space-4);
+	min-height: 212px;
+	padding: var(--space-6);
+	border-radius: var(--radius-DEFAULT);
+	background: var(--color-surface-subtle);
+	border: var(--border-thin) dashed var(--color-border-strong);
 }
 .wecom-login > svg {
-	width: 52px;
-	height: 52px;
-	padding: 10px;
-	border-radius: 14px;
-	background: var(--oa-brand-soft);
-	box-shadow: inset 0 0 0 1px #cfe1fb;
-	color: var(--oa-brand);
+	width: 40px;
+	height: 40px;
+	padding: var(--space-2);
+	border-radius: var(--radius-DEFAULT);
+	border: var(--border-thin) solid var(--color-border);
+	background: var(--color-surface-raised);
+	color: var(--color-icon);
 }
 .action-button.login-submit {
 	width: 100%;
-	min-height: 48px;
-	border-radius: 10px;
-	font-size: 15.5px;
+	min-height: 40px;
+	border-radius: var(--radius-DEFAULT);
+	font-size: var(--text-sm);
 }
 .login-options-status {
-	margin-top: 20px;
+	margin-top: var(--space-4);
 }
 .login-options-status .row-actions {
 	flex-wrap: wrap;
 	justify-content: space-between;
 }
-.login-fields .input-control {
-	border-radius: 10px;
-	background: #f8fbff;
-}
 .login-fields .input-control:has(input:focus) {
-	border-color: var(--oa-focus);
-	background: #fff;
+	border-color: var(--color-action);
+	background: var(--color-surface-raised);
 	box-shadow: var(--oa-ring);
 }
 .login-fields .password-toggle:focus-visible {
-	outline-color: var(--oa-focus);
+	outline-color: var(--color-action);
 }
 @media (hover: hover) {
 	.login-fields .password-toggle:hover:not(:disabled) {
-		background: #eaf3ff;
-		color: #105cbf;
+		background: var(--color-surface);
+		color: var(--color-text);
 	}
 	.login-tab:hover:not(:disabled, [data-active]) {
-		color: var(--oa-brand-strong);
+		color: var(--color-text);
 	}
-}
-.primary-button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 9px;
-	min-height: 44px;
-	border: 1px solid var(--oa-brand-strong);
-	border-radius: 10px;
-	background-color: var(--oa-brand);
-	background-image: linear-gradient(
-		180deg var(--in-oklab),
-		#1b74e4 0%,
-		#1264d1 100%
-	);
-	color: #fff;
-	font-size: 14px;
-	font-weight: 600;
-	box-shadow: var(--oa-shadow-brand);
-	transition:
-		background-color 150ms var(--oa-ease-out),
-		border-color 150ms var(--oa-ease-out),
-		box-shadow 150ms var(--oa-ease-out),
-		transform 120ms var(--oa-ease-out);
-}
-.primary-button:hover:not(:disabled) {
-	background-color: var(--oa-brand-strong);
-	border-color: #094796;
-}
-.primary-button:active:not(:disabled) {
-	transform: scale(0.97);
-}
-.primary-button svg {
-	width: 17px;
-	height: 17px;
 }
 .settings-form .section-heading {
 	padding-bottom: 0;
 }
 .settings-form .confirmation-row {
 	margin-top: 0;
-	border-color: var(--oa-border);
-	background: var(--oa-surface-subtle);
-	color: var(--oa-text);
-	font-size: 13px;
+	border-color: var(--color-border);
+	background: var(--color-surface-subtle);
+	color: var(--color-text);
+	font-size: var(--text-sm);
 }
 .settings-form .confirmation-row:has(input:checked) {
-	border-color: #b8d3f8;
-	background: #f2f7ff;
-	color: #143666;
+	border-color: var(--color-primary-200);
+	background: var(--color-action-subtle);
+	color: var(--color-action-subtle-text);
 }
+/* §3.4.2 Constrain single-column form max-width so fields never stretch across the screen. */
 .settings-form {
-	margin-bottom: 24px;
-	max-width: 900px;
+	margin-bottom: var(--space-6);
+	max-width: 512px;
+}
+.settings-form:has(.form-grid) {
+	max-width: 768px;
 }
 .settings-form .form-grid {
 	width: 100%;
-}
-.achievement-filters > input {
-	min-width: 0;
-	padding: 9px 12px;
-	border: 1px solid #aebcd0;
-	border-radius: 8px;
-	background: var(--oa-surface);
 }
 .achievement-table {
 	min-width: 740px;
@@ -174,37 +132,46 @@
 }
 .achievement-table td:first-child {
 	min-width: 200px;
-	max-width: 350px;
+	max-width: 360px;
 	white-space: normal;
 	overflow-wrap: anywhere;
 }
 .account-search {
 	flex: 1 1 260px;
-	max-width: 380px;
+	max-width: 384px;
+	border: var(--border-thin) solid var(--color-border-strong);
+	border-radius: var(--radius-DEFAULT);
+	background: var(--color-surface-raised);
+	padding: 0 var(--space-3);
+	box-shadow: var(--shadow-inner);
+	transition:
+		border-color 120ms ease-out,
+		box-shadow 120ms ease-out;
+}
+.account-search > svg {
+	width: var(--space-4);
+	height: var(--space-4);
 }
 .account-search input {
 	min-width: 0;
 	width: 100%;
-	min-height: 40px;
-	padding: 9px 12px;
-	border: 1px solid #aebcd0;
-	border-radius: 8px;
-	background: var(--oa-surface);
-	color: var(--oa-text);
-	font-size: 13px;
-	box-shadow: inset 0 1px 2px rgb(15 23 42 / 3%);
-	transition:
-		border-color 150ms var(--oa-ease-out),
-		box-shadow 150ms var(--oa-ease-out);
+	min-height: 36px;
+	padding: var(--space-1) 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-text);
+	font-size: var(--text-sm);
 }
-.account-search input:focus-visible {
+.account-search input:focus {
 	outline: none;
-	border-color: var(--oa-focus);
+}
+.account-search:focus-within {
+	border-color: var(--color-action);
 	box-shadow: var(--oa-ring);
 }
 @media (hover: hover) {
-	.account-search input:hover:not(:disabled, :focus-visible) {
-		border-color: #70829c;
+	.account-search:hover:not(:focus-within) {
+		border-color: var(--color-neutral-400);
 	}
 }
 .table-scroll {
@@ -212,129 +179,112 @@
 	max-width: 100%;
 }
 .table-scroll:focus-visible {
-	outline: 2px solid var(--oa-focus);
+	outline: 2px solid var(--color-action);
 	outline-offset: 4px;
 }
+/* §5.6.1 + §8.2 Flipped light tint with accent border and same-family text. */
 .correction-notice {
-	border: 1px solid #f4cfa4;
-	border-left: 4px solid #c26128;
-	border-radius: 12px;
-	padding: 18px 22px;
-	background-color: #fff8ef;
-	background-image: linear-gradient(
-		90deg var(--in-oklab),
-		#fff6ea 0%,
-		#fffdf9 100%
-	);
-	box-shadow: var(--oa-shadow-xs);
+	border: var(--border-thin) solid var(--color-warning-border);
+	border-left: var(--border-accent) solid var(--color-warning);
+	border-radius: var(--radius-lg);
+	padding: var(--space-4) var(--space-6);
+	background: var(--color-warning-surface);
+	color: var(--color-warning-text);
 	display: grid;
-	gap: 8px;
-	margin-bottom: 4px;
+	gap: var(--space-2);
+	margin-bottom: var(--space-1);
+}
+.correction-notice h2 {
+	color: var(--color-warning-text);
+}
+.correction-notice .muted {
+	color: var(--color-warning-700);
 }
 .opinion-text,
 .event-list p {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+	max-width: 65ch;
 }
 .event-list p {
 	flex-basis: 100%;
 }
 .existing-materials {
-	border-top: 1px solid var(--oa-border);
-	padding: 20px 0;
+	border-top: var(--border-thin) solid var(--color-border);
+	padding: var(--space-4) 0;
 }
 .existing-materials h3 {
-	font-size: 14px;
+	font-size: var(--text-sm);
 }
 .review-inbox {
-	margin-bottom: 24px;
-	padding: 16px 20px;
-	gap: 14px;
-	border: 1px solid #f2d4a2;
-	border-left: 4px solid #d97706;
-	border-radius: 12px;
-	background-color: #fffaf2;
-	background-image: linear-gradient(
-		90deg var(--in-oklab),
-		#fff8eb 0%,
-		#ffffff 100%
-	);
-	box-shadow: var(--oa-shadow-xs);
-	color: #6b3f0d;
+	margin-bottom: var(--space-6);
+	padding: var(--space-3) var(--space-6);
+	gap: var(--space-3);
+	border: var(--border-thin) solid var(--color-warning-border);
+	border-left: var(--border-accent) solid var(--color-warning);
+	border-radius: var(--radius-lg);
+	background: var(--color-warning-surface);
+	color: var(--color-warning-text);
 }
 .review-inbox strong {
-	padding: 2px 10px;
-	border-radius: 999px;
-	background: #ffedd1;
-	border: 1px solid #f4cf92;
-	color: #934a14;
-	font-size: 13.5px;
-	font-weight: 700;
+	padding: 1px var(--space-2);
+	border-radius: var(--radius-sm);
+	border: var(--border-thin) solid var(--color-warning-border);
+	background: var(--color-surface-raised);
+	color: var(--color-warning-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
 	font-variant-numeric: tabular-nums;
-}
-.review-inbox:active {
-	scale: 0.992;
 }
 @media (hover: hover) {
 	.review-inbox:hover {
-		border-color: #e6b86e;
-		border-left-color: #b85d00;
-		color: #522e06;
-		box-shadow: var(--oa-shadow-sm);
-		translate: 0 -1px;
+		border-left-color: var(--color-warning-600);
+		color: var(--color-warning-900);
 	}
 }
+/* §2.4 + §8.5 Unified hairline metric ledger instead of six rainbow-striped floating cards. */
 .dashboard-stats {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 16px;
-	margin-bottom: 24px;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 1px;
+	margin-bottom: var(--space-6);
+	border: var(--border-thin) solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-border);
+	box-shadow: var(--shadow-sm);
+	overflow: hidden;
 }
-.dashboard-stats .summary-item {
-	--metric-accent: #2c67c4;
-	color: #1f2d45;
-	border-top: 3px solid var(--metric-accent);
-	background-image: radial-gradient(
-		140px 90px at 100% 0% var(--in-oklab),
-		rgb(18 100 209 / 5%),
-		transparent 80%
-	);
+.dashboard-stats .summary-item > span::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: var(--radius-full);
+	background: var(--metric-dot, var(--color-neutral-400));
+	flex-shrink: 0;
+}
+.dashboard-stats .summary-item:first-child > span::before {
+	background: var(--color-action);
 }
 .dashboard-stats .metric-returned {
-	--metric-accent: #c8582d;
-	background-image: radial-gradient(
-		140px 90px at 100% 0% var(--in-oklab),
-		rgb(200 88 45 / 6%),
-		transparent 80%
-	);
+	--metric-dot: var(--color-danger);
 }
 .dashboard-stats .metric-approved {
-	--metric-accent: #1d8765;
-	background-image: radial-gradient(
-		140px 90px at 100% 0% var(--in-oklab),
-		rgb(29 135 101 / 6%),
-		transparent 80%
-	);
+	--metric-dot: var(--color-success);
 }
 .dashboard-stats .metric-pending {
-	--metric-accent: #cf8a19;
-	background-image: radial-gradient(
-		140px 90px at 100% 0% var(--in-oklab),
-		rgb(207 138 25 / 7%),
-		transparent 80%
-	);
+	--metric-dot: var(--color-warning);
 }
 .dashboard-stats .metric-archived {
-	--metric-accent: #7760a3;
-	background-image: radial-gradient(
-		140px 90px at 100% 0% var(--in-oklab),
-		rgb(119 96 163 / 6%),
-		transparent 80%
-	);
+	--metric-dot: var(--color-info);
 }
 .dashboard-stats .summary-item strong {
-	font-size: 30px;
-	line-height: 1.15;
+	font-size: var(--text-2xl);
+	line-height: var(--leading-none);
+}
+@media (max-width: 1100px) {
+	.dashboard-stats {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
 }
 @media (max-width: 720px) {
 	body .icon-button {
@@ -342,26 +292,28 @@
 		height: 44px;
 	}
 	.review-inbox.action-row,
-	.text-link {
+	.text-link,
+	.login-tab,
+	.action-button.login-submit {
 		min-height: 44px;
 	}
 	.revision-row summary {
-		padding: 11px 8px;
+		padding: var(--space-3) var(--space-2);
 	}
 	.heading-actions {
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 8px;
+		gap: var(--space-2);
 	}
 	.section-heading {
 		flex-wrap: wrap;
-		gap: 12px;
+		gap: var(--space-3);
 	}
 	.dashboard-stats {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 12px;
 	}
-	.settings-form {
+	.settings-form,
+	.settings-form:has(.form-grid) {
 		max-width: 100%;
 	}
 	.achievement-table {
@@ -376,34 +328,34 @@
 	}
 	.achievement-table tbody tr {
 		display: grid;
-		gap: 10px;
-		padding: 16px 0;
+		gap: var(--space-2);
+		padding: var(--space-4) 0;
 	}
 	.achievement-table td {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
+		gap: var(--space-3);
 		padding: 0;
 		border: 0;
 		white-space: normal;
-		color: var(--oa-text);
-		font-size: 13px;
+		color: var(--color-text);
+		font-size: var(--text-sm);
 	}
 	.achievement-table td[data-label]::before {
 		content: attr(data-label);
 		flex-shrink: 0;
-		color: var(--oa-text-muted);
-		font-size: 12px;
+		color: var(--color-text-muted);
+		font-size: var(--text-xs);
 	}
 	.achievement-table td:first-child {
 		min-width: 0;
 		max-width: none;
-		font-size: 14px;
-		font-weight: 600;
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
 	}
 	.achievement-table tbody tr:not(:last-child) {
-		border-bottom: 1px solid #edf1f7;
+		border-bottom: var(--border-thin) solid var(--color-border);
 	}
 	.achievement-table tbody tr:not(:last-child) td {
 		border-bottom: 0;
@@ -414,10 +366,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
 	.login-tab,
-	.account-search input {
+	.account-search {
 		transition: none;
-	}
-	.review-inbox:active {
-		scale: none;
 	}
 }

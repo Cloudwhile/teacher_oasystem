@@ -11,6 +11,7 @@ export function Pagination({
 	total: number;
 	onChange: (page: number) => void;
 }) {
+	if (total <= 0) return null;
 	return (
 		<div className="pagination">
 			<span>

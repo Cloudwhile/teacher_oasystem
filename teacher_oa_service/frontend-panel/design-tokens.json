@@ -1,0 +1,217 @@
+{
+	"$meta": {
+		"name": "TeacherOA Design System",
+		"source": "refactoring-ui skill, Workflow A + Workflow C refinement",
+		"personality": {
+			"formality": "serious-institutional",
+			"era": "modern",
+			"density": "comfortable-dense",
+			"grey-temperature": "cool-slate"
+		},
+		"pairs-note": "Every foreground/background pair verified against WCAG AA (4.5:1 normal, 3:1 large). Decorative 1px borders and dividers are excluded per §2.7.2 and reinforced under prefers-contrast: more."
+	},
+	"primitive": {
+		"color": {
+			"primary": {
+				"100": "#eff5fc",
+				"200": "#cde0f7",
+				"300": "#8dbaf0",
+				"400": "#4b8ce3",
+				"500": "#1b56c4",
+				"600": "#1443ae",
+				"700": "#0d3198",
+				"800": "#072181",
+				"900": "#01136a"
+			},
+			"neutral": {
+				"50": "#fafbfc",
+				"100": "#f5f6f7",
+				"200": "#e3e5e8",
+				"300": "#c6cbd2",
+				"400": "#949aa4",
+				"500": "#737882",
+				"600": "#5c6069",
+				"700": "#43464e",
+				"800": "#2c2e35",
+				"900": "#1a1c21",
+				"950": "#101114"
+			},
+			"danger": {
+				"100": "#fef1f2",
+				"200": "#f9c6cb",
+				"300": "#ef9098",
+				"400": "#dc6871",
+				"500": "#c44549",
+				"600": "#ad3236",
+				"700": "#912326",
+				"800": "#761619",
+				"900": "#5b0b0d"
+			},
+			"warning": {
+				"100": "#fef9ec",
+				"200": "#fae4ab",
+				"300": "#f5cf6b",
+				"400": "#e9a932",
+				"500": "#d07208",
+				"600": "#b85600",
+				"700": "#9c3f00",
+				"800": "#802d00",
+				"900": "#642200"
+			},
+			"success": {
+				"100": "#eefaf5",
+				"200": "#bcead5",
+				"300": "#7fd4ae",
+				"400": "#43b585",
+				"500": "#1b8053",
+				"600": "#157446",
+				"700": "#10683b",
+				"800": "#0c5b31",
+				"900": "#084e27"
+			},
+			"info": {
+				"100": "#eef6fa",
+				"200": "#c3dce9",
+				"300": "#8bbcd4",
+				"400": "#5399ba",
+				"500": "#2f6b8a",
+				"600": "#295a7d",
+				"700": "#224b70",
+				"800": "#1c3c62",
+				"900": "#173355"
+			}
+		},
+		"font": {
+			"sans": "\"Geist Variable\", \"Microsoft YaHei\", ui-sans-serif, system-ui, sans-serif",
+			"mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+		},
+		"text": {
+			"xs": "12px",
+			"sm": "14px",
+			"base": "16px",
+			"lg": "18px",
+			"xl": "20px",
+			"2xl": "24px",
+			"3xl": "30px",
+			"4xl": "36px",
+			"5xl": "48px",
+			"6xl": "60px",
+			"7xl": "72px"
+		},
+		"space": {
+			"1": "4px",
+			"2": "8px",
+			"3": "12px",
+			"4": "16px",
+			"6": "24px",
+			"8": "32px",
+			"12": "48px",
+			"16": "64px",
+			"24": "96px",
+			"32": "128px",
+			"48": "192px",
+			"64": "256px",
+			"96": "384px",
+			"128": "512px",
+			"160": "640px",
+			"192": "768px"
+		},
+		"weight": {
+			"normal": "400",
+			"semibold": "600"
+		},
+		"leading": {
+			"none": "1",
+			"tight": "1.25",
+			"normal": "1.5",
+			"loose": "2"
+		},
+		"radius": {
+			"sm": "0.25rem",
+			"DEFAULT": "0.375rem",
+			"lg": "0.5rem",
+			"full": "9999px"
+		},
+		"border": {
+			"thin": "1px",
+			"thick": "2px",
+			"accent": "3px"
+		},
+		"opacity": {
+			"disabled": "0.55",
+			"scrim": "0.4",
+			"subtle": "0.72"
+		},
+		"shadow": {
+			"sm": "0 1px 2px rgb(16 17 20 / 5%)",
+			"DEFAULT": "0 2px 5px rgb(16 17 20 / 7%), 0 1px 2px rgb(16 17 20 / 4%)",
+			"md": "0 6px 14px -3px rgb(16 17 20 / 9%), 0 2px 4px -1px rgb(16 17 20 / 4%)",
+			"lg": "0 12px 24px -6px rgb(16 17 20 / 12%), 0 4px 8px -2px rgb(16 17 20 / 5%)",
+			"xl": "0 20px 40px -12px rgb(16 17 20 / 20%)",
+			"inner": "inset 0 1px 2px rgb(16 17 20 / 4%)"
+		}
+	},
+	"semantic": {
+		"color": {
+			"surface": "{color.neutral.100}",
+			"surface-subtle": "{color.neutral.50}",
+			"surface-raised": "#ffffff",
+			"surface-sunken": "{color.neutral.200}",
+			"text": "{color.neutral.900}",
+			"text-secondary": "{color.neutral.700}",
+			"text-muted": "{color.neutral.600}",
+			"icon": "{color.neutral.500}",
+			"border": "{color.neutral.200}",
+			"border-strong": "{color.neutral.300}",
+			"action": "{color.primary.500}",
+			"action-hover": "{color.primary.600}",
+			"action-active": "{color.primary.700}",
+			"action-highlight": "{color.primary.400}",
+			"action-subtle": "{color.primary.100}",
+			"action-subtle-text": "{color.primary.700}",
+			"danger": "{color.danger.600}",
+			"danger-surface": "{color.danger.100}",
+			"danger-border": "{color.danger.200}",
+			"danger-text": "{color.danger.700}",
+			"warning": "{color.warning.500}",
+			"warning-surface": "{color.warning.100}",
+			"warning-border": "{color.warning.200}",
+			"warning-text": "{color.warning.800}",
+			"success": "{color.success.500}",
+			"success-surface": "{color.success.100}",
+			"success-border": "{color.success.200}",
+			"success-text": "{color.success.700}",
+			"info": "{color.info.500}",
+			"info-surface": "{color.info.100}",
+			"info-border": "{color.info.200}",
+			"info-text": "{color.info.700}"
+		}
+	},
+	"pairs": [
+		{ "name": "primary text on white card", "fg": "#1a1c21", "bg": "#ffffff" },
+		{
+			"name": "secondary text on white card",
+			"fg": "#43464e",
+			"bg": "#ffffff"
+		},
+		{ "name": "muted text on white card", "fg": "#5c6069", "bg": "#ffffff" },
+		{ "name": "primary text on canvas", "fg": "#1a1c21", "bg": "#f5f6f7" },
+		{ "name": "secondary text on canvas", "fg": "#43464e", "bg": "#f5f6f7" },
+		{ "name": "muted text on canvas", "fg": "#5c6069", "bg": "#f5f6f7" },
+		{
+			"name": "active nav text on sunken neutral",
+			"fg": "#1a1c21",
+			"bg": "#e3e5e8"
+		},
+		{ "name": "primary button", "fg": "#ffffff", "bg": "#1b56c4" },
+		{ "name": "primary button hover", "fg": "#ffffff", "bg": "#1443ae" },
+		{ "name": "primary link on white", "fg": "#1b56c4", "bg": "#ffffff" },
+		{ "name": "subtle action tint", "fg": "#0d3198", "bg": "#eff5fc" },
+		{ "name": "danger alert primary", "fg": "#761619", "bg": "#fef1f2" },
+		{ "name": "danger alert secondary", "fg": "#912326", "bg": "#fef1f2" },
+		{ "name": "danger link on white", "fg": "#ad3236", "bg": "#ffffff" },
+		{ "name": "warning badge/notice", "fg": "#802d00", "bg": "#fef9ec" },
+		{ "name": "success badge/notice", "fg": "#10683b", "bg": "#eefaf5" },
+		{ "name": "info badge", "fg": "#224b70", "bg": "#eef6fa" }
+	]
+}

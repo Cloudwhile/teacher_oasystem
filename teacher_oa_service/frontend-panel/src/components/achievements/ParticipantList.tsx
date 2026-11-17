@@ -17,7 +17,9 @@ export function ParticipantList({
 			<table>
 				<thead>
 					<tr>
-						<th scope="col">顺序</th>
+						<th scope="col" className="col-numeric">
+							顺序
+						</th>
 						<th scope="col">姓名</th>
 						<th scope="col">角色</th>
 					</tr>
@@ -27,7 +29,7 @@ export function ParticipantList({
 						<tr
 							key={`${person.sort_order}-${person.teacher_id ?? person.external_name}`}
 						>
-							<td>{index + 1}</td>
+							<td className="col-numeric">{index + 1}</td>
 							<td>
 								{person.external_name.trim() ||
 									person.teacher_name ||

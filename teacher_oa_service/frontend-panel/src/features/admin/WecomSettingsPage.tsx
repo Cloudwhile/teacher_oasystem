@@ -12,7 +12,7 @@ export function WecomSettingsPage() {
 		return <Feedback message="无权访问登录设置" />;
 	return (
 		<>
-			<PageHeading title="登录设置" eyebrow="系统管理" />
+			<PageHeading title="登录设置" />
 			{result.loading ? (
 				<Feedback loading message="正在读取设置…" />
 			) : result.error || !result.data ? (

@@ -1,12 +1,19 @@
 import { LineEdit } from "std-widgets.slint";
+import { Theme } from "../tokens.slint";
 
+// §3.6 Outer > inner grouping: 4px between label and input inside a field.
 export component Field inherits VerticalLayout {
     in property <string> label;
     in property <bool> enabled: true;
     in-out property <string> value;
     callback edited;
-    spacing: 7px;
-    Text { text: root.label; color: #536479; font-size: 13px; }
+    spacing: Theme.space-1;
+    Text {
+        text: root.label;
+        color: Theme.text-secondary;
+        font-size: Theme.text-sm;
+        font-weight: 600;
+    }
     LineEdit {
         text <=> root.value;
         enabled: root.enabled;

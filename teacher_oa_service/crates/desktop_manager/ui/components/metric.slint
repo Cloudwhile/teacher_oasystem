@@ -1,31 +1,51 @@
+import { Theme } from "../tokens.slint";
+
+// §2.5.3 + §8.5 Crisp institutional metric cell without heavy top roof bars.
 export component Metric inherits Rectangle {
     in property <string> label;
     in property <string> value;
-    in property <color> value-color: #152033;
-    background: metric-touch.has-hover ? #fafcff : #ffffff;
+    in property <color> value-color: Theme.text;
+    in property <bool> show-dot: false;
+    background: Theme.surface-raised;
     border-width: 1px;
-    border-color: metric-touch.has-hover ? #b7cef2 : #dde5f0;
-    border-radius: 10px;
-    min-height: 102px;
-    // Equal width per card regardless of value length.
+    border-color: Theme.border;
+    border-radius: Theme.radius-lg;
+    drop-shadow-blur: 3px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: Theme.shadow-subtle;
+    min-height: 84px;
     min-width: 0px;
     preferred-width: 0px;
     horizontal-stretch: 1;
-    animate border-color { duration: 150ms; }
-    animate background { duration: 150ms; }
-    metric-touch := TouchArea {}
-    Rectangle {
-        x: 16px;
-        y: 0px;
-        width: 36px;
-        height: 3px;
-        border-radius: 2px;
-        background: root.value-color;
-    }
     VerticalLayout {
-        padding: 18px;
-        spacing: 10px;
-        Text { text: root.label; color: #5b6a82; font-size: 13px; }
-        Text { text: root.value; color: root.value-color; font-size: 24px; font-weight: 650; overflow: elide; }
+        padding: Theme.space-4;
+        spacing: Theme.space-2;
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            if root.show-dot: VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 3px;
+                    background: root.value-color;
+                }
+            }
+            Text {
+                text: root.label;
+                color: Theme.text-muted;
+                font-size: Theme.text-xs;
+                font-weight: 400;
+                vertical-alignment: center;
+            }
+        }
+        Text {
+            text: root.value;
+            color: root.value-color;
+            font-size: Theme.text-xl;
+            font-weight: 600;
+            overflow: elide;
+        }
     }
 }

@@ -1,0 +1,53 @@
+import { Theme } from "../tokens.slint";
+
+// Sidebar navigation item (§2.4 neutral sunken active surface + crisp vertical bar).
+export component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    callback clicked;
+
+    height: 36px;
+    border-radius: Theme.radius-md;
+    background: root.active ? Theme.surface-sunken : (touch.has-hover ? Theme.surface : transparent);
+    border-width: focus-scope.has-focus ? 2px : 0px;
+    border-color: Theme.primary-500;
+    animate background { duration: 120ms; }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+
+    focus-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    if root.active: Rectangle {
+        x: 0px;
+        y: 8px;
+        width: 3px;
+        height: parent.height - 16px;
+        border-radius: 2px;
+        background: Theme.primary-500;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-3;
+        Text {
+            text: root.label;
+            font-size: Theme.text-sm;
+            font-weight: root.active ? 600 : 400;
+            color: root.active ? Theme.text : (touch.has-hover ? Theme.text : Theme.text-muted);
+            vertical-alignment: center;
+        }
+    }
+}

@@ -1,5 +1,6 @@
 import { useRef } from "react";
-import { ArrowDown, ArrowUp, Plus, Trash } from "reicon-react";
+import { ArrowDown, ArrowUp, Plus, Trash, Users } from "reicon-react";
+import { EmptyState } from "@/components/common/EmptyState";
 import { FormField } from "@/components/common/FormField";
 import { IconButton } from "@/components/common/IconButton";
 import type {
@@ -91,7 +92,13 @@ export function ParticipantsEditor({
 					{errors.participants}
 				</p>
 			)}
-			{value.length === 0 && <p className="empty-message">尚未添加相关人员</p>}
+			{value.length === 0 && (
+				<EmptyState
+					icon={<Users />}
+					title="尚未添加相关人员"
+					description="点击右上角加号添加参与教师或校外人员。"
+				/>
+			)}
 			{value.map((person, index) => {
 				const rowKey = rowKeys.current[index] ?? index;
 				const personId = `person-${index}`;

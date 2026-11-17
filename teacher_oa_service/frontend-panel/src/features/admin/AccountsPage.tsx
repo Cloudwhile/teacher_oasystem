@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Pen, Refresh, Search } from "reicon-react";
+import { Pen, Refresh, Search, Users } from "reicon-react";
 import { AccountEditor } from "@/components/admin/AccountEditor";
 import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -26,21 +27,22 @@ export function AccountsPage() {
 	const [message, setMessage] = useState("");
 	if (!session?.user.grants.some((g) => g.permission === "admin:manage"))
 		return <Feedback message="无权访问账号管理" />;
+	const allItems = result.data?.items ?? [];
 	const keyword = search.trim().toLowerCase();
-	const items =
-		result.data?.items.filter((account) => {
-			if (!keyword) return true;
-			return [
-				account.username,
-				account.name,
-				account.department,
-				account.wecom_userid ?? "",
-				roles[account.role] ?? account.role,
-			].some((field) => field.toLowerCase().includes(keyword));
-		}) ?? [];
+	const items = allItems.filter((account) => {
+		if (!keyword) return true;
+		return [
+			account.username,
+			account.name,
+			account.department,
+			account.wecom_userid ?? "",
+			roles[account.role] ?? account.role,
+		].some((field) => field.toLowerCase().includes(keyword));
+	});
+	const showHeaderCreate = editing === undefined && allItems.length > 0;
 	return (
 		<>
-			<PageHeading title="成员与账号" eyebrow="系统管理">
+			<PageHeading title="成员与账号">
 				<IconButton
 					label="刷新账号"
 					disabled={editing !== undefined}
@@ -48,16 +50,18 @@ export function AccountsPage() {
 				>
 					<Refresh />
 				</IconButton>
-				<ActionButton
-					variant="primary"
-					disabled={editing !== undefined}
-					onClick={() => {
-						setEditing(null);
-						setMessage("");
-					}}
-				>
-					新增账号
-				</ActionButton>
+				{(showHeaderCreate || result.loading) && (
+					<ActionButton
+						variant="primary"
+						disabled={editing !== undefined}
+						onClick={() => {
+							setEditing(null);
+							setMessage("");
+						}}
+					>
+						新增账号
+					</ActionButton>
+				)}
 			</PageHeading>
 			{message && (
 				<p role="status" className="success-text">
@@ -85,6 +89,27 @@ export function AccountsPage() {
 					message={errorMessage(result.error)}
 					onRetry={result.reload}
 				/>
+			) : allItems.length === 0 ? (
+				<section className="panel">
+					<EmptyState
+						icon={<Users />}
+						title="暂无成员账号"
+						description="创建成员账号并分配部门与角色后，教师即可登录填报成果。"
+						action={
+							editing === undefined ? (
+								<ActionButton
+									variant="primary"
+									onClick={() => {
+										setEditing(null);
+										setMessage("");
+									}}
+								>
+									新增账号
+								</ActionButton>
+							) : undefined
+						}
+					/>
+				</section>
 			) : (
 				<section className="panel">
 					<div className="section-heading">
@@ -149,7 +174,16 @@ export function AccountsPage() {
 							</table>
 						</section>
 					) : (
-						<p className="empty-message">没有符合条件的成员账号。</p>
+						<EmptyState
+							icon={<Search />}
+							title="没有符合条件的成员账号。"
+							description="请尝试更换账号、姓名、部门或企业微信关键词。"
+							action={
+								<ActionButton variant="secondary" onClick={() => setSearch("")}>
+									清空搜索
+								</ActionButton>
+							}
+						/>
 					)}
 				</section>
 			)}

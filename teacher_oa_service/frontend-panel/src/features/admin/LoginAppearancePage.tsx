@@ -15,7 +15,7 @@ export function LoginAppearancePage() {
 		return <Feedback message="无权访问登录页设置" />;
 	return (
 		<>
-			<PageHeading title="登录页与公告" eyebrow="系统管理">
+			<PageHeading title="登录页与公告">
 				<a
 					className="action-button action-button-secondary"
 					href="/login?preview=1"

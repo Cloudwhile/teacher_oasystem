@@ -1,7 +1,9 @@
 import { useCallback, useRef } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { Plus, Search } from "reicon-react";
+import { FileText, Plus, Search } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
+import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -39,21 +41,38 @@ export function AchievementListPage() {
 		next.delete("page");
 		setParams(next);
 	};
+	const clearFilters = () => {
+		const next = new URLSearchParams();
+		if (params.get("scope") === "all") next.set("scope", "all");
+		setParams(next);
+	};
+	const hasFilters = Boolean(
+		params.get("search") ||
+			params.get("type_code") ||
+			params.get("academic_term_id") ||
+			params.get("status") ||
+			params.get("level_code"),
+	);
+	const canWrite = hasPermission(session?.user, "achievements:write");
+	const showHeaderCreate =
+		canWrite &&
+		(result.loading ||
+			Boolean(result.data?.items.length) ||
+			hasFilters ||
+			Boolean(result.error));
 	return (
 		<>
 			<PageHeading
 				title={params.get("scope") === "all" ? "成果查询" : "我的成果"}
-				eyebrow="成果管理"
 			>
-				{hasPermission(session?.user, "achievements:write") && (
+				{showHeaderCreate && (
 					<Link
 						to="/achievements/new"
 						state={{ from: location.pathname + location.search }}
-						className="icon-button primary-action"
-						aria-label="新建成果"
-						title="新建成果"
+						className="action-button action-button-primary"
 					>
-						<Plus />
+						<Plus aria-hidden="true" />
+						新建成果
 					</Link>
 				)}
 			</PageHeading>
@@ -158,7 +177,30 @@ export function AchievementListPage() {
 						{result.data.items.length ? (
 							<AchievementTable items={result.data.items} />
 						) : (
-							<p className="empty-message">没有符合条件的成果。</p>
+							<EmptyState
+								icon={hasFilters ? <Search /> : <FileText />}
+								title="没有符合条件的成果。"
+								description={
+									hasFilters
+										? "请尝试调整筛选条件，或清除条件后查看全部成果。"
+										: "当前还没有成果记录，点击新建开始填报。"
+								}
+								action={
+									hasFilters ? (
+										<ActionButton variant="secondary" onClick={clearFilters}>
+											清除筛选
+										</ActionButton>
+									) : canWrite ? (
+										<Link
+											to="/achievements/new"
+											state={{ from: location.pathname + location.search }}
+											className="action-button action-button-primary"
+										>
+											新建成果
+										</Link>
+									) : undefined
+								}
+							/>
 						)}
 						<Pagination
 							page={result.data.page}

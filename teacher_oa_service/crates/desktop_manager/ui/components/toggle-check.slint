@@ -1,0 +1,66 @@
+import { Theme } from "../tokens.slint";
+
+// Custom Refactoring UI checkbox using Theme.primary-500 and crisp 4px radius (§8.1).
+export component ToggleCheck inherits Rectangle {
+    in property <string> text;
+    in-out property <bool> checked: false;
+
+    height: 34px;
+    horizontal-stretch: 0;
+    accessible-role: checkbox;
+    accessible-label: root.text;
+    accessible-checked: root.checked;
+    accessible-action-default => { root.checked = !root.checked; }
+
+    focus-scope := FocusScope {
+        key-pressed(event) => {
+            if (event.text == " ") {
+                root.checked = !root.checked;
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.checked = !root.checked; }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-2;
+        padding-left: Theme.space-1;
+        padding-right: Theme.space-1;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 16px;
+                height: 16px;
+                border-radius: Theme.radius-sm;
+                border-width: focus-scope.has-focus ? 2px : 1px;
+                border-color: focus-scope.has-focus
+                    ? Theme.primary-500
+                    : root.checked
+                        ? Theme.primary-600
+                        : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
+                background: root.checked ? Theme.primary-500 : Theme.surface-raised;
+                animate background { duration: 120ms; }
+                animate border-color { duration: 120ms; }
+                if root.checked: Path {
+                    width: 10px;
+                    height: 8px;
+                    viewbox-width: 12;
+                    viewbox-height: 10;
+                    commands: "M 1 5 L 4.5 8.5 L 11 1.5";
+                    stroke: #ffffff;
+                    stroke-width: 2px;
+                }
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: Theme.text-sm;
+            color: Theme.text-secondary;
+            vertical-alignment: center;
+        }
+    }
+}

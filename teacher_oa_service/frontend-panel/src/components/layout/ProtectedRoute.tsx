@@ -19,7 +19,7 @@ export function ProtectedRoute() {
 		);
 	if (status === "forbidden")
 		return (
-			<div className="stack">
+			<section className="error-page">
 				<Feedback
 					message="当前账户无法访问，请联系学校管理员。"
 					onRetry={() => {
@@ -28,6 +28,7 @@ export function ProtectedRoute() {
 				/>
 				<div className="row-actions">
 					<ActionButton
+						variant="primary"
 						onClick={() => {
 							void logout().finally(() => {
 								navigate(appPaths.login, { replace: true });
@@ -37,7 +38,7 @@ export function ProtectedRoute() {
 						切换账号登录
 					</ActionButton>
 				</div>
-			</div>
+			</section>
 		);
 	if (status === "error")
 		return (

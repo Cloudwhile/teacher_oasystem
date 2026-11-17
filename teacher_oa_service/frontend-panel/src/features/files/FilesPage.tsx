@@ -1,8 +1,9 @@
 import { type DragEvent, useCallback, useRef, useState } from "react";
-import { Upload } from "reicon-react";
+import { Folder, Upload } from "reicon-react";
 import { MaterialList } from "@/components/achievements/MaterialList";
+import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
-import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
 import { achievementApi, errorMessage } from "@/features/achievements/api";
@@ -64,16 +65,16 @@ export function FilesPage() {
 	};
 	return (
 		<>
-			<PageHeading title="文件资料" eyebrow="证明材料">
+			<PageHeading title="文件资料">
 				{canUpload && (
-					<IconButton
-						className="primary-action"
-						label="上传材料"
+					<ActionButton
+						variant="primary"
 						disabled={busy}
 						onClick={() => input.current?.click()}
 					>
-						<Upload />
-					</IconButton>
+						<Upload aria-hidden="true" />
+						上传材料
+					</ActionButton>
 				)}
 			</PageHeading>
 			<input
@@ -136,7 +137,11 @@ export function FilesPage() {
 								</small>
 							</div>
 						) : (
-							<p className="empty-message">暂无可查看的材料。</p>
+							<EmptyState
+								icon={<Folder />}
+								title="暂无可查看的材料。"
+								description="关联到您有权查看的成果的证明材料会展示在此处。"
+							/>
 						)}
 						<Pagination
 							page={result.data.page}

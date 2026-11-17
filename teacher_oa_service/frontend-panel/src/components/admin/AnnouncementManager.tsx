@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Bullhorn } from "reicon-react";
 import { ActionButton } from "@/components/common/ActionButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { FormField } from "@/components/common/FormField";
 import type { LoginAnnouncement } from "@/features/auth/loginPageApi";
 import { formatSingaporeDate } from "@/services/dateFormat";
@@ -71,12 +73,14 @@ export function AnnouncementManager({
 		<section className="panel announcement-manager">
 			<div className="section-heading">
 				<h2>网站公告</h2>
-				<ActionButton
-					disabled={disabled || items.length >= 30}
-					onClick={() => edit()}
-				>
-					新增公告
-				</ActionButton>
+				{!editing && (
+					<ActionButton
+						disabled={disabled || items.length >= 30}
+						onClick={() => edit()}
+					>
+						新增公告
+					</ActionButton>
+				)}
 			</div>
 			{editing && (
 				<div className="notice-editor">
@@ -109,7 +113,11 @@ export function AnnouncementManager({
 						</p>
 					)}
 					<div className="row-actions">
-						<ActionButton disabled={disabled} onClick={close}>
+						<ActionButton
+							variant="tertiary"
+							disabled={disabled}
+							onClick={close}
+						>
 							取消
 						</ActionButton>
 						<ActionButton disabled={disabled} onClick={() => void save(false)}>
@@ -138,11 +146,16 @@ export function AnnouncementManager({
 								</span>
 							</div>
 							<div className="row-actions">
-								<ActionButton disabled={disabled} onClick={() => edit(item)}>
+								<ActionButton
+									size="sm"
+									disabled={disabled}
+									onClick={() => edit(item)}
+								>
 									编辑
 								</ActionButton>
 								{item.published && (
 									<ActionButton
+										size="sm"
 										disabled={disabled || dirty}
 										onClick={() =>
 											void onSave(
@@ -158,6 +171,8 @@ export function AnnouncementManager({
 									</ActionButton>
 								)}
 								<ActionButton
+									variant="danger-tertiary"
+									size="sm"
 									disabled={disabled}
 									onClick={() => {
 										if (!window.confirm(`确定删除公告「${item.title}」吗？`))
@@ -182,7 +197,18 @@ export function AnnouncementManager({
 					))}
 				</ul>
 			) : (
-				<p className="empty-message">暂无公告</p>
+				!editing && (
+					<EmptyState
+						icon={<Bullhorn />}
+						title="暂无公告"
+						description="发布学校通知或填报说明后，将显示在登录页公告栏。"
+						action={
+							<ActionButton disabled={disabled} onClick={() => edit()}>
+								新增公告
+							</ActionButton>
+						}
+					/>
+				)
 			)}
 		</section>
 	);

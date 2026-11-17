@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Refresh } from "reicon-react";
+import { ArrowUpRight, FileText, Refresh } from "reicon-react";
 import { AchievementTable } from "@/components/achievements/AchievementTable";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -12,6 +13,7 @@ import {
 import { useAuth } from "@/features/auth/AuthProvider";
 import { hasPermission } from "@/features/auth/permissions";
 import { useResource } from "@/services/useResource";
+
 export const roleLabels: Record<string, string> = {
 	teacher: "教师",
 	group_leader: "教研组长",
@@ -26,13 +28,15 @@ export const scopeLabels: Record<string, string> = {
 export function DashboardPage() {
 	const { session } = useAuth();
 	const result = useResource(achievementApi.dashboard);
+	const canWrite = hasPermission(session?.user, "achievements:write");
+	const hasRecent = Boolean(result.data?.recent.length);
 	return (
 		<>
 			<PageHeading
 				title="工作台"
 				eyebrow={`你好，${session?.user.display_name ?? ""}`}
 			>
-				{hasPermission(session?.user, "achievements:write") && (
+				{canWrite && (result.loading || hasRecent) && (
 					<Link
 						className="action-button action-button-primary"
 						to="/achievements/new"
@@ -83,18 +87,34 @@ export function DashboardPage() {
 					<section className="panel">
 						<div className="section-heading">
 							<h2>最近更新</h2>
-							<Link
-								className="icon-button"
-								to="/achievements?scope=mine"
-								aria-label="查看全部成果"
-							>
-								<ArrowUpRight />
-							</Link>
+							{hasRecent && (
+								<Link
+									className="text-link"
+									to="/achievements?scope=mine"
+									aria-label="查看全部成果"
+								>
+									查看全部
+								</Link>
+							)}
 						</div>
-						{result.data.recent.length ? (
+						{hasRecent ? (
 							<AchievementTable items={result.data.recent} />
 						) : (
-							<p className="empty-message">暂无成果记录</p>
+							<EmptyState
+								icon={<FileText />}
+								title="暂无成果记录"
+								description="填报您的教学或科研成果并关联证明材料，即可提交审核。"
+								action={
+									canWrite ? (
+										<Link
+											className="action-button action-button-primary"
+											to="/achievements/new"
+										>
+											新建成果
+										</Link>
+									) : undefined
+								}
+							/>
 						)}
 					</section>
 				</>

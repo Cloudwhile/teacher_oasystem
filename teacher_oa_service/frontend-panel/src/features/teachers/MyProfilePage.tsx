@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Refresh } from "reicon-react";
+import { Refresh, User } from "reicon-react";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
@@ -42,7 +43,7 @@ export function MyProfilePage() {
 	}, [load]);
 	return (
 		<>
-			<PageHeading title="个人档案" eyebrow="我的资料">
+			<PageHeading title="个人档案">
 				<IconButton
 					label="刷新档案"
 					disabled={loading}
@@ -75,7 +76,13 @@ export function MyProfilePage() {
 					<ProfileFields profile={profile} />
 				</section>
 			) : (
-				<p className="empty-message">未找到教师档案。</p>
+				<section className="panel">
+					<EmptyState
+						icon={<User />}
+						title="未找到教师档案。"
+						description="请联系系统管理员为您完善教师基础档案。"
+					/>
+				</section>
 			)}
 		</>
 	);

@@ -1,3 +1,5 @@
+import { Theme } from "../tokens.slint";
+
 // Flat window caption button; kind 0 = minimize, 1 = maximize/restore, 2 = close.
 export component CaptionButton inherits Rectangle {
     in property <string> label;
@@ -5,12 +7,12 @@ export component CaptionButton inherits Rectangle {
     in property <bool> maximized: false;
     callback clicked;
     property <bool> danger: root.kind == 2;
-    property <color> glyph-color: root.danger && touch.has-hover ? #ffffff : #182b43;
+    property <color> glyph-color: root.danger && touch.has-hover ? #ffffff : Theme.text;
     width: 46px;
-    background: touch.pressed ? (root.danger ? #a8241a : #dde5f0) : touch.has-hover ? (root.danger ? #c42b1c : #eef3fa) : transparent;
+    background: touch.pressed ? (root.danger ? Theme.danger-text : Theme.border) : touch.has-hover ? (root.danger ? Theme.danger : Theme.surface) : transparent;
     border-width: focus-scope.has-focus ? 2px : 0px;
-    border-color: root.danger ? #c42b1c : #1264d1;
-    animate background { duration: 120ms; }
+    border-color: root.danger ? Theme.danger : Theme.primary-500;
+    animate background { duration: 150ms; }
     accessible-role: button;
     accessible-label: root.label;
     accessible-action-default => { root.clicked(); }

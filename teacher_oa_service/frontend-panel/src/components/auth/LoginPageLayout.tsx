@@ -37,15 +37,15 @@ export function LoginPageLayout({
 					<span>{settings.title}</span>
 				</div>
 			</header>
-			<section className="login-banner" aria-label="登录入口">
-				<div className="public-container login-banner-inner">{children}</div>
-			</section>
-			<AnnouncementBoard
-				items={settings.announcements}
-				loading={loading}
-				error={error}
-				onRetry={onRetry}
-			/>
+			<div className="public-container login-workspace">
+				<section aria-label="登录入口">{children}</section>
+				<AnnouncementBoard
+					items={settings.announcements}
+					loading={loading}
+					error={error}
+					onRetry={onRetry}
+				/>
+			</div>
 			<footer className="public-footer">
 				<div className="public-container">{settings.footer}</div>
 			</footer>

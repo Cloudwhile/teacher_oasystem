@@ -1,8 +1,91 @@
-import { Button } from "std-widgets.slint";
+import { Theme } from "../tokens.slint";
 
-export component ActionButton inherits Button {
-    min-height: 32px;
-    max-height: 32px;
-    preferred-width: 112px;
+// Custom Refactoring UI action button using crisp 6px radius, fixed 34px height, and natural text width (§2.8.a, §6.1.2).
+export component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    in property <bool> checkable: false;
+    callback clicked;
+
+    height: 34px;
+    min-width: 88px;
+    preferred-width: label-layout.preferred-width;
     horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: Theme.radius-md;
+    border-width: 1px;
+    border-color: !root.enabled
+        ? Theme.border
+        : root.primary
+            ? Theme.primary-600
+            : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
+    background: !root.enabled
+        ? Theme.surface
+        : root.primary
+            ? (touch.pressed ? Theme.primary-700 : touch.has-hover ? Theme.primary-600 : Theme.primary-500)
+            : (touch.pressed ? Theme.surface : touch.has-hover ? Theme.surface-subtle : Theme.surface-raised);
+    drop-shadow-blur: root.enabled && !touch.pressed ? 2px : 0px;
+    drop-shadow-offset-y: root.enabled && !touch.pressed ? 1px : 0px;
+    drop-shadow-color: Theme.shadow-subtle;
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+
+    focus-scope := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (root.enabled && (event.text == " " || event.text == "\n")) {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    if focus-scope.has-focus: Rectangle {
+        x: -3px;
+        y: -3px;
+        width: parent.width + 6px;
+        height: parent.height + 6px;
+        border-radius: Theme.radius-md + 2px;
+        border-width: 2px;
+        border-color: Theme.primary-500;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+
+    label-layout := HorizontalLayout {
+        padding-left: Theme.space-4;
+        padding-right: Theme.space-4;
+        alignment: center;
+        Text {
+            text: root.text;
+            font-size: Theme.text-sm;
+            font-weight: 600;
+            color: !root.enabled
+                ? Theme.text-muted
+                : root.primary
+                    ? #ffffff
+                    : Theme.text;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
 }
