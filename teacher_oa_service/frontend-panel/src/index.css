@@ -214,11 +214,6 @@
 	flex: 1;
 	container: workspace / inline-size;
 }
-.shell-loading {
-	max-width: 1280px;
-	margin-inline: auto;
-	padding: var(--space-8);
-}
 .page-heading {
 	display: flex;
 	align-items: center;
@@ -572,37 +567,56 @@ tbody tr:not(:last-child) td {
 .empty-state-action {
 	margin-top: var(--space-3);
 }
+/* §5.6.1 + §8.2 Structured left-aligned alert banner instead of a 128px centered slab. */
 .feedback {
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: space-between;
 	flex-wrap: wrap;
-	gap: var(--space-3);
-	min-height: var(--space-32);
-	padding: var(--space-8) var(--space-6);
-	border: var(--border-thin) solid var(--color-border);
+	gap: var(--space-3) var(--space-4);
+	padding: var(--space-4) var(--space-6);
+	border: var(--border-thin) solid var(--color-danger-border);
+	border-left: var(--border-accent) solid var(--color-danger-fg);
 	border-radius: var(--radius-lg);
-	background: var(--color-surface-raised);
-	color: var(--color-text-secondary);
+	background: var(--color-danger-surface);
+	color: var(--color-danger-text);
 	font-size: var(--text-sm);
 }
-.feedback > p {
-	max-width: 55ch;
+.feedback:not(:last-child) {
+	margin-bottom: var(--space-4);
 }
-.feedback > svg {
+.feedback-body {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	min-width: 0;
+	flex: 1 1 220px;
+}
+.feedback-body > p {
+	max-width: 65ch;
+	line-height: var(--leading-normal);
+}
+.feedback-body > svg {
+	width: var(--text-lg);
+	height: var(--text-lg);
+	margin-top: 2px;
+	flex-shrink: 0;
+	color: var(--color-danger-fg);
+}
+.feedback-loading {
+	justify-content: center;
+	min-height: var(--space-16);
+	padding: var(--space-6);
+	border: var(--border-thin) solid var(--color-border);
+	border-left-width: var(--border-thin);
+	background: var(--color-surface-raised);
+	color: var(--color-text-muted);
+}
+.feedback-loading > svg {
 	width: var(--text-lg);
 	height: var(--text-lg);
 	flex-shrink: 0;
 	color: var(--color-icon);
-}
-.feedback[role="alert"] {
-	border-color: var(--color-danger-border);
-	border-left: var(--border-accent) solid var(--color-danger-fg);
-	background: var(--color-danger-surface);
-	color: var(--color-danger-text);
-}
-.feedback[role="alert"] > svg {
-	color: var(--color-danger-fg);
 }
 .inline-error {
 	padding: var(--space-3) var(--space-4);
@@ -632,36 +646,110 @@ tbody tr:not(:last-child) td {
 		text-underline-offset: 3px;
 	}
 }
-.error-page {
+/* §3.3 + §8.4 Unified status & error presentation (in-shell panel vs standalone viewport shell). */
+.status-panel {
+	padding: var(--space-12) var(--space-6);
+}
+.status-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: var(--space-2);
+	max-width: 460px;
+	margin-inline: auto;
+}
+.status-state-card {
 	width: 100%;
-	max-width: 512px;
-	margin: var(--space-12) auto;
 	padding: var(--space-8);
 	background: var(--color-surface-raised);
 	border: var(--border-thin) solid var(--color-border);
 	border-radius: var(--radius-lg);
-	box-shadow: var(--shadow-sm);
-	display: grid;
-	justify-items: center;
-	text-align: center;
-	gap: var(--space-4);
+	box-shadow: var(--shadow-DEFAULT);
 }
-.error-page .text-link,
-.permission-feedback .text-link {
-	min-height: 44px;
+.status-state-icon {
+	display: grid;
+	place-items: center;
+	width: 48px;
+	height: 48px;
+	margin-bottom: var(--space-2);
+	border-radius: var(--radius-DEFAULT);
+	border: var(--border-thin) solid var(--color-border);
+	background: var(--color-surface-subtle);
+	color: var(--color-icon);
+}
+.status-state-icon > svg {
+	width: 22px;
+	height: 22px;
+}
+.status-state-icon-warning {
+	border-color: var(--color-warning-border);
+	background: var(--color-warning-surface);
+	color: var(--color-warning-text);
+}
+.status-state-icon-danger {
+	border-color: var(--color-danger-border);
+	background: var(--color-danger-surface);
+	color: var(--color-danger-fg);
+}
+.status-state-code {
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+}
+.status-state-title {
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+	color: var(--color-text);
+}
+.status-state-description {
+	font-size: var(--text-sm);
+	line-height: var(--leading-normal);
+	color: var(--color-text-muted);
+	max-width: 42ch;
+}
+.status-state-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	margin-top: var(--space-4);
+}
+.standalone-status-shell {
+	min-height: 100dvh;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-surface);
+}
+.standalone-status-main {
+	flex: 1;
+	display: grid;
+	place-items: center;
+	padding: var(--space-8) var(--space-4);
+}
+.standalone-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-3);
+	color: var(--color-text-muted);
 	font-size: var(--text-sm);
 }
-.permission-feedback {
-	display: grid;
-	justify-items: center;
-	text-align: center;
-	gap: var(--space-4);
-	padding: var(--space-12) var(--space-6);
+.standalone-spinner {
+	width: 22px;
+	height: 22px;
+	border-radius: var(--radius-full);
+	border: 2px solid var(--color-border-strong);
+	border-top-color: var(--color-focus-ring);
 }
-.permission-feedback .feedback {
-	border: 0;
-	min-height: var(--space-24);
-	padding: var(--space-2);
+@media (prefers-reduced-motion: no-preference) {
+	.standalone-spinner {
+		animation: spin 0.8s linear infinite;
+	}
 }
 
 /* Structural Skeletons (UI-P0-2) */
@@ -799,9 +887,17 @@ tbody tr:not(:last-child) td {
 		padding: var(--space-2) var(--space-4);
 		gap: var(--space-3);
 	}
-	.page-content,
-	.shell-loading {
+	.page-content {
 		padding: var(--space-4);
+	}
+	.feedback {
+		padding: var(--space-4);
+	}
+	.status-panel {
+		padding: var(--space-8) var(--space-4);
+	}
+	.status-state-card {
+		padding: var(--space-6) var(--space-4);
 	}
 	.page-heading {
 		margin-bottom: var(--space-4);

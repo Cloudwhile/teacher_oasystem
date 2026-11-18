@@ -15,37 +15,49 @@ import { ReviewListPage } from "@/features/reviews/ReviewListPage";
 import { MyProfilePage } from "@/features/teachers/MyProfilePage";
 import { TeacherDirectoryPage } from "@/features/teachers/TeacherDirectoryPage";
 import { TeacherDossierPage } from "@/features/teachers/TeacherDossierPage";
-import { ErrorPage } from "@/pages/ErrorPage";
+import { ErrorPage, RouteErrorPage } from "@/pages/ErrorPage";
 import { appPaths } from "@/routes/routePaths";
 
 export const router = createBrowserRouter([
-	{ path: appPaths.login, element: <LoginPage />, errorElement: <ErrorPage /> },
+	{
+		path: appPaths.login,
+		element: <LoginPage />,
+		errorElement: <RouteErrorPage />,
+	},
 	{
 		element: <ProtectedRoute />,
-		errorElement: <ErrorPage />,
+		errorElement: <RouteErrorPage />,
 		children: [
 			{
 				element: <AppShell />,
 				children: [
-					{ path: "/", element: <Navigate to={appPaths.dashboard} replace /> },
-					{ path: appPaths.dashboard, element: <DashboardPage /> },
-					{ path: "/teachers", element: <TeacherDirectoryPage /> },
-					{ path: appPaths.profile, element: <MyProfilePage /> },
-					{ path: "/teachers/:id", element: <TeacherDossierPage /> },
-					{ path: "/achievements", element: <AchievementListPage /> },
-					{ path: "/achievements/new", element: <AchievementEditorPage /> },
-					{ path: "/achievements/:id", element: <AchievementDetailPage /> },
 					{
-						path: "/achievements/:id/edit",
-						element: <AchievementEditorPage />,
+						errorElement: <RouteErrorPage inShell />,
+						children: [
+							{
+								path: "/",
+								element: <Navigate to={appPaths.dashboard} replace />,
+							},
+							{ path: appPaths.dashboard, element: <DashboardPage /> },
+							{ path: "/teachers", element: <TeacherDirectoryPage /> },
+							{ path: appPaths.profile, element: <MyProfilePage /> },
+							{ path: "/teachers/:id", element: <TeacherDossierPage /> },
+							{ path: "/achievements", element: <AchievementListPage /> },
+							{ path: "/achievements/new", element: <AchievementEditorPage /> },
+							{ path: "/achievements/:id", element: <AchievementDetailPage /> },
+							{
+								path: "/achievements/:id/edit",
+								element: <AchievementEditorPage />,
+							},
+							{ path: "/files", element: <FilesPage /> },
+							{ path: "/account", element: <AccountPage /> },
+							{ path: "/admin/accounts", element: <AccountsPage /> },
+							{ path: "/admin/login", element: <WecomSettingsPage /> },
+							{ path: "/admin/login-page", element: <LoginAppearancePage /> },
+							{ path: "/reviews", element: <ReviewListPage /> },
+							{ path: "*", element: <ErrorPage inShell /> },
+						],
 					},
-					{ path: "/files", element: <FilesPage /> },
-					{ path: "/account", element: <AccountPage /> },
-					{ path: "/admin/accounts", element: <AccountsPage /> },
-					{ path: "/admin/login", element: <WecomSettingsPage /> },
-					{ path: "/admin/login-page", element: <LoginAppearancePage /> },
-					{ path: "/reviews", element: <ReviewListPage /> },
-					{ path: "*", element: <ErrorPage /> },
 				],
 			},
 		],

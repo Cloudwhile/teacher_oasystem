@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, ShieldAlert } from "reicon-react";
 import { appPaths } from "@/routes/routePaths";
-import { EmptyState } from "./EmptyState";
 import { PageHeading } from "./PageHeading";
+import { StatusStateCard } from "./StatusState";
 
 export function PermissionDenied({
 	title,
@@ -16,12 +16,16 @@ export function PermissionDenied({
 	return (
 		<>
 			<PageHeading title={title} />
-			<section className="panel permission-feedback" role="alert">
-				<EmptyState
+			<div className="panel status-panel">
+				<StatusStateCard
+					role="alert"
+					headingLevel="h2"
+					tone="warning"
 					icon={<ShieldAlert />}
+					code="403 · 权限受限"
 					title={message}
 					description={description}
-					action={
+					actions={
 						<Link
 							className="action-button action-button-secondary"
 							to={appPaths.dashboard}
@@ -31,7 +35,7 @@ export function PermissionDenied({
 						</Link>
 					}
 				/>
-			</section>
+			</div>
 		</>
 	);
 }

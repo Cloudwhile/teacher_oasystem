@@ -1,5 +1,5 @@
 import { AlertCircle, Loader, Refresh } from "reicon-react";
-import { IconButton } from "./IconButton";
+import { ActionButton } from "./ActionButton";
 
 export function Feedback({
 	message,
@@ -10,18 +10,25 @@ export function Feedback({
 	loading?: boolean;
 	onRetry?: () => void;
 }) {
-	return (
-		<div className="feedback" role={loading ? "status" : "alert"}>
-			{loading ? (
+	if (loading) {
+		return (
+			<div className="feedback feedback-loading" role="status">
 				<Loader className="spin" aria-hidden="true" />
-			) : (
+				<p>{message}</p>
+			</div>
+		);
+	}
+	return (
+		<div className="feedback" role="alert">
+			<div className="feedback-body">
 				<AlertCircle aria-hidden="true" />
-			)}
-			<p>{message}</p>
+				<p>{message}</p>
+			</div>
 			{onRetry && (
-				<IconButton label="重新加载" onClick={onRetry}>
-					<Refresh />
-				</IconButton>
+				<ActionButton variant="secondary" size="sm" onClick={onRetry}>
+					<Refresh aria-hidden="true" />
+					重新加载
+				</ActionButton>
 			)}
 		</div>
 	);

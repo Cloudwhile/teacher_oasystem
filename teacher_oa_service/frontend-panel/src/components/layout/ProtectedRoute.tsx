@@ -1,7 +1,10 @@
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AlertCircle, Refresh, ShieldAlert } from "reicon-react";
 import { ActionButton } from "@/components/common/ActionButton";
-import { Feedback } from "@/components/common/Feedback";
-import { DashboardSkeleton } from "@/components/common/Skeleton";
+import {
+	StandaloneStatusShell,
+	StatusStateCard,
+} from "@/components/common/StatusState";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { appPaths } from "@/routes/routePaths";
 
@@ -9,13 +12,11 @@ export function ProtectedRoute() {
 	const { status, session, sessionExpired, refresh, logout } = useAuth();
 	const location = useLocation();
 	const navigate = useNavigate();
-	if (status === "loading")
-		return (
-			<div className="shell-loading">
-				<DashboardSkeleton message="正在读取身份…" />
-			</div>
-		);
-	if (status === "anonymous")
+
+	if (status === "loading") {
+		return <StandaloneStatusShell loading loadingLabel="正在读取身份…" />;
+	}
+	if (status === "anonymous") {
 		return (
 			<Navigate
 				to={appPaths.login}
@@ -26,46 +27,88 @@ export function ProtectedRoute() {
 				}}
 			/>
 		);
-	if (status === "forbidden")
+	}
+	if (status === "forbidden") {
 		return (
-			<section className="error-page">
-				<Feedback
-					message="当前账户无法访问，请联系学校管理员。"
-					onRetry={() => {
-						void refresh();
-					}}
+			<StandaloneStatusShell>
+				<StatusStateCard
+					framed
+					role="alert"
+					tone="warning"
+					icon={<ShieldAlert />}
+					code="403 · 访问受限"
+					title="账户暂无访问权限"
+					description="当前账户无法访问，请联系学校管理员。"
+					actions={
+						<>
+							<ActionButton
+								variant="secondary"
+								onClick={() => {
+									void refresh();
+								}}
+							>
+								<Refresh aria-hidden="true" />
+								重新加载
+							</ActionButton>
+							<ActionButton
+								variant="primary"
+								onClick={() => {
+									void logout().finally(() => {
+										navigate(appPaths.login, { replace: true });
+									});
+								}}
+							>
+								切换账号登录
+							</ActionButton>
+						</>
+					}
 				/>
-				<div className="row-actions">
-					<ActionButton
-						variant="primary"
-						onClick={() => {
-							void logout().finally(() => {
-								navigate(appPaths.login, { replace: true });
-							});
-						}}
-					>
-						切换账号登录
-					</ActionButton>
-				</div>
-			</section>
+			</StandaloneStatusShell>
 		);
-	if (status === "error")
+	}
+	if (status === "error") {
 		return (
-			<section className="error-page">
-				<Feedback
-					message="暂时无法连接，请稍后重试。"
-					onRetry={() => {
-						void refresh();
-					}}
+			<StandaloneStatusShell>
+				<StatusStateCard
+					framed
+					role="alert"
+					tone="danger"
+					icon={<AlertCircle />}
+					code="连接异常"
+					title="服务连接中断"
+					description="暂时无法连接，请稍后重试。"
+					actions={
+						<>
+							<ActionButton
+								variant="primary"
+								onClick={() => {
+									void refresh();
+								}}
+							>
+								<Refresh aria-hidden="true" />
+								重新加载
+							</ActionButton>
+							<ActionButton
+								variant="secondary"
+								onClick={() => {
+									navigate(appPaths.login, { replace: true });
+								}}
+							>
+								返回登录页
+							</ActionButton>
+						</>
+					}
 				/>
-			</section>
+			</StandaloneStatusShell>
 		);
-	if (session?.must_change_password && location.pathname !== "/account")
+	}
+	if (session?.must_change_password && location.pathname !== "/account") {
 		return (
 			<Navigate
 				to={`/account?next=${encodeURIComponent(location.pathname + location.search)}`}
 				replace
 			/>
 		);
+	}
 	return <Outlet />;
 }
