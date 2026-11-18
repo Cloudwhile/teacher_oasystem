@@ -34,9 +34,18 @@ pub enum Event {
     Quit,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StatusTone {
+    Idle,
+    Starting,
+    Healthy,
+    Stopping,
+    Fault,
+}
+
 pub struct View {
     pub status: String,
-    pub color: (u8, u8, u8),
+    pub tone: StatusTone,
     pub pid: String,
     pub uptime: String,
     pub dependencies: String,
@@ -231,25 +240,25 @@ fn view(supervisor: &Supervisor) -> View {
         .last_status
         .as_ref()
         .is_some_and(|status| status.dependencies.iter().all(|row| row.healthy));
-    let (status, color) = if !running {
-        ("未启动", (113, 128, 150))
+    let (status, tone) = if !running {
+        ("未启动", StatusTone::Idle)
     } else if supervisor.stopping.is_some() {
-        ("正在停止", (166, 107, 24))
+        ("正在停止", StatusTone::Stopping)
     } else if connected && healthy {
-        ("运行正常", (29, 122, 86))
+        ("运行正常", StatusTone::Healthy)
     } else if connected {
-        ("依赖异常", (180, 62, 46))
+        ("依赖异常", StatusTone::Fault)
     } else if supervisor
         .starting
         .is_some_and(|started| started.elapsed() < Duration::from_secs(45))
     {
-        ("正在启动", (31, 100, 202))
+        ("正在启动", StatusTone::Starting)
     } else {
-        ("连接异常", (180, 62, 46))
+        ("连接异常", StatusTone::Fault)
     };
     View {
         status: status.into(),
-        color,
+        tone,
         pid: supervisor
             .pid()
             .map(|pid| pid.to_string())

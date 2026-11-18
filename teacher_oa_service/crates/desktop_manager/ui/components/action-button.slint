@@ -4,6 +4,7 @@ import { Theme } from "../tokens.slint";
 export component ActionButton inherits Rectangle {
     in property <string> text;
     in property <bool> primary: false;
+    in property <bool> danger: false;
     in property <bool> enabled: true;
     in property <bool> checkable: false;
     callback clicked;
@@ -19,12 +20,16 @@ export component ActionButton inherits Rectangle {
         ? Theme.border
         : root.primary
             ? Theme.primary-600
-            : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
+            : root.danger
+                ? (touch.has-hover ? Theme.danger : Theme.danger-border)
+                : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
     background: !root.enabled
         ? Theme.surface
         : root.primary
             ? (touch.pressed ? Theme.primary-700 : touch.has-hover ? Theme.primary-600 : Theme.primary-500)
-            : (touch.pressed ? Theme.surface : touch.has-hover ? Theme.surface-subtle : Theme.surface-raised);
+            : root.danger
+                ? (touch.pressed ? Theme.danger-border : touch.has-hover ? Theme.danger-surface : Theme.surface-raised)
+                : (touch.pressed ? Theme.surface : touch.has-hover ? Theme.surface-subtle : Theme.surface-raised);
     drop-shadow-blur: root.enabled && !touch.pressed ? 2px : 0px;
     drop-shadow-offset-y: root.enabled && !touch.pressed ? 1px : 0px;
     drop-shadow-color: Theme.shadow-subtle;
@@ -58,7 +63,7 @@ export component ActionButton inherits Rectangle {
         height: parent.height + 6px;
         border-radius: Theme.radius-md + 2px;
         border-width: 2px;
-        border-color: Theme.primary-500;
+        border-color: Theme.focus-ring;
     }
 
     touch := TouchArea {
@@ -80,10 +85,12 @@ export component ActionButton inherits Rectangle {
             font-size: Theme.text-sm;
             font-weight: 600;
             color: !root.enabled
-                ? Theme.text-muted
+                ? Theme.text-disabled
                 : root.primary
                     ? #ffffff
-                    : Theme.text;
+                    : root.danger
+                        ? Theme.danger-text
+                        : Theme.text;
             horizontal-alignment: center;
             vertical-alignment: center;
         }

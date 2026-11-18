@@ -9,7 +9,7 @@ use std::{
 };
 use teacher_oa_desktop::{
     settings::LauncherSettings,
-    worker::{Command, Event},
+    worker::{Command, Event, StatusTone},
 };
 
 pub fn show_feedback(ui: &AppWindow, text: &str, error: bool) {
@@ -369,11 +369,13 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
                             *snapshot.borrow_mut() = None;
                         }
                         ui.set_status(view.status.into());
-                        ui.set_status_color(slint::Color::from_rgb_u8(
-                            view.color.0,
-                            view.color.1,
-                            view.color.2,
-                        ));
+                        ui.set_status_tone(match view.tone {
+                            StatusTone::Idle => 0,
+                            StatusTone::Starting => 1,
+                            StatusTone::Healthy => 2,
+                            StatusTone::Stopping => 3,
+                            StatusTone::Fault => 4,
+                        });
                         ui.set_pid(view.pid.into());
                         ui.set_uptime(view.uptime.into());
                         ui.set_dependencies(view.dependencies.into());

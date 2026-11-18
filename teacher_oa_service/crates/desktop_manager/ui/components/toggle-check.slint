@@ -23,7 +23,10 @@ export component ToggleCheck inherits Rectangle {
     }
     touch := TouchArea {
         mouse-cursor: pointer;
-        clicked => { root.checked = !root.checked; }
+        clicked => {
+            focus-scope.focus();
+            root.checked = !root.checked;
+        }
     }
 
     HorizontalLayout {
@@ -36,15 +39,22 @@ export component ToggleCheck inherits Rectangle {
                 width: 16px;
                 height: 16px;
                 border-radius: Theme.radius-sm;
-                border-width: focus-scope.has-focus ? 2px : 1px;
-                border-color: focus-scope.has-focus
-                    ? Theme.primary-500
-                    : root.checked
-                        ? Theme.primary-600
-                        : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
+                border-width: 1px;
+                border-color: root.checked
+                    ? Theme.primary-600
+                    : (touch.has-hover ? Theme.neutral-400 : Theme.border-strong);
                 background: root.checked ? Theme.primary-500 : Theme.surface-raised;
                 animate background { duration: 120ms; }
                 animate border-color { duration: 120ms; }
+                if focus-scope.has-focus: Rectangle {
+                    x: -3px;
+                    y: -3px;
+                    width: parent.width + 6px;
+                    height: parent.height + 6px;
+                    border-radius: Theme.radius-sm + 2px;
+                    border-width: 2px;
+                    border-color: Theme.focus-ring;
+                }
                 if root.checked: Path {
                     width: 10px;
                     height: 8px;
