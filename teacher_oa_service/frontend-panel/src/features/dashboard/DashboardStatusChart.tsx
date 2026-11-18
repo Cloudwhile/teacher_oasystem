@@ -17,7 +17,7 @@ export type StatusChartDatum = {
 const statusChartColors: Record<string, string> = {
 	draft: "var(--color-neutral-500)",
 	pending: "var(--color-warning)",
-	returned: "var(--color-danger)",
+	returned: "var(--color-danger-fg)",
 	approved: "var(--color-success)",
 	archived: "var(--color-info)",
 };

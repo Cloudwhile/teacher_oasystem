@@ -36,6 +36,13 @@ export function Pagination({
 	const [jumpInput, setJumpInput] = useState("");
 	if (total <= 0) return null;
 	const totalPages = Math.max(1, Math.ceil(total / pageSize));
+	const minPageSize = pageSizeOptions[0] ?? 10;
+	const defaultPageSize = pageSizeOptions[1] ?? 20;
+	const showSizeSelect =
+		Boolean(onPageSizeChange) &&
+		(total > minPageSize || pageSize !== defaultPageSize);
+	// §8.4 Omit single-page pagination bar when neither page navigation nor page-size switching applies (P2-2).
+	if (totalPages <= 1 && !showSizeSelect) return null;
 	const pages = buildPageRange(page, totalPages);
 
 	const submitJump = (event: FormEvent) => {
@@ -53,7 +60,7 @@ export function Pagination({
 				<span>
 					共 {total} 条 · 第 {page} / {totalPages} 页
 				</span>
-				{onPageSizeChange && (
+				{showSizeSelect && onPageSizeChange && (
 					<select
 						className="pagination-size"
 						aria-label="每页显示条数"
@@ -68,15 +75,15 @@ export function Pagination({
 					</select>
 				)}
 			</div>
-			<div className="pagination-controls">
-				<IconButton
-					label="上一页"
-					disabled={page <= 1}
-					onClick={() => onChange(page - 1)}
-				>
-					<ChevronLeft />
-				</IconButton>
-				{totalPages > 1 && (
+			{totalPages > 1 && (
+				<div className="pagination-controls">
+					<IconButton
+						label="上一页"
+						disabled={page <= 1}
+						onClick={() => onChange(page - 1)}
+					>
+						<ChevronLeft />
+					</IconButton>
 					<div className="pagination-pages">
 						{pages.map((entry, idx) =>
 							entry === "…" ? (
@@ -103,29 +110,28 @@ export function Pagination({
 							),
 						)}
 					</div>
-				)}
-				<IconButton
-					label="下一页"
-					disabled={page * pageSize >= total}
-					onClick={() => onChange(page + 1)}
-				>
-					<ChevronRight />
-				</IconButton>
-				{totalPages > 5 && (
-					<form className="pagination-jump" onSubmit={submitJump}>
-						<input
-							type="number"
-							min={1}
-							max={totalPages}
-							inputMode="numeric"
-							aria-label="跳转页码"
-							placeholder="页码"
-							value={jumpInput}
-							onChange={(event) => setJumpInput(event.target.value)}
-						/>
-					</form>
-				)}
-			</div>
+					<IconButton
+						label="下一页"
+						disabled={page * pageSize >= total}
+						onClick={() => onChange(page + 1)}
+					>
+						<ChevronRight />
+					</IconButton>
+					{totalPages > 5 && (
+						<form className="pagination-jump" onSubmit={submitJump}>
+							<input
+								type="text"
+								inputMode="numeric"
+								pattern="[0-9]*"
+								aria-label="跳转页码"
+								placeholder="页码"
+								value={jumpInput}
+								onChange={(event) => setJumpInput(event.target.value)}
+							/>
+						</form>
+					)}
+				</div>
+			)}
 		</nav>
 	);
 }

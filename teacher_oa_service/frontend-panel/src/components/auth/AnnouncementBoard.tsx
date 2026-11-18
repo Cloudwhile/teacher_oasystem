@@ -34,40 +34,48 @@ export function AnnouncementBoard({
 					<ActionButton onClick={onRetry}>重新加载</ActionButton>
 				</div>
 			) : items.length ? (
-				<ul className="announcement-list">
-					{items.map((item) => (
-						<li key={item.id}>
-							<Dialog.Root>
-								<Dialog.Trigger className="announcement-link">
-									<time dateTime={item.published_at ?? undefined}>
-										{formatSingaporeDate(item.published_at)}
-									</time>
-									<span>{item.title}</span>
-									<ChevronRight aria-hidden="true" />
-								</Dialog.Trigger>
-								<Dialog.Portal>
-									<Dialog.Backdrop className="notice-backdrop" />
-									<Dialog.Popup className="notice-dialog">
-										<div className="section-heading">
-											<Dialog.Title>{item.title}</Dialog.Title>
-											<Dialog.Close className="action-button action-button-secondary">
-												关闭
-											</Dialog.Close>
-										</div>
-										<time
-											className="muted"
-											dateTime={item.published_at ?? undefined}
-										>
-											{formatSingaporeDate(item.published_at)}
-										</time>
-										<Dialog.Description className="notice-body">
-											{item.content}
-										</Dialog.Description>
-									</Dialog.Popup>
-								</Dialog.Portal>
-							</Dialog.Root>
-						</li>
-					))}
+				// biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied.
+				<ul className="announcement-list" role="list">
+					{items.map((item) => {
+						const dateText = formatSingaporeDate(item.published_at);
+						return (
+							<li key={item.id}>
+								<Dialog.Root>
+									<Dialog.Trigger className="announcement-link">
+										{dateText && (
+											<time dateTime={item.published_at ?? undefined}>
+												{dateText}
+											</time>
+										)}
+										<span>{item.title}</span>
+										<ChevronRight aria-hidden="true" />
+									</Dialog.Trigger>
+									<Dialog.Portal>
+										<Dialog.Backdrop className="notice-backdrop" />
+										<Dialog.Popup className="notice-dialog">
+											<div className="section-heading">
+												<Dialog.Title>{item.title}</Dialog.Title>
+												<Dialog.Close className="action-button action-button-secondary">
+													关闭
+												</Dialog.Close>
+											</div>
+											{dateText && (
+												<time
+													className="muted"
+													dateTime={item.published_at ?? undefined}
+												>
+													{dateText}
+												</time>
+											)}
+											<Dialog.Description className="notice-body">
+												{item.content}
+											</Dialog.Description>
+										</Dialog.Popup>
+									</Dialog.Portal>
+								</Dialog.Root>
+							</li>
+						);
+					})}
 				</ul>
 			) : (
 				<p className="notice-status">暂无公告</p>

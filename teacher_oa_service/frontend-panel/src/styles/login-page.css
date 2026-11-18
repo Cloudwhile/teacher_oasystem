@@ -268,8 +268,15 @@
 }
 .login-page-settings {
 	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+	align-items: start;
 	gap: var(--space-6);
-	max-width: 960px;
+}
+.login-page-settings > .inline-error,
+.login-page-settings > .success-text,
+.login-page-settings > .action-button {
+	grid-column: 1 / -1;
+	margin-bottom: 0;
 }
 .login-page-settings .settings-form {
 	max-width: none;
@@ -373,6 +380,16 @@
 	}
 	.announcement-list .announcement-link:hover svg {
 		color: var(--color-action-text);
+	}
+}
+@container workspace (max-width: 860px) {
+	.login-page-settings {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@media (max-width: 1100px) {
+	.login-page-settings {
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 @media (max-width: 900px) {

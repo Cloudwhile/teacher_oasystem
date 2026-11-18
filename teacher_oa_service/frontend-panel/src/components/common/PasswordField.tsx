@@ -13,6 +13,7 @@ function LinkedPasswordInput({
 	disabled,
 	required,
 	minLength,
+	maxLength,
 }: {
 	id: string;
 	visible: boolean;
@@ -22,6 +23,7 @@ function LinkedPasswordInput({
 	disabled: boolean;
 	required: boolean;
 	minLength?: number;
+	maxLength: number;
 }) {
 	const aria = useFormFieldAria();
 	return (
@@ -34,7 +36,7 @@ function LinkedPasswordInput({
 			disabled={disabled}
 			required={required}
 			minLength={minLength}
-			maxLength={128}
+			maxLength={maxLength}
 			aria-invalid={aria?.invalid ? "true" : "false"}
 			aria-describedby={aria?.describedBy}
 		/>
@@ -50,6 +52,7 @@ export function PasswordField({
 	autoComplete = "new-password",
 	required = true,
 	minLength,
+	maxLength = 128,
 	error,
 	hint,
 }: {
@@ -61,6 +64,7 @@ export function PasswordField({
 	autoComplete?: string;
 	required?: boolean;
 	minLength?: number;
+	maxLength?: number;
 	error?: string;
 	hint?: ReactNode;
 }) {
@@ -101,6 +105,7 @@ export function PasswordField({
 					disabled={disabled}
 					required={required}
 					minLength={minLength}
+					maxLength={maxLength}
 				/>
 			</InputControl>
 		</FormField>

@@ -96,106 +96,129 @@ export function AccountPage() {
 	return (
 		<>
 			<PageHeading title="账号安全" eyebrow={session?.user.display_name} />
-			<form
-				ref={formRef}
-				noValidate
-				className="panel settings-form"
-				onSubmit={(event) => void submit(event)}
-			>
-				<div className="section-heading">
-					<h2>修改登录密码</h2>
+			<div className="settings-split">
+				<form
+					ref={formRef}
+					noValidate
+					className="panel settings-form"
+					onSubmit={(event) => void submit(event)}
+				>
+					<div className="section-heading">
+						<h2>修改登录密码</h2>
+					</div>
+					{session?.must_change_password && (
+						<p className="form-note">请先设置自己的登录密码。</p>
+					)}
+					<PasswordField
+						id="current-password"
+						label="当前密码"
+						value={current}
+						error={fieldErrors.current}
+						onChange={(val) => {
+							setCurrent(val);
+							if (fieldErrors.current)
+								setFieldErrors((prev) => ({ ...prev, current: undefined }));
+						}}
+						autoComplete="current-password"
+						disabled={busy}
+					/>
+					<PasswordField
+						id="new-password"
+						label="新密码（至少12位）"
+						value={password}
+						error={fieldErrors.password}
+						hint="建议使用大小写字母、数字与符号组合。"
+						onChange={(val) => {
+							setPassword(val);
+							if (fieldErrors.password)
+								setFieldErrors((prev) => ({ ...prev, password: undefined }));
+						}}
+						minLength={12}
+						disabled={busy}
+					/>
+					<PasswordField
+						id="confirm-password"
+						label="确认新密码"
+						value={confirm}
+						error={fieldErrors.confirm}
+						onChange={(val) => {
+							setConfirm(val);
+							if (fieldErrors.confirm)
+								setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
+						}}
+						minLength={12}
+						disabled={busy}
+					/>
+					{error && (
+						<p role="alert" className="inline-error">
+							{error}
+						</p>
+					)}
+					{message && (
+						<p role="status" className="success-text">
+							{message}
+						</p>
+					)}
+					<div className="row-actions">
+						<ActionButton type="submit" variant="primary" disabled={busy}>
+							{busy ? "正在更新" : "更新密码"}
+						</ActionButton>
+					</div>
+				</form>
+				<div className="editor-sections">
+					<section
+						className="panel settings-form"
+						aria-labelledby="appearance-heading"
+					>
+						<div className="section-heading">
+							<h2 id="appearance-heading">界面外观</h2>
+						</div>
+						<p className="field-hint">
+							选择工作台的颜色主题。默认跟随操作系统深浅色切换，也可在此固定当前浏览器的显示偏好。
+						</p>
+						<fieldset className="theme-segmented">
+							<legend className="visually-hidden">颜色主题</legend>
+							{themeOptions.map((option) => {
+								const Icon = option.icon;
+								const active = theme === option.value;
+								return (
+									<label key={option.value} className="theme-option">
+										<input
+											type="radio"
+											className="visually-hidden"
+											name="color-theme"
+											value={option.value}
+											checked={active}
+											onChange={() => setTheme(option.value)}
+										/>
+										<Icon aria-hidden="true" />
+										<span>{option.label}</span>
+									</label>
+								);
+							})}
+						</fieldset>
+					</section>
+					<section
+						className="panel settings-form"
+						aria-labelledby="security-tips-heading"
+					>
+						<div className="section-heading">
+							<h2 id="security-tips-heading">安全说明</h2>
+						</div>
+						<ul className="wecom-aside-notes">
+							<li>
+								修改密码成功后，其他设备上的历史会话将自动失效并要求重新验证。
+							</li>
+							<li>
+								密码长度须为 12 至 128 位，请勿使用与工号相同的纯数字弱口令。
+							</li>
+							<li>
+								在公共办公室电脑完成填报或审批后，建议点击左下角退出按钮主动结束会话。
+							</li>
+						</ul>
+					</section>
 				</div>
-				{session?.must_change_password && (
-					<p className="form-note">请先设置自己的登录密码。</p>
-				)}
-				<PasswordField
-					id="current-password"
-					label="当前密码"
-					value={current}
-					error={fieldErrors.current}
-					onChange={(val) => {
-						setCurrent(val);
-						if (fieldErrors.current)
-							setFieldErrors((prev) => ({ ...prev, current: undefined }));
-					}}
-					autoComplete="current-password"
-					disabled={busy}
-				/>
-				<PasswordField
-					id="new-password"
-					label="新密码（至少12位）"
-					value={password}
-					error={fieldErrors.password}
-					hint="建议使用大小写字母、数字与符号组合。"
-					onChange={(val) => {
-						setPassword(val);
-						if (fieldErrors.password)
-							setFieldErrors((prev) => ({ ...prev, password: undefined }));
-					}}
-					minLength={12}
-					disabled={busy}
-				/>
-				<PasswordField
-					id="confirm-password"
-					label="确认新密码"
-					value={confirm}
-					error={fieldErrors.confirm}
-					onChange={(val) => {
-						setConfirm(val);
-						if (fieldErrors.confirm)
-							setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
-					}}
-					minLength={12}
-					disabled={busy}
-				/>
-				{error && (
-					<p role="alert" className="inline-error">
-						{error}
-					</p>
-				)}
-				{message && (
-					<p role="status" className="success-text">
-						{message}
-					</p>
-				)}
-				<div className="row-actions">
-					<ActionButton type="submit" variant="primary" disabled={busy}>
-						{busy ? "正在更新" : "更新密码"}
-					</ActionButton>
-				</div>
-			</form>
-			<section
-				className="panel settings-form"
-				aria-labelledby="appearance-heading"
-			>
-				<div className="section-heading">
-					<h2 id="appearance-heading">界面外观</h2>
-				</div>
-				<p className="field-hint">
-					选择工作台的颜色主题。默认跟随操作系统深浅色切换，也可在此固定当前浏览器的显示偏好。
-				</p>
-				<fieldset className="theme-segmented">
-					<legend className="visually-hidden">颜色主题</legend>
-					{themeOptions.map((option) => {
-						const Icon = option.icon;
-						const active = theme === option.value;
-						return (
-							<label key={option.value} className="theme-option">
-								<input
-									type="radio"
-									className="visually-hidden"
-									name="color-theme"
-									value={option.value}
-									checked={active}
-									onChange={() => setTheme(option.value)}
-								/>
-								<Icon aria-hidden="true" />
-								<span>{option.label}</span>
-							</label>
-						);
-					})}
-				</fieldset>
-			</section>
+			</div>
 		</>
 	);
 }

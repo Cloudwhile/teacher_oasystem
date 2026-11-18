@@ -28,6 +28,7 @@ export function LoginPageSettingsForm({
 	const [saving, setSaving] = useState(false);
 	const [uploading, setUploading] = useState(false);
 	const [noticeDirty, setNoticeDirty] = useState(false);
+	const [noticeEditing, setNoticeEditing] = useState(false);
 	const [error, setError] = useState("");
 	const [message, setMessage] = useState("");
 	const [conflict, setConflict] = useState(false);
@@ -105,7 +106,11 @@ export function LoginPageSettingsForm({
 			<form className="panel settings-form" onSubmit={submit}>
 				<div className="section-heading">
 					<h2>登录页外观</h2>
-					<ActionButton type="submit" variant="primary" disabled={busy}>
+					<ActionButton
+						type="submit"
+						variant={noticeEditing ? "secondary" : "primary"}
+						disabled={busy}
+					>
 						{saving ? "正在保存" : "保存设置"}
 					</ActionButton>
 				</div>
@@ -159,6 +164,7 @@ export function LoginPageSettingsForm({
 				items={saved.announcements}
 				disabled={busy}
 				onDirty={setNoticeDirty}
+				onEditingChange={setNoticeEditing}
 				onSave={(announcements) => persist({ ...saved, announcements }, true)}
 			/>
 		</div>

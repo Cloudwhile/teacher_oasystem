@@ -123,15 +123,13 @@ export function ParticipantsEditor({
 						<FormField
 							id={personId}
 							label="关联教师"
-							error={errors[`participants.${index}.teacher_id`]}
-						>
-							<div className="participant-teacher-picker">
-								{showTeacherSearch && (
+							labelAdornment={
+								showTeacherSearch ? (
 									<input
 										type="search"
 										className="participant-filter-input"
 										aria-label={`筛选第${index + 1}位关联教师`}
-										placeholder="输入姓名或部门快速筛选…"
+										placeholder="筛选教师…"
 										value={rowFilters[rowKey] ?? ""}
 										disabled={disabled}
 										onChange={(event) =>
@@ -141,59 +139,51 @@ export function ParticipantsEditor({
 											}))
 										}
 									/>
-								)}
-								<select
-									id={personId}
-									value={person.teacher_id ?? ""}
-									aria-invalid={
-										errors[`participants.${index}.teacher_id`]
-											? "true"
-											: "false"
-									}
-									aria-describedby={
-										errors[`participants.${index}.teacher_id`]
-											? `${personId}-error`
-											: undefined
-									}
-									disabled={disabled}
-									onChange={(event) => {
-										const teacher = catalog.teachers.find(
-											(item) => item.id === Number(event.target.value),
-										);
-										update(index, {
-											...person,
-											teacher_id: teacher?.id ?? null,
-											teacher_name: teacher?.name,
-											external_name: teacher?.name ?? "",
-										});
-									}}
-								>
-									<option value="">校外 / 未关联人员</option>
-									{person.teacher_id &&
-										!catalog.teachers.some(
-											(teacher) => teacher.id === person.teacher_id,
-										) && (
-											<option value={person.teacher_id}>
-												{person.external_name.trim() ||
-													person.teacher_name ||
-													"原关联教师（不在当前名册）"}
-												（已关联）
-											</option>
-										)}
-									{visibleTeachers.map((teacher) => (
-										<option
-											key={teacher.id}
-											value={teacher.id}
-											disabled={value.some(
-												(item, i) =>
-													i !== index && item.teacher_id === teacher.id,
-											)}
-										>
-											{teacher.name}
+								) : undefined
+							}
+							error={errors[`participants.${index}.teacher_id`]}
+						>
+							<select
+								id={personId}
+								value={person.teacher_id ?? ""}
+								disabled={disabled}
+								onChange={(event) => {
+									const teacher = catalog.teachers.find(
+										(item) => item.id === Number(event.target.value),
+									);
+									update(index, {
+										...person,
+										teacher_id: teacher?.id ?? null,
+										teacher_name: teacher?.name,
+										external_name: teacher?.name ?? "",
+									});
+								}}
+							>
+								<option value="">校外 / 未关联人员</option>
+								{person.teacher_id &&
+									!catalog.teachers.some(
+										(teacher) => teacher.id === person.teacher_id,
+									) && (
+										<option value={person.teacher_id}>
+											{person.external_name.trim() ||
+												person.teacher_name ||
+												"原关联教师（不在当前名册）"}
+											（已关联）
 										</option>
-									))}
-								</select>
-							</div>
+									)}
+								{visibleTeachers.map((teacher) => (
+									<option
+										key={teacher.id}
+										value={teacher.id}
+										disabled={value.some(
+											(item, i) =>
+												i !== index && item.teacher_id === teacher.id,
+										)}
+									>
+										{teacher.name}
+									</option>
+								))}
+							</select>
 						</FormField>
 						<FormField
 							id={nameId}

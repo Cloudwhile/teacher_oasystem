@@ -11,16 +11,19 @@ export function MaterialList({
 	onRemove?: (id: number) => void;
 }) {
 	return (
-		<ul className="material-list">
+		// biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied.
+		<ul className="material-list" role="list">
 			{files.map((file) => (
 				<li key={file.id}>
 					<div className="material-name">
 						<strong>{file.filename}</strong>
-						<small>
+					</div>
+					<div className="material-meta">
+						<span>
 							{file.mime_type === "application/pdf" ? "PDF" : "图片"} ·{" "}
 							{(file.size_bytes / 1024).toFixed(1)} KB
 							<MaterialAssociation file={file} />
-						</small>
+						</span>
 					</div>
 					<div className="row-actions">
 						<a

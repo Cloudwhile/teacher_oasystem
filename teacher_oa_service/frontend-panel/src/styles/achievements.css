@@ -1,6 +1,20 @@
+:root {
+	--oa-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235c6069' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+:root:has(> head > meta[name="color-scheme"][content="dark"]),
+:root[data-theme="dark"] {
+	--oa-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa2b1' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]):not(
+		:has(> head > meta[name="color-scheme"][content="light"])
+	) {
+		--oa-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa2b1' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+	}
+}
 .achievement-filters {
 	display: grid;
-	grid-template-columns: minmax(200px, 1.4fr) repeat(4, minmax(100px, 1fr));
+	grid-template-columns: minmax(200px, 1.5fr) repeat(4, minmax(104px, 1fr));
 	align-items: center;
 	gap: var(--space-2);
 	margin-bottom: var(--space-6);
@@ -10,10 +24,25 @@
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
 }
+/* §8.4 Quiet filter chrome when a personal list has zero records and no active filters (P2-1). */
+.achievement-filters.is-quiet-empty {
+	background: transparent;
+	border-color: transparent;
+	box-shadow: none;
+	padding-inline: 0;
+	padding-top: 0;
+	margin-bottom: var(--space-4);
+}
 .achievement-filters.with-scope {
 	grid-template-columns:
-		minmax(132px, 0.85fr) minmax(200px, 1.4fr)
+		minmax(200px, 1.5fr) minmax(116px, 0.9fr)
 		repeat(5, minmax(96px, 1fr));
+}
+.achievement-filters.directory-filters {
+	grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(116px, 1fr));
+}
+.achievement-filters.with-people {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .achievement-filters select,
 .achievement-filters input,
@@ -40,6 +69,19 @@
 		box-shadow 120ms ease-out,
 		background-color 120ms ease-out;
 }
+/* §8.1 Custom select chevron with right padding so native arrows never clip Chinese text (P0-6). */
+.achievement-filters select,
+.form-field select:not([multiple]),
+:where(.editor-sections) .section-heading select,
+.pagination-size {
+	appearance: none;
+	padding-right: var(--space-8);
+	background-image: var(--oa-select-chevron);
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	background-size: 14px 14px;
+	text-overflow: ellipsis;
+}
 .form-field textarea,
 .form-field select[multiple] {
 	min-height: 96px;
@@ -51,10 +93,17 @@
 .pagination-size:focus-visible,
 .pagination-jump input:focus-visible {
 	outline: none;
-	border-color: var(--color-action);
+	border-color: var(--color-focus-ring);
 	box-shadow: var(--oa-ring);
 }
 @media (forced-colors: active) {
+	.achievement-filters select,
+	.form-field select:not([multiple]),
+	:where(.editor-sections) .section-heading select,
+	.pagination-size {
+		appearance: auto;
+		background-image: none;
+	}
 	.achievement-filters :where(select, input):focus-visible,
 	.form-field :where(input, select, textarea):focus-visible,
 	.editor-sections .section-heading select:focus-visible {
@@ -79,6 +128,9 @@
 	gap: var(--space-2);
 	min-width: 0;
 }
+:where(.achievement-filters.with-people) .search-control {
+	grid-column: 1 / -1;
+}
 .search-control > svg {
 	flex-shrink: 0;
 	color: var(--color-icon);
@@ -98,7 +150,7 @@
 		box-shadow 120ms ease-out;
 }
 :where(.achievement-filters) .search-control:focus-within {
-	border-color: var(--color-action);
+	border-color: var(--color-focus-ring);
 	box-shadow: var(--oa-ring);
 }
 :where(.account-search) .icon-button,
@@ -190,7 +242,7 @@
 	color: var(--color-info-text);
 }
 .status-returned {
-	--status-dot: var(--color-danger);
+	--status-dot: var(--color-danger-fg);
 	border-color: var(--color-danger-border);
 	background: var(--color-danger-surface);
 	color: var(--color-danger-text);
@@ -220,7 +272,7 @@
 	width: auto;
 	min-height: 36px;
 	font-size: var(--text-xs);
-	padding: var(--space-1) var(--space-2);
+	padding: var(--space-1) var(--space-8) var(--space-1) var(--space-2);
 }
 .pagination-controls {
 	display: flex;
@@ -326,6 +378,14 @@ td.col-select {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: var(--space-6);
 }
+@media (min-width: 1280px) {
+	:where(.editor-sections, .settings-form-full) .form-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	:where(.editor-sections) .form-grid .form-field:has(textarea) {
+		grid-column: 1 / -1;
+	}
+}
 .form-field {
 	display: flex;
 	flex-direction: column;
@@ -347,7 +407,7 @@ td.col-select {
 .form-field input[aria-invalid="true"],
 .form-field select[aria-invalid="true"],
 .form-field textarea[aria-invalid="true"] {
-	border-color: var(--color-danger);
+	border-color: var(--color-danger-fg);
 	box-shadow: var(--ring-danger);
 }
 /* UI-P2-4 / UX-P2-4: Field-level errors promoted to 14px (--text-sm) for legibility. */
@@ -368,7 +428,7 @@ td.col-select {
 }
 .validation-summary {
 	border: var(--border-thin) solid var(--color-danger-border);
-	border-left: var(--border-accent) solid var(--color-danger);
+	border-left: var(--border-accent) solid var(--color-danger-fg);
 	border-radius: var(--radius-DEFAULT);
 	background: var(--color-danger-surface);
 	padding: var(--space-3) var(--space-4);
@@ -487,7 +547,7 @@ td.col-select {
 		box-sizing: border-box;
 	}
 	.confirmation-row input[type="checkbox"]:focus-visible + span::before {
-		outline: 2px solid var(--color-action);
+		outline: 2px solid var(--color-focus-ring);
 		outline-offset: 2px;
 	}
 	.confirmation-row input[type="checkbox"]:checked + span::before {
@@ -504,33 +564,44 @@ td.col-select {
 		font-size: var(--text-xs);
 	}
 }
+/* §3.6 + §4.4 Top-aligned participant fields so labels & inputs stay locked across columns (P1-6). */
 .participant-row {
 	display: grid;
-	grid-template-columns: var(--space-6) minmax(0, 1.3fr) minmax(0, 1fr) minmax(
+	grid-template-columns: var(--space-6) minmax(0, 1.35fr) minmax(0, 1fr) minmax(
 			0,
 			1fr
 		) auto;
 	gap: var(--space-3);
-	align-items: end;
+	align-items: start;
 	padding: var(--space-4) 0;
 	border-top: var(--border-thin) solid var(--color-border);
 }
-.participant-teacher-picker {
-	display: grid;
-	gap: var(--space-1);
+.participant-field-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	min-height: 21px;
+}
+.participant-field-head label {
+	flex-shrink: 0;
 }
 .form-field input.participant-filter-input {
-	min-height: 32px;
+	max-width: 152px;
+	min-height: 22px;
+	height: 22px;
 	font-size: var(--text-xs);
-	padding: 2px var(--space-2);
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-sm);
 	background: var(--color-surface-subtle);
+	box-shadow: none;
 }
 .participant-order {
 	color: var(--color-text-muted);
 	font-size: var(--text-xs);
 	font-weight: var(--weight-semibold);
 	font-variant-numeric: tabular-nums;
-	padding-bottom: var(--space-2);
+	margin-top: 34px;
 }
 .participant-row .icon-button {
 	width: 36px;
@@ -538,8 +609,11 @@ td.col-select {
 	border-radius: var(--radius-DEFAULT);
 }
 .participant-row .row-actions {
-	padding-bottom: 1px;
+	margin-top: 26px;
 	gap: var(--space-2);
+}
+.participant-row > .field-error {
+	grid-column: 2 / -1;
 }
 .material-upload-panel {
 	transition:
@@ -570,7 +644,7 @@ td.col-select {
 		background-color 120ms ease-out;
 }
 .upload-dropzone.has-error {
-	border-color: var(--color-danger);
+	border-color: var(--color-danger-fg);
 	background: var(--color-danger-surface);
 }
 .upload-dropzone-title {
@@ -630,11 +704,10 @@ td.col-select {
 	list-style: none;
 }
 .material-list li {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) auto auto;
 	gap: var(--space-4);
 	align-items: center;
-	justify-content: space-between;
 	padding: var(--space-3) var(--space-2);
 	margin-inline: calc(var(--space-2) * -1);
 	border-radius: var(--radius-DEFAULT);
@@ -644,14 +717,27 @@ td.col-select {
 .material-list li:first-child {
 	border-top-color: transparent;
 }
+/* §8.5 Quiet row-level icon actions in material lists matching table rows (P2-4). */
+.material-list .icon-button {
+	width: 36px;
+	height: 36px;
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+	color: var(--color-icon);
+}
 @media (hover: hover) {
 	.material-list li:hover {
 		background: var(--color-surface-subtle);
 	}
+	.material-list .icon-button:hover:not(:disabled) {
+		color: var(--color-text);
+		border-color: var(--color-border);
+		background: var(--color-surface);
+	}
 }
 .material-name {
 	min-width: 0;
-	flex: 1 1 180px;
 }
 .material-name strong {
 	display: block;
@@ -660,12 +746,14 @@ td.col-select {
 	font-weight: var(--weight-semibold);
 	font-size: var(--text-sm);
 }
-.material-name small {
-	display: block;
+.material-meta {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 	font-size: var(--text-xs);
 	font-variant-numeric: tabular-nums;
 	color: var(--color-text-muted);
-	margin-top: 2px;
 }
 .form-note {
 	color: var(--color-action-subtle-text);
@@ -813,21 +901,89 @@ td.col-select {
 	overflow: hidden;
 	white-space: nowrap;
 }
-@media (max-width: 1100px) {
-	.achievement-filters,
+/* Container-driven toolbar & row breakpoints inside .page-content (Systemic #1, P0-6, P1-6). */
+@container workspace (max-width: 960px) {
 	.achievement-filters.with-scope {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	.achievement-filters:not(.with-scope):not(.with-people):not(
+		.directory-filters
+	) {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+	.achievement-filters:not(.directory-filters) .search-control {
+		grid-column: 1 / -1;
+	}
+}
+@container workspace (max-width: 780px) {
+	.participant-row {
+		grid-template-columns: var(--space-6) minmax(0, 1fr);
+		align-items: start;
+	}
+	.participant-order {
+		margin-top: 2px;
+	}
+	.participant-row .form-field,
+	.participant-row .row-actions {
+		grid-column: 2;
+	}
+	.participant-row .row-actions {
+		margin-top: 0;
+	}
+}
+@container workspace (max-width: 680px) {
+	.achievement-filters,
+	.achievement-filters.with-scope,
+	.achievement-filters.directory-filters,
+	.achievement-filters.with-people {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
-	.search-control {
+	.search-control,
+	:where(.achievement-filters.with-people) .search-control {
+		grid-column: 1 / -1;
+	}
+	.material-list li {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+	.material-meta {
+		grid-column: 1 / 2;
+	}
+	.material-list .row-actions {
+		grid-area: 1 / 2 / 3 / 3;
+	}
+}
+@container workspace (max-width: 300px) {
+	.achievement-filters,
+	.achievement-filters.with-scope,
+	.achievement-filters.directory-filters,
+	.achievement-filters.with-people {
+		grid-template-columns: 1fr;
+	}
+}
+@media (max-width: 1100px) {
+	.achievement-filters,
+	.achievement-filters.with-scope,
+	.achievement-filters.directory-filters,
+	.achievement-filters.with-people {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.search-control,
+	:where(.achievement-filters.with-people) .search-control {
 		grid-column: 1 / -1;
 	}
 	.participant-row {
 		grid-template-columns: var(--space-6) minmax(0, 1fr);
 		align-items: start;
 	}
+	.participant-order {
+		margin-top: 2px;
+	}
 	.participant-row .form-field,
 	.participant-row .row-actions {
 		grid-column: 2;
+	}
+	.participant-row .row-actions {
+		margin-top: 0;
 	}
 }
 @media (pointer: coarse) {
@@ -835,14 +991,21 @@ td.col-select {
 	.achievement-filters input,
 	.form-field input,
 	.form-field select,
+	.form-field textarea,
 	.editor-sections .section-heading select,
 	.pagination-size,
 	.pagination-jump input {
 		min-height: 44px;
+		font-size: max(1rem, 1em);
+	}
+	.form-field input.participant-filter-input {
+		min-height: 36px;
+		height: auto;
 	}
 	.pagination-page,
 	.account-search .icon-button,
 	.participant-row .icon-button,
+	.material-list .icon-button,
 	.achievement-filters .search-control .icon-button {
 		min-width: 44px;
 		height: 44px;
@@ -853,11 +1016,20 @@ td.col-select {
 	.achievement-filters input,
 	.form-field input,
 	.form-field select,
-	.editor-sections .section-heading select {
+	.form-field textarea,
+	.editor-sections .section-heading select,
+	.pagination-size,
+	.pagination-jump input {
 		min-height: 44px;
+		font-size: max(1rem, 1em);
+	}
+	.form-field input.participant-filter-input {
+		min-height: 36px;
+		height: auto;
 	}
 	.account-search .icon-button,
 	.participant-row .icon-button,
+	.material-list .icon-button,
 	.achievement-filters .search-control .icon-button {
 		width: 44px;
 		height: 44px;

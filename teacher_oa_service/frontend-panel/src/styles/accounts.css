@@ -39,7 +39,7 @@
 }
 .login-tab:focus-visible,
 .login-method-panel:focus-visible {
-	outline: 2px solid var(--color-action);
+	outline: 2px solid var(--color-focus-ring);
 	outline-offset: 4px;
 	border-radius: var(--radius-sm);
 }
@@ -81,12 +81,12 @@
 	justify-content: space-between;
 }
 .login-fields .input-control:has(input:focus) {
-	border-color: var(--color-action);
+	border-color: var(--color-focus-ring);
 	background: var(--color-surface-raised);
 	box-shadow: var(--oa-ring);
 }
 .login-fields .password-toggle:focus-visible {
-	outline-color: var(--color-action);
+	outline-color: var(--color-focus-ring);
 }
 @media (hover: hover) {
 	.login-fields .password-toggle:hover:not(:disabled) {
@@ -112,17 +112,47 @@
 	background: var(--color-action-subtle);
 	color: var(--color-action-subtle-text);
 }
-/* §3.4.2 Constrain single-column form max-width so fields never stretch across the screen. */
+/* §3.3.2 Multi-column desktop settings layout so forms keep readable measure without leaving empty right voids. */
+.settings-split {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+	gap: var(--space-6);
+	align-items: start;
+}
 .settings-form {
 	margin-bottom: var(--space-6);
-	max-width: 512px;
+	max-width: 640px;
 }
 .settings-form:has(.form-grid),
 .settings-form.settings-form-wide {
-	max-width: 768px;
+	max-width: 840px;
+}
+.settings-form.settings-form-full,
+:where(.settings-split) .settings-form {
+	max-width: none;
+}
+:where(.settings-split) .settings-form {
+	margin-bottom: 0;
 }
 .settings-form .form-grid {
 	width: 100%;
+}
+.wecom-aside {
+	display: grid;
+	gap: var(--space-4);
+}
+.wecom-aside-notes {
+	margin: 0;
+	padding-left: var(--space-4);
+	list-style: disc;
+	display: grid;
+	gap: var(--space-2);
+	color: var(--color-text-secondary);
+	font-size: var(--text-xs);
+	line-height: var(--leading-normal);
+}
+.wecom-aside-notes > li::marker {
+	color: var(--color-icon);
 }
 
 /* WeCom setup step guide & callback copy row (UX-P1-10) */
@@ -140,10 +170,15 @@
 .wecom-guide ol {
 	margin: 0;
 	padding-left: var(--space-4);
+	list-style: decimal;
 	display: grid;
 	gap: var(--space-1);
 	font-size: var(--text-xs);
 	line-height: var(--leading-normal);
+}
+.wecom-guide ol > li::marker {
+	color: var(--color-info-text);
+	font-weight: var(--weight-semibold);
 }
 .wecom-guide a {
 	font-weight: var(--weight-semibold);
@@ -268,7 +303,7 @@ th:has(> .sortable-th-button) {
 	outline: none;
 }
 .account-search:focus-within {
-	border-color: var(--color-action);
+	border-color: var(--color-focus-ring);
 	box-shadow: var(--oa-ring);
 }
 @media (hover: hover) {
@@ -281,7 +316,7 @@ th:has(> .sortable-th-button) {
 	max-width: 100%;
 }
 .table-scroll:focus-visible {
-	outline: 2px solid var(--color-action);
+	outline: 2px solid var(--color-focus-ring);
 	outline-offset: 4px;
 }
 /* §5.6.1 + §8.2 Flipped light tint with accent border and same-family text. */
@@ -299,9 +334,9 @@ th:has(> .sortable-th-button) {
 .correction-notice h2 {
 	color: var(--color-warning-text);
 }
+/* §2.3.a Opaque warning-muted token rather than semi-transparent text on tinted surfaces (P2-3). */
 .correction-notice .muted {
-	color: var(--color-warning-text);
-	opacity: 0.88;
+	color: var(--color-warning-muted);
 }
 .correction-actions {
 	display: flex;
@@ -384,7 +419,7 @@ th:has(> .sortable-th-button) {
 }
 .todo-item-urgent {
 	border-color: var(--color-danger-border);
-	border-left: var(--border-accent) solid var(--color-danger);
+	border-left: var(--border-accent) solid var(--color-danger-fg);
 	background: var(--color-danger-surface);
 	color: var(--color-danger-text);
 }
@@ -443,8 +478,17 @@ th:has(> .sortable-th-button) {
 	color: var(--color-info-text);
 	font-size: var(--text-sm);
 }
+.dashboard-main-grid {
+	display: grid;
+	grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
+	gap: var(--space-6);
+	align-items: start;
+}
 .status-chart-panel {
 	margin-bottom: var(--space-6);
+}
+:where(.dashboard-main-grid) .status-chart-panel {
+	margin-bottom: 0;
 }
 .status-chart-box {
 	width: 100%;
@@ -478,7 +522,7 @@ th:has(> .sortable-th-button) {
 	--metric-dot: var(--color-neutral-500);
 }
 .dashboard-stats .metric-returned {
-	--metric-dot: var(--color-danger);
+	--metric-dot: var(--color-danger-fg);
 }
 .dashboard-stats .metric-approved {
 	--metric-dot: var(--color-success);
@@ -499,12 +543,9 @@ th:has(> .sortable-th-button) {
 	.achievement-table {
 		min-width: 0;
 	}
+	/* Hide column headers completely from layout, Tab order & screen readers when cardified (P0-7). */
 	.achievement-table thead {
-		position: absolute;
-		clip-path: inset(50%);
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
+		display: none;
 	}
 	.achievement-table tbody tr {
 		display: grid;
@@ -545,6 +586,27 @@ th:has(> .sortable-th-button) {
 	}
 }
 
+/* §3.3.2 Stack dashboard chart above table unless workspace fits a >=664px desktop table (P0-7, Systemic #1). */
+@container workspace (max-width: 1080px) {
+	.dashboard-main-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@container workspace (max-width: 860px) {
+	.settings-split {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@media (max-width: 1380px) {
+	.dashboard-main-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@media (max-width: 1180px) {
+	.settings-split {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
 @media (max-width: 1100px) {
 	.dashboard-stats {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -560,6 +622,10 @@ th:has(> .sortable-th-button) {
 	.sortable-th-button {
 		min-height: 44px;
 	}
+	.account-search input {
+		min-height: 42px;
+		font-size: max(1rem, 1em);
+	}
 }
 @media (max-width: 720px) {
 	body .icon-button {
@@ -572,6 +638,23 @@ th:has(> .sortable-th-button) {
 	.action-button.login-submit,
 	.theme-option {
 		min-height: 44px;
+	}
+	.account-search input {
+		min-height: 42px;
+		font-size: max(1rem, 1em);
+	}
+	/* §3.4.1 Equal 3-column segmented theme control on phones instead of awkward 2+1 wrap (P1-8). */
+	.theme-segmented {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		width: 100%;
+	}
+	.theme-option {
+		justify-content: center;
+		padding: 0 var(--space-2);
+		gap: var(--space-1);
+		font-size: var(--text-xs);
+		white-space: nowrap;
 	}
 	.revision-row summary {
 		padding: var(--space-3) var(--space-2);
@@ -597,11 +680,7 @@ th:has(> .sortable-th-button) {
 		min-width: 0;
 	}
 	.achievement-table thead {
-		position: absolute;
-		clip-path: inset(50%);
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
+		display: none;
 	}
 	.achievement-table tbody tr {
 		display: grid;
@@ -642,6 +721,17 @@ th:has(> .sortable-th-button) {
 	}
 	.topbar {
 		flex-wrap: wrap;
+	}
+}
+@media (max-width: 359px) {
+	.theme-segmented {
+		grid-template-columns: 1fr;
+	}
+	.theme-option {
+		justify-content: flex-start;
+		padding: 0 var(--space-3);
+		gap: var(--space-2);
+		font-size: var(--text-sm);
 	}
 }
 @media (prefers-reduced-motion: reduce) {

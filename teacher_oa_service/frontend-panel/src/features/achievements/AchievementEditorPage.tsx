@@ -333,6 +333,20 @@ export function AchievementEditorPage() {
 	if (saved && !saved.can_edit)
 		return <Feedback message="当前成果状态不能修改。" />;
 	const catalogData = catalog.data;
+	const inlineErrorKeys = new Set(
+		schema.fields
+			.filter((field) => field.visible)
+			.map((field) => fieldErrorKey(field.key)),
+	);
+	const unmappedErrors = Object.entries(errors).filter(
+		([key]) =>
+			!inlineErrorKeys.has(key) &&
+			key !== "file_ids" &&
+			key !== "participants" &&
+			!key.startsWith("participants."),
+	);
+	const hasInlineFieldAlerts =
+		Object.keys(errors).length > unmappedErrors.length;
 	return (
 		<>
 			<PageHeading
@@ -413,9 +427,12 @@ export function AchievementEditorPage() {
 				</p>
 			)}
 			{error && (
-				<div className="validation-summary" role="alert">
+				<div
+					className="validation-summary"
+					role={hasInlineFieldAlerts ? "status" : "alert"}
+				>
 					<p>{error}</p>
-					{Object.entries(errors).map(([key, message]) => (
+					{unmappedErrors.map(([key, message]) => (
 						<p key={key}>{message}</p>
 					))}
 					{conflict && (

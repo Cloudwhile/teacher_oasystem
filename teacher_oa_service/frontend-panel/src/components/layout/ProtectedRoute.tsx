@@ -10,7 +10,11 @@ export function ProtectedRoute() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	if (status === "loading")
-		return <DashboardSkeleton message="正在读取身份…" />;
+		return (
+			<div className="shell-loading">
+				<DashboardSkeleton message="正在读取身份…" />
+			</div>
+		);
 	if (status === "anonymous")
 		return (
 			<Navigate
@@ -47,12 +51,14 @@ export function ProtectedRoute() {
 		);
 	if (status === "error")
 		return (
-			<Feedback
-				message="暂时无法连接，请稍后重试。"
-				onRetry={() => {
-					void refresh();
-				}}
-			/>
+			<section className="error-page">
+				<Feedback
+					message="暂时无法连接，请稍后重试。"
+					onRetry={() => {
+						void refresh();
+					}}
+				/>
+			</section>
 		);
 	if (session?.must_change_password && location.pathname !== "/account")
 		return (

@@ -23,6 +23,7 @@ export function useFormFieldAria() {
 export function FormField({
 	id,
 	label,
+	labelAdornment,
 	required = false,
 	error,
 	hint,
@@ -30,6 +31,7 @@ export function FormField({
 }: {
 	id: string;
 	label: string;
+	labelAdornment?: ReactNode;
 	required?: boolean;
 	error?: string;
 	hint?: ReactNode;
@@ -70,18 +72,29 @@ export function FormField({
 		});
 	}
 
+	const labelNode = (
+		<label htmlFor={id}>
+			{label}
+			{required && (
+				<span className="required-mark" aria-hidden="true">
+					{" "}
+					*
+				</span>
+			)}
+		</label>
+	);
+
 	return (
 		<FormFieldContext.Provider value={aria}>
 			<div className={`form-field${invalid ? " invalid" : ""}`}>
-				<label htmlFor={id}>
-					{label}
-					{required && (
-						<span className="required-mark" aria-hidden="true">
-							{" "}
-							*
-						</span>
-					)}
-				</label>
+				{labelAdornment ? (
+					<div className="participant-field-head">
+						{labelNode}
+						{labelAdornment}
+					</div>
+				) : (
+					labelNode
+				)}
 				{wiredChildren}
 				{hint && (
 					<p id={hintId} className="field-hint">

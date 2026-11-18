@@ -39,7 +39,9 @@ export function ProfileFields({ profile }: { profile: TeacherProfile }) {
 			<div>
 				<dt>在职状态</dt>
 				<dd>
-					<span className="status-badge">
+					<span
+						className={`status-badge${profile.employment_status === "active" ? " status-badge-success" : ""}`}
+					>
 						{profile.employment_status === "active" ? "在职" : "离职"}
 					</span>
 				</dd>

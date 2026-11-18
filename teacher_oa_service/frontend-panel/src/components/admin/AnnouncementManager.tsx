@@ -15,17 +15,23 @@ export function AnnouncementManager({
 	disabled,
 	onSave,
 	onDirty,
+	onEditingChange,
 }: {
 	items: LoginAnnouncement[];
 	disabled: boolean;
 	onSave: (items: LoginAnnouncement[]) => Promise<boolean>;
 	onDirty: (dirty: boolean) => void;
+	onEditingChange?: (editing: boolean) => void;
 }) {
 	const confirm = useConfirm();
 	const [draft, setDraft] = useState<Draft>(empty);
 	const [editing, setEditing] = useState(false);
 	const [dirty, setDirty] = useState(false);
 	const [error, setError] = useState("");
+	const updateEditing = (next: boolean) => {
+		setEditing(next);
+		onEditingChange?.(next);
+	};
 	const change = (next: Draft) => {
 		setDraft(next);
 		setDirty(true);
@@ -45,7 +51,7 @@ export function AnnouncementManager({
 		setDraft(
 			item ? { id: item.id, title: item.title, content: item.content } : empty,
 		);
-		setEditing(true);
+		updateEditing(true);
 		setDirty(false);
 		onDirty(false);
 		setError("");
@@ -61,7 +67,7 @@ export function AnnouncementManager({
 			});
 			if (!discard) return;
 		}
-		setEditing(false);
+		updateEditing(false);
 		setDirty(false);
 		onDirty(false);
 	};
@@ -83,7 +89,7 @@ export function AnnouncementManager({
 			: [next, ...items];
 		if (await onSave(updated)) {
 			setDraft(empty);
-			setEditing(false);
+			updateEditing(false);
 			setDirty(false);
 			onDirty(false);
 			setError("");
@@ -154,7 +160,8 @@ export function AnnouncementManager({
 				</div>
 			)}
 			{items.length ? (
-				<ul className="managed-notices">
+				// biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied.
+				<ul className="managed-notices" role="list">
 					{items.map((item) => (
 						<li key={item.id}>
 							<div>
@@ -209,7 +216,7 @@ export function AnnouncementManager({
 											).then((ok) => {
 												if (ok && draft.id === item.id) {
 													setDraft(empty);
-													setEditing(false);
+													updateEditing(false);
 													setDirty(false);
 													onDirty(false);
 													setError("");
