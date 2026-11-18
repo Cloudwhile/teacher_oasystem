@@ -168,8 +168,10 @@ export function AchievementDetailPage() {
 			<Feedback message={errorMessage(result.error)} onRetry={result.reload} />
 		);
 	const { detail, catalog, revisions, schemas } = result.data;
-	const isReturnedEditable =
-		detail.can_edit && detail.record.status === "returned";
+	const hasPanelPrimaryAction =
+		(detail.can_edit && detail.record.status === "returned") ||
+		detail.can_review ||
+		detail.can_archive;
 
 	return (
 		<>
@@ -181,7 +183,11 @@ export function AchievementDetailPage() {
 					to={back}
 					className="icon-button"
 					aria-label={
-						back.startsWith("/reviews") ? "返回审核列表" : "返回成果列表"
+						back.startsWith("/reviews")
+							? "返回审核列表"
+							: back.startsWith("/teachers")
+								? "返回教师资料"
+								: "返回成果列表"
 					}
 				>
 					<ArrowLeft />
@@ -205,7 +211,7 @@ export function AchievementDetailPage() {
 							<Pen />
 						</Link>
 						<ActionButton
-							variant={isReturnedEditable ? "secondary" : "primary"}
+							variant={hasPanelPrimaryAction ? "secondary" : "primary"}
 							disabled={busy}
 							onClick={() => {
 								void submit();
@@ -291,7 +297,8 @@ export function AchievementDetailPage() {
 						<h2>办理记录</h2>
 					</div>
 					{detail.events.length ? (
-						<ol className="event-list">
+						// biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied.
+						<ol className="event-list" role="list">
 							{detail.events.map((event) => (
 								<li key={event.id}>
 									<strong>

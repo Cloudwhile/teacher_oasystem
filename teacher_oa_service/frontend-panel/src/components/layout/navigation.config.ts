@@ -75,6 +75,13 @@ export const navigationSections: NavSection[] = [
 			},
 			{
 				kind: "link",
+				key: "teachers",
+				to: "/teachers",
+				icon: Users,
+				permission: "teachers:directory",
+			},
+			{
+				kind: "link",
 				key: "reviews",
 				to: "/reviews",
 				icon: Check,

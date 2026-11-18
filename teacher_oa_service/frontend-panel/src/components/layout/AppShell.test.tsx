@@ -50,9 +50,11 @@ function show(
 					{ path: "/achievements", element: page("成果列表页") },
 					{ path: "/achievements/new", element: <DirtyPage /> },
 					{ path: "/achievements/:id", element: page("成果详情页") },
+					{ path: "/teachers", element: page("教师名录页") },
+					{ path: "/teachers/me", element: page("档案页") },
+					{ path: "/teachers/:id", element: page("教师详情页") },
 					{ path: "/reviews", element: page("审核页") },
 					{ path: "/files", element: page("文件页") },
-					{ path: "/teachers/me", element: page("档案页") },
 					{ path: "/account", element: page("账号页") },
 					{ path: "/admin/*", element: page("管理页") },
 				],
@@ -78,10 +80,15 @@ afterEach(() => {
 
 it.each([
 	[[], ["工作台", "成果管理", "文件资料"], false],
+	[
+		["teachers:directory"],
+		["工作台", "成果管理", "教师资料", "文件资料"],
+		false,
+	],
 	[["reviews:write"], ["工作台", "成果管理", "审核中心", "文件资料"], false],
 	[
-		["reviews:write", "admin:manage"],
-		["工作台", "成果管理", "审核中心", "文件资料"],
+		["teachers:directory", "reviews:write", "admin:manage"],
+		["工作台", "成果管理", "教师资料", "审核中心", "文件资料"],
 		true,
 	],
 ])("按权限 %j 显示导航", (permissions, workspace, admin) => {

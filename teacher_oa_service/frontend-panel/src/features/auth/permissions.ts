@@ -2,6 +2,7 @@ import type { CurrentUser } from "./api";
 
 export type Permission =
 	| "achievements:write"
+	| "teachers:directory"
 	| "reviews:write"
 	| "admin:manage";
 

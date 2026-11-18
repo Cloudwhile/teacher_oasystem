@@ -31,6 +31,7 @@ export const roleLabels: Record<string, string> = {
 	teacher: "教师",
 	group_leader: "教研组长",
 	reviewer: "审核人员",
+	school_leader: "校级行政",
 	admin: "管理员",
 };
 export const scopeLabels: Record<string, string> = {
@@ -136,7 +137,8 @@ export function DashboardPage() {
 									<X />
 								</IconButton>
 							</div>
-							<ol className="onboarding-steps">
+							{/* biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied. */}
+							<ol className="onboarding-steps" role="list">
 								<li>
 									<strong>1. 新建并填写信息</strong>
 									<span>
@@ -164,7 +166,8 @@ export function DashboardPage() {
 							<div className="section-heading">
 								<h2 id="todo-heading">需要您处理</h2>
 							</div>
-							<ul className="todo-list">
+							{/* biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied. */}
+							<ul className="todo-list" role="list">
 								{canWrite && returnedCount > 0 && (
 									<li>
 										<Link
@@ -233,45 +236,50 @@ export function DashboardPage() {
 							<ArrowUpRight />
 						</Link>
 					)}
-					{canRenderChart && (
-						<Suspense fallback={null}>
-							<DashboardStatusChart data={chartData} totalCount={totalCount} />
-						</Suspense>
-					)}
-					<section className="panel">
-						<div className="section-heading">
-							<h2>最近更新</h2>
-							{hasRecent && (
-								<Link
-									className="text-link"
-									to="/achievements?scope=mine"
-									aria-label="查看全部成果"
-								>
-									查看全部
-								</Link>
-							)}
-						</div>
-						{hasRecent ? (
-							<AchievementTable items={result.data.recent} />
-						) : (
-							<EmptyState
-								icon={<FileText />}
-								title="暂无成果记录"
-								description="填报您的教学或科研成果并关联证明材料，即可提交审核。"
-								action={
-									canWrite ? (
-										<Link
-											className="action-button action-button-primary"
-											to="/achievements/new"
-											state={composeState}
-										>
-											新建成果
-										</Link>
-									) : undefined
-								}
-							/>
+					<div className={canRenderChart ? "dashboard-main-grid" : undefined}>
+						{canRenderChart && (
+							<Suspense fallback={null}>
+								<DashboardStatusChart
+									data={chartData}
+									totalCount={totalCount}
+								/>
+							</Suspense>
 						)}
-					</section>
+						<section className="panel">
+							<div className="section-heading">
+								<h2>最近更新</h2>
+								{hasRecent && (
+									<Link
+										className="text-link"
+										to="/achievements?scope=mine"
+										aria-label="查看全部成果"
+									>
+										查看全部
+									</Link>
+								)}
+							</div>
+							{hasRecent ? (
+								<AchievementTable items={result.data.recent} hideTeacher />
+							) : (
+								<EmptyState
+									icon={<FileText />}
+									title="暂无成果记录"
+									description="填报您的教学或科研成果并关联证明材料，即可提交审核。"
+									action={
+										canWrite ? (
+											<Link
+												className="action-button action-button-primary"
+												to="/achievements/new"
+												state={composeState}
+											>
+												新建成果
+											</Link>
+										) : undefined
+									}
+								/>
+							)}
+						</section>
+					</div>
 				</>
 			)}
 		</>

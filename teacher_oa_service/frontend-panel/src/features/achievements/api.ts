@@ -14,6 +14,7 @@ export type Participant = components["schemas"]["ParticipantInput"];
 export type FileMetadata = components["schemas"]["FileMetadata"];
 export type AcademicTerm = components["schemas"]["AcademicTerm"];
 export type DictionaryItem = components["schemas"]["DictionaryItem"];
+export type DepartmentOption = components["schemas"]["DepartmentOption"];
 export type TeacherOption = components["schemas"]["TeacherOption"];
 
 async function call<K extends keyof operations>(
@@ -62,6 +63,13 @@ export const achievementApi = {
 			}),
 		]);
 		return { types, terms, dictionaries, teachers };
+	},
+	async scopePeople(signal?: AbortSignal) {
+		const [departments, teachers] = await Promise.all([
+			call<"department_options">("/api/v1/departments", { signal }),
+			call<"teacher_options">("/api/v1/teachers", { signal }),
+		]);
+		return { departments, teachers };
 	},
 	schema: (code: string, version?: number, signal?: AbortSignal) =>
 		call<"achievement_schema">(

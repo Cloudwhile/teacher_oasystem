@@ -6,6 +6,7 @@ export type NavKey =
 	| "achievements-mine"
 	| "achievements-all"
 	| "achievements-new"
+	| "teachers"
 	| "reviews"
 	| "files"
 	| "profile"
@@ -37,6 +38,7 @@ export const navLabels: Record<NavKey, string> = {
 	"achievements-mine": "我的成果",
 	"achievements-all": "成果查询",
 	"achievements-new": "成果填报",
+	teachers: "教师资料",
 	reviews: "审核中心",
 	files: "文件资料",
 	profile: "个人档案",
@@ -55,6 +57,7 @@ const pages: Record<
 	{ key: NavKey; parent?: string; parentTo?: string }
 > = {
 	[appPaths.dashboard]: { key: "dashboard" },
+	"/teachers": { key: "teachers" },
 	"/reviews": { key: "reviews" },
 	"/files": { key: "files" },
 	[appPaths.profile]: {
@@ -107,6 +110,8 @@ function sourceKey(from: unknown): NavKey | null {
 	const pathname = trimPath(index === -1 ? from : from.slice(0, index));
 	const search = index === -1 ? "" : from.slice(index);
 	if (pathname === "/reviews") return "reviews";
+	if (pathname === "/teachers" || /^\/teachers\/(?!me$)[^/]+$/.test(pathname))
+		return "teachers";
 	if (pathname === "/achievements") return listKey(search);
 	return null;
 }
@@ -127,6 +132,15 @@ export function resolveNavigation(
 			trail: [groupLabel, navLabels[key]],
 		};
 	}
+	if (/^\/teachers\/(?!me$)[^/]+$/.test(path)) {
+		return {
+			activeKey: "teachers",
+			activeMatch: "location",
+			activeGroup: null,
+			title: "教师档案详情",
+			trail: [navLabels.teachers, "教师档案详情"],
+		};
+	}
 	const record = /^\/achievements\/[^/]+(\/edit)?$/.exec(path);
 	if (record) {
 		const title = record[1] ? "编辑成果" : "成果详情";
@@ -138,6 +152,14 @@ export function resolveNavigation(
 				activeGroup: null,
 				title,
 				trail: [navLabels.reviews, title],
+			};
+		if (source === "teachers")
+			return {
+				activeKey: "teachers",
+				activeMatch: "location",
+				activeGroup: null,
+				title,
+				trail: [navLabels.teachers, title],
 			};
 		return {
 			activeKey: source,
@@ -185,16 +207,33 @@ export function resolveTrailLinks(
 			{ label: navLabels["achievements-new"] },
 		];
 	}
+	if (/^\/teachers\/(?!me$)[^/]+$/.test(path)) {
+		const safeFrom = safeReturnPath(from, "/teachers");
+		return [
+			{
+				label: navLabels.teachers,
+				to: safeFrom.startsWith("/teachers") ? safeFrom : "/teachers",
+			},
+			{ label: "教师档案详情" },
+		];
+	}
 	const record = /^\/achievements\/([^/]+)(\/edit)?$/.exec(path);
 	if (record) {
 		const title = record[2] ? "编辑成果" : "成果详情";
 		const source = sourceKey(from);
 		const safeFrom = safeReturnPath(
 			from,
-			source === "reviews" ? "/reviews" : "/achievements?scope=mine",
+			source === "reviews"
+				? "/reviews"
+				: source === "teachers"
+					? "/teachers"
+					: "/achievements?scope=mine",
 		);
 		if (source === "reviews") {
 			return [{ label: navLabels.reviews, to: safeFrom }, { label: title }];
+		}
+		if (source === "teachers") {
+			return [{ label: navLabels.teachers, to: safeFrom }, { label: title }];
 		}
 		if (source) {
 			return [

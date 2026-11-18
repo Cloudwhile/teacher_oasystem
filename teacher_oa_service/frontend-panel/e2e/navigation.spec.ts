@@ -22,8 +22,9 @@ const noHorizontalOverflow = (page: Page) =>
 test.describe("导航结构与权限", () => {
 	for (const [role, workspace, admin] of [
 		["teacher", ["工作台", "成果管理", "文件资料"], false],
+		["school_leader", ["工作台", "成果管理", "教师资料", "文件资料"], false],
 		["reviewer", ["工作台", "成果管理", "审核中心", "文件资料"], false],
-		["admin", ["工作台", "成果管理", "审核中心", "文件资料"], true],
+		["admin", ["工作台", "成果管理", "教师资料", "审核中心", "文件资料"], true],
 	] as const)
 		test(`${role} 的导航结构`, async ({ page }) => {
 			await open(page, role);
@@ -517,6 +518,22 @@ test("移动端触控热区 ≥ 44px 与平板容器查询表格卡片化无溢�
 			.first()
 			.evaluate((el) => getComputedStyle(el).display),
 	).toBe("grid");
+});
+
+test("校级行政进入教师资料与档案详情保留导航高亮及返回参数", async ({
+	page,
+}) => {
+	await open(page, "school_leader", "/teachers?department_id=1");
+	await expect(heading(page, "教师资料")).toBeVisible();
+	await expect(current(page)).toHaveText(["教师资料"]);
+	await expect(current(page)).toHaveAttribute("aria-current", "page");
+	await page.getByRole("link", { name: "王老师", exact: true }).click();
+	await expect(page).toHaveURL(/\/teachers\/1$/);
+	await expect(crumbs(page)).toHaveText("教师资料/教师档案详情");
+	await expect(current(page)).toHaveText(["教师资料"]);
+	await expect(current(page)).toHaveAttribute("aria-current", "location");
+	await page.getByRole("link", { name: "返回教师名录" }).click();
+	await expect(page).toHaveURL(/\/teachers\?department_id=1$/);
 });
 
 test("面包屑支持直接点击回跳上级列表并保留筛选参数", async ({ page }) => {

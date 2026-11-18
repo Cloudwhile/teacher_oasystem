@@ -17,6 +17,7 @@ import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
 import { PermissionDenied } from "@/components/common/PermissionDenied";
+import { subjectLabels } from "@/components/common/ProfileFields";
 import { TableSkeleton } from "@/components/common/Skeleton";
 import { errorMessage } from "@/features/achievements/api";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -29,6 +30,7 @@ const roles: Record<string, string> = {
 	teacher: "教师",
 	group_leader: "教研组长",
 	reviewer: "审核人员",
+	school_leader: "校级行政",
 	admin: "管理员",
 };
 
@@ -65,8 +67,10 @@ export function AccountsPage() {
 			if (!keyword) return true;
 			return [
 				account.username,
+				account.employee_no ?? "",
 				account.name,
 				account.department,
+				subjectLabels[account.subject_code] ?? account.subject_code ?? "",
 				account.wecom_userid ?? "",
 				roles[account.role] ?? account.role,
 			].some((field) => field.toLowerCase().includes(keyword));
@@ -142,6 +146,8 @@ export function AccountsPage() {
 							active: nextActive,
 							password: "",
 							wecom_userid: target.wecom_userid ?? "",
+							employee_no: target.employee_no ?? "",
+							subject_code: target.subject_code ?? "other",
 						},
 						session.csrf_token,
 					);
@@ -407,10 +413,22 @@ export function AccountsPage() {
 													<td data-label="账号">{account.username}</td>
 													<td data-label="姓名">{account.name}</td>
 													<td data-label="部门">{account.department}</td>
-													<td data-label="角色">{roles[account.role]}</td>
+													<td data-label="角色">
+														{roles[account.role] ?? account.role}
+													</td>
 													<td data-label="状态">
-														{account.active ? "启用" : "停用"}
-														{account.must_change ? " · 待改密" : ""}
+														<div className="status-group">
+															<span
+																className={`status-badge${account.active ? " status-badge-success" : ""}`}
+															>
+																{account.active ? "启用" : "停用"}
+															</span>
+															{account.must_change && (
+																<span className="status-badge status-badge-warning">
+																	待改密
+																</span>
+															)}
+														</div>
 													</td>
 													<td data-label="企业微信">
 														{account.wecom_userid || "未绑定"}

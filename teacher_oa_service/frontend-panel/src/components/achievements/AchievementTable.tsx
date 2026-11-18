@@ -8,12 +8,14 @@ import type { components } from "@/types/api.generated";
 
 export function AchievementTable({
 	items,
+	hideTeacher = false,
 	selectable = false,
 	selectedIds,
 	onToggleSelect,
 	onToggleSelectAll,
 }: {
 	items: components["schemas"]["AchievementItem"][];
+	hideTeacher?: boolean;
 	selectable?: boolean;
 	selectedIds?: Set<number>;
 	onToggleSelect?: (id: number) => void;
@@ -22,6 +24,7 @@ export function AchievementTable({
 	const location = useLocation();
 	const { session } = useAuth();
 	const canWrite = hasPermission(session?.user, "achievements:write");
+	const canReadDirectory = hasPermission(session?.user, "teachers:directory");
 	const ownTeacherId = session?.user.teacher?.id;
 	const from = location.pathname + location.search;
 	const allSelected =
@@ -52,7 +55,7 @@ export function AchievementTable({
 						)}
 						<th scope="col">成果名称</th>
 						<th scope="col">类型</th>
-						<th scope="col">填报教师</th>
+						{!hideTeacher && <th scope="col">填报教师</th>}
 						<th scope="col">日期</th>
 						<th scope="col">状态</th>
 						<th scope="col">
@@ -90,7 +93,21 @@ export function AchievementTable({
 									</Link>
 								</td>
 								<td data-label="类型">{item.type_name}</td>
-								<td data-label="填报教师">{item.teacher_name}</td>
+								{!hideTeacher && (
+									<td data-label="填报教师">
+										{canReadDirectory ? (
+											<Link
+												className="text-link"
+												to={`/teachers/${item.teacher_id}`}
+												state={{ from }}
+											>
+												{item.teacher_name}
+											</Link>
+										) : (
+											item.teacher_name
+										)}
+									</td>
+								)}
 								<td data-label="日期">
 									{item.occurred_at ? formatAppDate(item.occurred_at) : "—"}
 								</td>

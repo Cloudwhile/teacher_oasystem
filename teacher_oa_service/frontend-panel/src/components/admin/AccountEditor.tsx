@@ -4,6 +4,7 @@ import { ActionButton } from "@/components/common/ActionButton";
 import { FormField } from "@/components/common/FormField";
 import { IconButton } from "@/components/common/IconButton";
 import { PasswordField } from "@/components/common/PasswordField";
+import { subjectLabels } from "@/components/common/ProfileFields";
 import { errorMessage } from "@/features/achievements/api";
 import {
 	type AccountInput,
@@ -36,6 +37,8 @@ export function AccountEditor({
 		active: account?.active ?? true,
 		password: "",
 		wecom_userid: account?.wecom_userid ?? "",
+		employee_no: account?.employee_no ?? "",
+		subject_code: account?.subject_code || "other",
 	};
 	const [data, setData] = useState(initial);
 	const [busy, setBusy] = useState(false);
@@ -67,7 +70,7 @@ export function AccountEditor({
 	};
 	return (
 		<form
-			className="panel settings-form"
+			className="panel settings-form settings-form-full"
 			onSubmit={(event) => void submit(event)}
 		>
 			<div className="section-heading">
@@ -119,6 +122,30 @@ export function AccountEditor({
 						</FormField>
 					),
 				)}
+				<FormField id="employee_no" label="教师工号（留空按账号生成）">
+					<input
+						id="employee_no"
+						value={data.employee_no ?? ""}
+						maxLength={64}
+						disabled={busy}
+						autoComplete="off"
+						onChange={(e) => setData({ ...data, employee_no: e.target.value })}
+					/>
+				</FormField>
+				<FormField id="subject_code" label="任教学科">
+					<select
+						id="subject_code"
+						value={data.subject_code ?? "other"}
+						disabled={busy}
+						onChange={(e) => setData({ ...data, subject_code: e.target.value })}
+					>
+						{Object.entries(subjectLabels).map(([code, label]) => (
+							<option key={code} value={code}>
+								{label}
+							</option>
+						))}
+					</select>
+				</FormField>
 				<FormField id="role" label="角色">
 					<select
 						id="role"
@@ -129,6 +156,7 @@ export function AccountEditor({
 						<option value="teacher">教师</option>
 						<option value="group_leader">教研组长</option>
 						<option value="reviewer">审核人员</option>
+						<option value="school_leader">校级行政</option>
 						<option value="admin">管理员</option>
 					</select>
 				</FormField>

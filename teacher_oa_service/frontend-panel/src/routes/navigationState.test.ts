@@ -71,8 +71,30 @@ describe("resolveNavigation", () => {
 		});
 	});
 
+	it("attributes detail pages opened from teacher dossiers to teacher directory", () => {
+		expect(
+			resolveNavigation("/achievements/12", "", "/teachers/91001"),
+		).toEqual({
+			activeKey: "teachers",
+			activeMatch: "location",
+			activeGroup: null,
+			title: "成果详情",
+			trail: ["教师资料", "成果详情"],
+		});
+		expect(
+			resolveNavigation("/teachers/91001", "", "/teachers?department_id=1"),
+		).toEqual({
+			activeKey: "teachers",
+			activeMatch: "location",
+			activeGroup: null,
+			title: "教师档案详情",
+			trail: ["教师资料", "教师档案详情"],
+		});
+	});
+
 	it.each([
 		["/dashboard", "dashboard", ["工作台"]],
+		["/teachers", "teachers", ["教师资料"]],
 		["/reviews", "reviews", ["审核中心"]],
 		["/files", "files", ["文件资料"]],
 		["/teachers/me", "profile", ["个人账户", "个人档案"]],

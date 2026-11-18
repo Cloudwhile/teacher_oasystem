@@ -40,7 +40,27 @@ export function AchievementListPage() {
 		(signal: AbortSignal) => achievementApi.list(query, signal),
 		[query],
 	);
+	const isAllScope = params.get("scope") === "all";
+	const canFilterPeople =
+		isAllScope &&
+		Boolean(
+			session?.user.grants.some(
+				(g) =>
+					(g.permission === "achievements:read" ||
+						g.permission === "teachers:read" ||
+						g.permission === "teachers:directory") &&
+					g.scope !== "SELF",
+			),
+		);
+	const loadPeople = useCallback(
+		(signal: AbortSignal) =>
+			canFilterPeople
+				? achievementApi.scopePeople(signal)
+				: Promise.resolve({ departments: [], teachers: [] }),
+		[canFilterPeople],
+	);
 	const catalog = useResource(achievementApi.catalog);
+	const people = useResource(loadPeople);
 	const result = useResource(load);
 
 	const commitParams = (
@@ -95,6 +115,8 @@ export function AchievementListPage() {
 
 	const hasFilters = Boolean(
 		params.get("search") ||
+			params.get("department_id") ||
+			params.get("teacher_id") ||
 			params.get("type_code") ||
 			params.get("academic_term_id") ||
 			params.get("status") ||
@@ -106,6 +128,8 @@ export function AchievementListPage() {
 		canWrite &&
 		!result.loading &&
 		(Boolean(result.data?.items.length) || hasFilters || Boolean(result.error));
+	const isQuietEmpty =
+		!isAllScope && !hasFilters && !result.loading && result.data?.total === 0;
 
 	return (
 		<>
@@ -131,20 +155,12 @@ export function AchievementListPage() {
 				)}
 			</PageHeading>
 			<form
-				className="achievement-filters with-scope"
+				className={`achievement-filters ${canFilterPeople ? "with-people" : "with-scope"}${isQuietEmpty ? " is-quiet-empty" : ""}`}
 				onSubmit={(event) => {
 					event.preventDefault();
 					filter("search", searchInput.trim());
 				}}
 			>
-				<select
-					aria-label="成果范围"
-					value={params.get("scope") ?? "mine"}
-					onChange={(e) => filter("scope", e.target.value)}
-				>
-					<option value="mine">我的成果</option>
-					<option value="all">可查看的全部成果</option>
-				</select>
 				<div className="search-control">
 					<IconButton label="搜索成果" type="submit">
 						<Search />
@@ -153,7 +169,9 @@ export function AchievementListPage() {
 						maxLength={100}
 						name="search"
 						aria-label="搜索成果名称"
-						placeholder="搜索成果名称"
+						placeholder={
+							canFilterPeople ? "搜索成果名称、教师姓名或工号" : "搜索成果名称"
+						}
 						value={searchInput}
 						onChange={(event) => handleSearchChange(event.target.value)}
 					/>
@@ -169,6 +187,67 @@ export function AchievementListPage() {
 						</IconButton>
 					)}
 				</div>
+				<select
+					aria-label="成果范围"
+					value={params.get("scope") ?? "mine"}
+					onChange={(e) => {
+						const nextScope = e.target.value;
+						commitParams((next) => {
+							if (nextScope) next.set("scope", nextScope);
+							else next.delete("scope");
+							if (nextScope !== "all") {
+								next.delete("department_id");
+								next.delete("teacher_id");
+							}
+							next.delete("page");
+						});
+					}}
+				>
+					<option value="mine">我的成果</option>
+					<option value="all">可查看的全部成果</option>
+				</select>
+				{canFilterPeople && (
+					<>
+						<select
+							aria-label="筛选部门"
+							value={params.get("department_id") ?? ""}
+							onChange={(event) => {
+								const deptId = event.target.value;
+								commitParams((next) => {
+									if (deptId) next.set("department_id", deptId);
+									else next.delete("department_id");
+									next.delete("teacher_id");
+									next.delete("page");
+								});
+							}}
+						>
+							<option value="">全部部门</option>
+							{people.data?.departments.map((dept) => (
+								<option key={dept.id} value={dept.id}>
+									{dept.name}
+								</option>
+							))}
+						</select>
+						<select
+							aria-label="筛选教师"
+							value={params.get("teacher_id") ?? ""}
+							onChange={(event) => filter("teacher_id", event.target.value)}
+						>
+							<option value="">全部教师</option>
+							{people.data?.teachers
+								.filter(
+									(t) =>
+										!params.get("department_id") ||
+										String(t.department_id) === params.get("department_id"),
+								)
+								.map((teacher) => (
+									<option key={teacher.id} value={teacher.id}>
+										{teacher.name}
+									</option>
+								))}
+						</select>
+					</>
+				)}
 				<select
 					aria-label="筛选成果类型"
 					value={params.get("type_code") ?? ""}
@@ -253,7 +332,10 @@ export function AchievementListPage() {
 							<span className="section-meta">共 {result.data.total} 条</span>
 						</div>
 						{result.data.items.length ? (
-							<AchievementTable items={result.data.items} />
+							<AchievementTable
+								items={result.data.items}
+								hideTeacher={!isAllScope}
+							/>
 						) : (
 							<EmptyState
 								icon={hasFilters ? <Search /> : <FileText />}

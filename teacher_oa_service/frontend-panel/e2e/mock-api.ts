@@ -2,12 +2,18 @@ import type { Page, Route } from "playwright/test";
 
 // Self-contained API stand-in for layout and navigation checks, so they run
 // without a database. Business flows stay covered by the backend-backed specs.
-export type Role = "teacher" | "reviewer" | "admin";
+export type Role = "teacher" | "school_leader" | "reviewer" | "admin";
 
 const permissions: Record<Role, string[]> = {
 	teacher: ["achievements:write"],
+	school_leader: ["achievements:write", "teachers:directory"],
 	reviewer: ["achievements:write", "reviews:write"],
-	admin: ["achievements:write", "reviews:write", "admin:manage"],
+	admin: [
+		"achievements:write",
+		"teachers:directory",
+		"reviews:write",
+		"admin:manage",
+	],
 };
 const now = "2026-10-20T08:00:00Z";
 function record(id: number, title: string) {
@@ -53,7 +59,7 @@ export async function mockApi(
 		roles: [role],
 		grants: permissions[role].map((permission) => ({
 			permission,
-			scope: "SELF",
+			scope: permission === "teachers:directory" ? "ALL" : "SELF",
 		})),
 		teacher: {
 			id: 1,
@@ -154,10 +160,40 @@ export async function mockApi(
 		if (
 			path === "/academic-terms" ||
 			path === "/dictionaries" ||
+			path === "/departments" ||
 			path === "/teachers" ||
 			path === "/collaboration-teachers"
 		)
 			return ok(route, []);
+		if (path === "/teachers/directory")
+			return ok(route, {
+				departments: [{ id: 1, name: "数学教研组" }],
+				items: [
+					{
+						...user.teacher,
+						account_status: "active",
+						roles: ["teacher"],
+						achievement_count: 2,
+						approved_count: 1,
+						material_count: 1,
+					},
+				],
+				page: 1,
+				page_size: 20,
+				total: 1,
+			});
+		const dossier = /^\/teachers\/(\d+)\/dossier$/.exec(path);
+		if (dossier)
+			return ok(route, {
+				profile: user.teacher,
+				account_status: "active",
+				roles: ["teacher"],
+				created_at: now,
+				counts: { pending: 1, returned: 0, approved: 1, archived: 0 },
+				achievements: [record(11, "王老师公开课")],
+				achievement_total: 2,
+				files: [],
+			});
 		if (path === "/files")
 			return ok(route, { items: [], page: 1, page_size: 20, total: 0 });
 		if (path === "/teachers/me") return ok(route, user.teacher);

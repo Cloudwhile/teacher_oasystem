@@ -13,6 +13,8 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { FilesPage } from "@/features/files/FilesPage";
 import { ReviewListPage } from "@/features/reviews/ReviewListPage";
 import { MyProfilePage } from "@/features/teachers/MyProfilePage";
+import { TeacherDirectoryPage } from "@/features/teachers/TeacherDirectoryPage";
+import { TeacherDossierPage } from "@/features/teachers/TeacherDossierPage";
 import { ErrorPage } from "@/pages/ErrorPage";
 import { appPaths } from "@/routes/routePaths";
 
@@ -27,7 +29,9 @@ export const router = createBrowserRouter([
 				children: [
 					{ path: "/", element: <Navigate to={appPaths.dashboard} replace /> },
 					{ path: appPaths.dashboard, element: <DashboardPage /> },
+					{ path: "/teachers", element: <TeacherDirectoryPage /> },
 					{ path: appPaths.profile, element: <MyProfilePage /> },
+					{ path: "/teachers/:id", element: <TeacherDossierPage /> },
 					{ path: "/achievements", element: <AchievementListPage /> },
 					{ path: "/achievements/new", element: <AchievementEditorPage /> },
 					{ path: "/achievements/:id", element: <AchievementDetailPage /> },

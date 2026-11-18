@@ -42,7 +42,10 @@ test("公开课：保存、修改、上传、提交、材料预览与列表筛�
 	const proof = await page.request.get(preview ?? "invalid");
 	expect(proof.status()).toBe(200);
 	expect(proof.headers()["content-type"]).toContain("image/png");
-	await page.getByRole("link", { name: "我的成果", exact: true }).click();
+	await page
+		.getByRole("navigation", { name: "主导航" })
+		.getByRole("link", { name: "我的成果", exact: true })
+		.click();
 	await page.getByLabel("搜索成果名称").fill(title);
 	await page.getByLabel("搜索成果名称").press("Enter");
 	await expect(
