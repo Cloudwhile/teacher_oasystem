@@ -227,5 +227,5 @@ fn create_fallback_files(manifest_dir: &str, dist_path: &Path) -> io::Result<()>
 }
 
 fn fallback_favicon() -> &'static [u8] {
-    br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f766e"/><path d="M18 42 31 14h4l11 28h-7l-2-6H26l-2 6h-6Zm11-12h6l-3-8-3 8Z" fill="#fff"/></svg>"##
+    br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>TeacherOA</title><rect width="64" height="64" rx="14" fill="#1b56c4"/><path d="M32 13 8 25l24 12 18-9v13h4V26l2-1L32 13Zm-14 20.5v11C18 49.2 24.3 52 32 52s14-2.8 14-7.5v-11l-14 7-14-7Z" fill="#ffffff"/></svg>"##
 }
