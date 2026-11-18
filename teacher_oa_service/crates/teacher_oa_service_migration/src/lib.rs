@@ -26,6 +26,7 @@ mod m20261025_000004_achievement_records;
 mod m20261030_000005_accounts_settings;
 mod m20261031_000006_login_page;
 mod m20261115_000007_identity_constraints;
+mod m20261117_000008_school_leader_and_teacher_directory;
 mod schema_helpers;
 
 /// Service migrator.
@@ -52,6 +53,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261030_000005_accounts_settings::Migration),
             Box::new(m20261031_000006_login_page::Migration),
             Box::new(m20261115_000007_identity_constraints::Migration),
+            Box::new(m20261117_000008_school_leader_and_teacher_directory::Migration),
         ]
     }
 }

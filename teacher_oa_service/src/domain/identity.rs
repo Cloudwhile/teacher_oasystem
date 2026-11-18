@@ -1,4 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+use crate::domain::achievements::{AchievementItem, FileMetadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -30,6 +34,13 @@ pub struct PermissionGrant {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct DepartmentOption {
+    pub id: i64,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
 pub struct TeacherProfile {
     pub id: i64,
     pub user_id: i64,
@@ -39,6 +50,47 @@ pub struct TeacherProfile {
     pub department_name: String,
     pub subject_code: String,
     pub employment_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct TeacherDirectoryItem {
+    pub id: i64,
+    pub user_id: i64,
+    pub employee_no: String,
+    pub name: String,
+    pub department_id: i64,
+    pub department_name: String,
+    pub subject_code: String,
+    pub employment_status: String,
+    pub account_status: String,
+    pub roles: Vec<String>,
+    pub achievement_count: u64,
+    pub approved_count: u64,
+    pub material_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct TeacherDirectoryPage {
+    pub departments: Vec<DepartmentOption>,
+    pub items: Vec<TeacherDirectoryItem>,
+    pub page: u64,
+    pub page_size: u64,
+    pub total: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct TeacherDossier {
+    pub profile: TeacherProfile,
+    pub account_status: String,
+    pub roles: Vec<String>,
+    pub created_at: DateTime<Utc>,
+    pub counts: BTreeMap<String, u64>,
+    pub achievements: Vec<AchievementItem>,
+    pub achievement_total: u64,
+    pub files: Vec<FileMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +113,12 @@ impl CurrentUser {
                     DataScope::All => true,
                 }
         })
+    }
+
+    pub fn can_read_teacher_directory(&self) -> bool {
+        self.grants
+            .iter()
+            .any(|grant| grant.permission == "teachers:directory" && grant.scope == DataScope::All)
     }
 }
 

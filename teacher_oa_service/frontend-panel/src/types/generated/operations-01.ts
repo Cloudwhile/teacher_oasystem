@@ -152,6 +152,8 @@ export interface OperationsPart1 {
                 academic_term_id?: number;
                 status?: string;
                 level_code?: string;
+                teacher_id?: number;
+                department_id?: number;
                 sort?: string;
                 scope?: string;
             };

@@ -1,6 +1,22 @@
 /** Generated from the Rust OpenAPI contract. Do not edit. */
 import type { operations } from "../api.generated";
 export interface PathsPart2 {
+    "/api/v1/files/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["file_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/download": {
         parameters: {
             query?: never;
@@ -81,6 +97,22 @@ export interface PathsPart2 {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teachers/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teachers_directory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teachers/me": {
         parameters: {
             query?: never;
@@ -105,6 +137,22 @@ export interface PathsPart2 {
             cookie?: never;
         };
         get: operations["teachers_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teachers/{id}/dossier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teachers_dossier"];
         put?: never;
         post?: never;
         delete?: never;

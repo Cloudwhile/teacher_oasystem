@@ -19,6 +19,8 @@ fn account(username: &str, role: &str) -> accounts::AccountInput {
         active: true,
         password: Some("Initial-password-123".into()),
         wecom_userid: None,
+        employee_no: None,
+        subject_code: None,
     }
 }
 

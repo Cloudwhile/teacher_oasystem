@@ -3,8 +3,14 @@ use crate::api::collections::*;
 use crate::api::error::{Failure, Success};
 use crate::{
     api::error::{ApiError, RequestError, success},
-    domain::{achievements::*, identity::DataScope},
-    repositories::{achievements as repo, entities::teacher},
+    domain::{
+        achievements::*,
+        identity::{DataScope, DepartmentOption},
+    },
+    repositories::{
+        achievements as repo,
+        entities::{department, teacher},
+    },
     runtime::AppState,
     services::auth_service as auth,
 };
@@ -169,11 +175,55 @@ pub async fn collaboration_teachers(
     result.map_err(|e: ApiError| e.at(&request))
 }
 
+#[aster_forge_api_docs_macros::path(get,path="/api/v1/departments",operation_id="department_options",security(("session"=[])),responses((status=200,body=Success<DepartmentOptions>),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
+pub async fn departments(
+    request: HttpRequest,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, RequestError> {
+    let result = async {
+        let (_, user) = auth::authenticate(&request, &state).await?;
+        if !repo::has_permission(&user, "achievements:read")
+            && !repo::has_permission(&user, "teachers:read")
+        {
+            return Err(ApiError::Forbidden);
+        }
+        let all_departments = user.grants.iter().any(|grant| {
+            matches!(
+                grant.permission.as_str(),
+                "achievements:read" | "teachers:read" | "teachers:directory"
+            ) && grant.scope == DataScope::All
+        });
+        let mut select = department::Entity::find();
+        if !all_departments {
+            select = select.filter(department::Column::Id.eq(user.teacher.department_id));
+        }
+        let rows = select
+            .order_by_asc(department::Column::Name)
+            .order_by_asc(department::Column::Id)
+            .all(state.db_handles.writer())
+            .await?;
+        success(
+            &request,
+            DepartmentOptions(
+                rows.into_iter()
+                    .map(|r| DepartmentOption {
+                        id: r.id,
+                        name: r.name,
+                    })
+                    .collect(),
+            ),
+        )
+    }
+    .await;
+    result.map_err(|e: ApiError| e.at(&request))
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.route("/achievement-types", web::get().to(types))
         .route("/achievement-types/{code}/schema", web::get().to(schema))
         .route("/academic-terms", web::get().to(terms))
         .route("/dictionaries", web::get().to(dictionaries))
+        .route("/departments", web::get().to(departments))
         .route("/teachers", web::get().to(teachers))
         .route(
             "/collaboration-teachers",

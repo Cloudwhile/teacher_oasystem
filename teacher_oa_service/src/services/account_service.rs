@@ -55,6 +55,8 @@ pub async fn initialize_admin(
             active: true,
             password: Some(password),
             wecom_userid: None,
+            employee_no: None,
+            subject_code: None,
         },
     )
     .await?;
@@ -93,6 +95,10 @@ pub struct AccountInput {
     pub active: bool,
     pub password: Option<String>,
     pub wecom_userid: Option<String>,
+    #[serde(default)]
+    pub employee_no: Option<String>,
+    #[serde(default)]
+    pub subject_code: Option<String>,
 }
 #[derive(Serialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
@@ -105,6 +111,8 @@ pub struct AccountItem {
     pub active: bool,
     pub wecom_userid: Option<String>,
     pub must_change: bool,
+    pub employee_no: String,
+    pub subject_code: String,
 }
 #[derive(Serialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
@@ -322,6 +330,8 @@ pub async fn accounts_for_corp(db: &DatabaseConnection, corp: &str) -> Result<Ac
             active: account.status == "active",
             wecom_userid: bindings.get(&user_id).cloned(),
             must_change: cred.is_some_and(|row| row.must_change),
+            employee_no: person.employee_no.clone(),
+            subject_code: person.subject_code.clone(),
         });
     }
     items.sort_by(|left, right| {
@@ -356,8 +366,56 @@ pub async fn save(
     {
         return Err(ApiError::Invalid("请填写有效姓名和部门"));
     }
-    if !["teacher", "group_leader", "reviewer", "admin"].contains(&input.role.as_str()) {
+    if ![
+        "teacher",
+        "group_leader",
+        "reviewer",
+        "school_leader",
+        "admin",
+    ]
+    .contains(&input.role.as_str())
+    {
         return Err(ApiError::Invalid("角色无效"));
+    }
+    let requested_employee_no = input
+        .employee_no
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if let Some(emp) = requested_employee_no
+        && (emp.chars().count() > 64 || emp.chars().any(char::is_control))
+    {
+        return Err(ApiError::Invalid(
+            "教师工号长度须在1至64位之间且不含控制字符",
+        ));
+    }
+    let requested_subject = input
+        .subject_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if let Some(subj) = requested_subject
+        && ![
+            "chinese",
+            "math",
+            "english",
+            "information_technology",
+            "physics",
+            "chemistry",
+            "biology",
+            "history",
+            "geography",
+            "politics",
+            "pe",
+            "music",
+            "art",
+            "education_management",
+            "moral_education",
+            "other",
+        ]
+        .contains(&subj)
+    {
+        return Err(ApiError::Invalid("任教学科无效"));
     }
     if input.id.is_some() && input.id == actor && (!input.active || input.role != "admin") {
         return Err(ApiError::Invalid("不能停用自己或移除自己的管理员角色"));
@@ -433,9 +491,27 @@ pub async fn save(
             .filter(user::Column::Id.eq(id))
             .exec(&txn)
             .await?;
-        teacher::Entity::update_many()
+        if let Some(emp) = requested_employee_no {
+            let duplicate_emp = teacher::Entity::find()
+                .filter(teacher::Column::EmployeeNo.eq(emp))
+                .filter(teacher::Column::UserId.ne(id))
+                .one(&txn)
+                .await?;
+            if duplicate_emp.is_some() {
+                return Err(ApiError::Conflict("该教师工号已被其他成员使用"));
+            }
+        }
+        let mut teacher_update = teacher::Entity::update_many()
             .col_expr(teacher::Column::Name, Expr::value(input.name.trim()))
-            .col_expr(teacher::Column::DepartmentId, Expr::value(dept.id))
+            .col_expr(teacher::Column::DepartmentId, Expr::value(dept.id));
+        if let Some(emp) = requested_employee_no {
+            teacher_update = teacher_update.col_expr(teacher::Column::EmployeeNo, Expr::value(emp));
+        }
+        if let Some(subj) = requested_subject {
+            teacher_update =
+                teacher_update.col_expr(teacher::Column::SubjectCode, Expr::value(subj));
+        }
+        teacher_update
             .filter(teacher::Column::UserId.eq(id))
             .exec(&txn)
             .await?;
@@ -476,13 +552,16 @@ pub async fn save(
         }
         id
     } else {
+        let final_employee_no = requested_employee_no
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("OA-{username}"));
         if teacher::Entity::find()
-            .filter(teacher::Column::EmployeeNo.eq(format!("OA-{username}")))
+            .filter(teacher::Column::EmployeeNo.eq(&final_employee_no))
             .one(&txn)
             .await?
             .is_some()
         {
-            return Err(ApiError::Conflict("账号已存在或账号信息已变更"));
+            return Err(ApiError::Conflict("账号或教师工号已存在"));
         }
         let account = user::ActiveModel {
             display_name: Set(input.name.trim().into()),
@@ -498,10 +577,10 @@ pub async fn save(
         .await?;
         teacher::ActiveModel {
             user_id: Set(account.id),
-            employee_no: Set(format!("OA-{username}")),
+            employee_no: Set(final_employee_no),
             name: Set(input.name.trim().into()),
             department_id: Set(dept.id),
-            subject_code: Set("other".into()),
+            subject_code: Set(requested_subject.unwrap_or("other").into()),
             employment_status: Set("active".into()),
             created_at: Set(Utc::now()),
             ..Default::default()

@@ -1,6 +1,14 @@
 //! Named payloads keep generic collection schemas distinct in OpenAPI.
-use crate::domain::{achievements::*, identity::PermissionGrant};
+use crate::domain::{
+    achievements::*,
+    identity::{DepartmentOption, PermissionGrant},
+};
 use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(transparent)]
+#[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
+pub struct DepartmentOptions(pub Vec<DepartmentOption>);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]

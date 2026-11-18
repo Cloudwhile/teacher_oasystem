@@ -18,22 +18,26 @@ export interface SchemasPart1 {
     AccountInput: {
         active: boolean;
         department: string;
+        employee_no?: string | null;
         /** Format: int64 */
         id?: number | null;
         name: string;
         password?: string | null;
         role: string;
+        subject_code?: string | null;
         username: string;
         wecom_userid?: string | null;
     };
     AccountItem: {
         active: boolean;
         department: string;
+        employee_no: string;
         /** Format: int64 */
         id: number;
         must_change: boolean;
         name: string;
         role: string;
+        subject_code: string;
         username: string;
         wecom_userid?: string | null;
     };
@@ -230,6 +234,12 @@ export interface SchemasPart1 {
         error?: components["schemas"]["ApiErrorInfo_TupleUnit"];
         msg: string;
     };
+    ApiResponse_DepartmentOptions_ApiErrorCode: {
+        code: components["schemas"]["ApiErrorCode"];
+        data?: components["schemas"]["DepartmentOption"][];
+        error?: components["schemas"]["ApiErrorInfo_TupleUnit"];
+        msg: string;
+    };
     ApiResponse_DictionaryItems_ApiErrorCode: {
         code: components["schemas"]["ApiErrorCode"];
         data?: components["schemas"]["DictionaryItem"][];
@@ -316,6 +326,40 @@ export interface SchemasPart1 {
         error?: components["schemas"]["ApiErrorInfo_TupleUnit"];
         msg: string;
     };
+    ApiResponse_TeacherDirectoryPage_ApiErrorCode: {
+        code: components["schemas"]["ApiErrorCode"];
+        data?: {
+            departments: components["schemas"]["DepartmentOption"][];
+            items: components["schemas"]["TeacherDirectoryItem"][];
+            /** Format: int64 */
+            page: number;
+            /** Format: int64 */
+            page_size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        error?: components["schemas"]["ApiErrorInfo_TupleUnit"];
+        msg: string;
+    };
+    ApiResponse_TeacherDossier_ApiErrorCode: {
+        code: components["schemas"]["ApiErrorCode"];
+        data?: {
+            account_status: string;
+            /** Format: int64 */
+            achievement_total: number;
+            achievements: components["schemas"]["AchievementItem"][];
+            counts: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            created_at: string;
+            files: components["schemas"]["FileMetadata"][];
+            profile: components["schemas"]["TeacherProfile"];
+            roles: string[];
+        };
+        error?: components["schemas"]["ApiErrorInfo_TupleUnit"];
+        msg: string;
+    };
     ApiResponse_TeacherOptions_ApiErrorCode: {
         code: components["schemas"]["ApiErrorCode"];
         data?: components["schemas"]["TeacherOption"][];
@@ -389,6 +433,12 @@ export interface SchemasPart1 {
     };
     /** @enum {string} */
     DataScope: "SELF" | "DEPARTMENT" | "ALL";
+    DepartmentOption: {
+        /** Format: int64 */
+        id: number;
+        name: string;
+    };
+    DepartmentOptions: components["schemas"]["DepartmentOption"][];
     DictionaryItem: {
         code: string;
         group_code: string;
@@ -399,50 +449,4 @@ export interface SchemasPart1 {
     DictionaryItems: components["schemas"]["DictionaryItem"][];
     /** @description Product error adapter: injects the code/message and retains the stable ErrorResponse schema. */
     ErrorResponse: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_TupleUnit"];
-    Failure: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_ValidationDetails"] & {
-        request_id: string;
-    };
-    FieldDefinition: {
-        dictionary?: string | null;
-        format?: string | null;
-        help?: string;
-        key: string;
-        label: string;
-        maxLength?: number | null;
-        options?: string[];
-        /** Format: int32 */
-        order: number;
-        required: boolean;
-        roles?: string[];
-        type: components["schemas"]["FieldType"];
-        visible: boolean;
-    };
-    /** @enum {string} */
-    FieldType: "text" | "textarea" | "number" | "date" | "select" | "multi_select" | "participant_list" | "file_list";
-    /** @enum {string} */
-    FileAssociation: "linked" | "historical" | "unlinked";
-    FileMetadata: {
-        association?: components["schemas"]["FileAssociation"] | null;
-        /** Format: date-time */
-        created_at: string;
-        filename: string;
-        /** Format: int64 */
-        id: number;
-        mime_type: string;
-        sha256: string;
-        /** Format: int64 */
-        size_bytes: number;
-        upload_status: string;
-        /** Format: int64 */
-        uploaded_by: number;
-    };
-    FilePage: {
-        items: components["schemas"]["FileMetadata"][];
-        /** Format: int64 */
-        page: number;
-        /** Format: int64 */
-        page_size: number;
-        /** Format: int64 */
-        total: number;
-    };
 }

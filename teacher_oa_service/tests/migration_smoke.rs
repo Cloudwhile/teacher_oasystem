@@ -23,6 +23,7 @@ fn migrations_preserve_registered_names_and_order() {
             "m20261030_000005_accounts_settings",
             "m20261031_000006_login_page",
             "m20261115_000007_identity_constraints",
+            "m20261117_000008_school_leader_and_teacher_directory",
         ]
     );
 }

@@ -5,14 +5,18 @@ use crate::{
     api::error::{ApiError, RequestError, success},
     domain::achievements::*,
     repositories::{
-        achievement_entities::{achievement, revision},
+        achievement_entities::{achievement, participant, revision},
         achievements as repo,
+        entities::teacher,
     },
     runtime::AppState,
     services::{achievement_service as service, auth_service as auth, business_audit},
 };
 use actix_web::{HttpRequest, HttpResponse, web};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ColumnTrait, Condition, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    sea_query::{Expr, LikeExpr, Query},
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -24,6 +28,8 @@ pub struct ListQuery {
     pub academic_term_id: Option<i64>,
     pub status: Option<String>,
     pub level_code: Option<String>,
+    pub teacher_id: Option<i64>,
+    pub department_id: Option<i64>,
     pub sort: Option<String>,
     pub scope: Option<String>,
 }
@@ -36,7 +42,7 @@ pub fn pagination(page: Option<u64>, size: Option<u64>) -> Result<(u64, u64), Ap
     Ok((page, size))
 }
 
-#[aster_forge_api_docs_macros::path(get,path="/api/v1/achievements",operation_id="achievements_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query),("search"=Option<String>,Query),("type_code"=Option<String>,Query),("academic_term_id"=Option<i64>,Query),("status"=Option<String>,Query),("level_code"=Option<String>,Query),("sort"=Option<String>,Query),("scope"=Option<String>,Query)),security(("session"=[])),responses((status=200,body=Success<AchievementPage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
+#[aster_forge_api_docs_macros::path(get,path="/api/v1/achievements",operation_id="achievements_list",params(("page"=Option<u64>,Query),("page_size"=Option<u64>,Query),("search"=Option<String>,Query),("type_code"=Option<String>,Query),("academic_term_id"=Option<i64>,Query),("status"=Option<String>,Query),("level_code"=Option<String>,Query),("teacher_id"=Option<i64>,Query),("department_id"=Option<i64>,Query),("sort"=Option<String>,Query),("scope"=Option<String>,Query)),security(("session"=[])),responses((status=200,body=Success<AchievementPage>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=500,body=Failure)))]
 pub async fn list(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -49,11 +55,14 @@ pub async fn list(
         }
         let (page, page_size) = pagination(query.page, query.page_size)?;
         let mut select = achievement::Entity::find().filter(repo::scope(&user));
-        match query.scope.as_deref().unwrap_or("all") {
-            "mine" => select = select.filter(repo::personal_scope(&user)),
-            "all" => {}
+        let is_all_scope = match query.scope.as_deref().unwrap_or("all") {
+            "mine" => {
+                select = select.filter(repo::personal_scope(&user));
+                false
+            }
+            "all" => true,
             _ => return Err(ApiError::Invalid("成果范围无效")),
-        }
+        };
         if let Some(search) = &query.search {
             if search.chars().count() > 100 {
                 return Err(ApiError::Invalid("搜索内容过长"));
@@ -62,9 +71,63 @@ pub async fn list(
                 .replace('!', "!!")
                 .replace('%', "!%")
                 .replace('_', "!_");
+            let pattern = format!("%{escaped}%");
+            if is_all_scope {
+                select =
+                    select.filter(
+                        Condition::any()
+                            .add(
+                                achievement::Column::Title
+                                    .like(LikeExpr::new(pattern.clone()).escape('!')),
+                            )
+                            .add(
+                                achievement::Column::TeacherId.in_subquery(
+                                    Query::select()
+                                        .column(teacher::Column::Id)
+                                        .from(teacher::Entity)
+                                        .cond_where(
+                                            Condition::any()
+                                                .add(Expr::col(teacher::Column::Name).like(
+                                                    LikeExpr::new(pattern.clone()).escape('!'),
+                                                ))
+                                                .add(
+                                                    Expr::col(teacher::Column::EmployeeNo)
+                                                        .like(LikeExpr::new(pattern).escape('!')),
+                                                ),
+                                        )
+                                        .to_owned(),
+                                ),
+                            ),
+                    );
+            } else {
+                select = select
+                    .filter(achievement::Column::Title.like(LikeExpr::new(pattern).escape('!')));
+            }
+        }
+        if let Some(dept_id) = query.department_id {
             select = select.filter(
-                achievement::Column::Title
-                    .like(sea_orm::sea_query::LikeExpr::new(format!("%{escaped}%")).escape('!')),
+                achievement::Column::TeacherId.in_subquery(
+                    Query::select()
+                        .column(teacher::Column::Id)
+                        .from(teacher::Entity)
+                        .and_where(Expr::col(teacher::Column::DepartmentId).eq(dept_id))
+                        .to_owned(),
+                ),
+            );
+        }
+        if let Some(tid) = query.teacher_id {
+            select = select.filter(
+                Condition::any()
+                    .add(achievement::Column::TeacherId.eq(tid))
+                    .add(
+                        achievement::Column::Id.in_subquery(
+                            Query::select()
+                                .column(participant::Column::AchievementId)
+                                .from(participant::Entity)
+                                .and_where(Expr::col(participant::Column::TeacherId).eq(tid))
+                                .to_owned(),
+                        ),
+                    ),
             );
         }
         if let Some(code) = &query.type_code {
@@ -96,7 +159,7 @@ pub async fn list(
             .order_by_desc(achievement::Column::Id)
             .paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
-        let page = page.min(total.div_ceil(page_size).max(1));
+        let page = std::cmp::Ord::min(page, std::cmp::Ord::max(total.div_ceil(page_size), 1));
         let mut items = Vec::new();
         for row in pager.fetch_page(page - 1).await? {
             items.push(repo::item(state.db_handles.writer(), &row).await?);

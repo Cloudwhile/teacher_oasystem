@@ -399,7 +399,7 @@ export interface OperationsPart4 {
             };
         };
     };
-    dictionaries: {
+    department_options: {
         parameters: {
             query?: never;
             header?: never;
@@ -413,7 +413,7 @@ export interface OperationsPart4 {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Success_DictionaryItems"];
+                    "application/json": components["schemas"]["Success_DepartmentOptions"];
                 };
             };
             401: {

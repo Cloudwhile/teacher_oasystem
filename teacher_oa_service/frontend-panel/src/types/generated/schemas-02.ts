@@ -1,6 +1,52 @@
 /** Generated from the Rust OpenAPI contract. Do not edit. */
 import type { components } from "../api.generated";
 export interface SchemasPart2 {
+    Failure: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_ValidationDetails"] & {
+        request_id: string;
+    };
+    FieldDefinition: {
+        dictionary?: string | null;
+        format?: string | null;
+        help?: string;
+        key: string;
+        label: string;
+        maxLength?: number | null;
+        options?: string[];
+        /** Format: int32 */
+        order: number;
+        required: boolean;
+        roles?: string[];
+        type: components["schemas"]["FieldType"];
+        visible: boolean;
+    };
+    /** @enum {string} */
+    FieldType: "text" | "textarea" | "number" | "date" | "select" | "multi_select" | "participant_list" | "file_list";
+    /** @enum {string} */
+    FileAssociation: "linked" | "historical" | "unlinked";
+    FileMetadata: {
+        association?: components["schemas"]["FileAssociation"] | null;
+        /** Format: date-time */
+        created_at: string;
+        filename: string;
+        /** Format: int64 */
+        id: number;
+        mime_type: string;
+        sha256: string;
+        /** Format: int64 */
+        size_bytes: number;
+        upload_status: string;
+        /** Format: int64 */
+        uploaded_by: number;
+    };
+    FilePage: {
+        items: components["schemas"]["FileMetadata"][];
+        /** Format: int64 */
+        page: number;
+        /** Format: int64 */
+        page_size: number;
+        /** Format: int64 */
+        total: number;
+    };
     LoginAnnouncement: {
         content: string;
         id: string;
@@ -130,6 +176,9 @@ export interface SchemasPart2 {
     Success_Dashboard: components["schemas"]["ApiResponse_Dashboard_ApiErrorCode"] & {
         request_id: string;
     };
+    Success_DepartmentOptions: components["schemas"]["ApiResponse_DepartmentOptions_ApiErrorCode"] & {
+        request_id: string;
+    };
     Success_DictionaryItems: components["schemas"]["ApiResponse_DictionaryItems_ApiErrorCode"] & {
         request_id: string;
     };
@@ -151,6 +200,12 @@ export interface SchemasPart2 {
     Success_PermissionGrants: components["schemas"]["ApiResponse_PermissionGrants_ApiErrorCode"] & {
         request_id: string;
     };
+    Success_TeacherDirectoryPage: components["schemas"]["ApiResponse_TeacherDirectoryPage_ApiErrorCode"] & {
+        request_id: string;
+    };
+    Success_TeacherDossier: components["schemas"]["ApiResponse_TeacherDossier_ApiErrorCode"] & {
+        request_id: string;
+    };
     Success_TeacherOptions: components["schemas"]["ApiResponse_TeacherOptions_ApiErrorCode"] & {
         request_id: string;
     };
@@ -159,6 +214,51 @@ export interface SchemasPart2 {
     };
     Success_WecomSettings: components["schemas"]["ApiResponse_WecomSettings_ApiErrorCode"] & {
         request_id: string;
+    };
+    TeacherDirectoryItem: {
+        account_status: string;
+        /** Format: int64 */
+        achievement_count: number;
+        /** Format: int64 */
+        approved_count: number;
+        /** Format: int64 */
+        department_id: number;
+        department_name: string;
+        employee_no: string;
+        employment_status: string;
+        /** Format: int64 */
+        id: number;
+        /** Format: int64 */
+        material_count: number;
+        name: string;
+        roles: string[];
+        subject_code: string;
+        /** Format: int64 */
+        user_id: number;
+    };
+    TeacherDirectoryPage: {
+        departments: components["schemas"]["DepartmentOption"][];
+        items: components["schemas"]["TeacherDirectoryItem"][];
+        /** Format: int64 */
+        page: number;
+        /** Format: int64 */
+        page_size: number;
+        /** Format: int64 */
+        total: number;
+    };
+    TeacherDossier: {
+        account_status: string;
+        /** Format: int64 */
+        achievement_total: number;
+        achievements: components["schemas"]["AchievementItem"][];
+        counts: {
+            [key: string]: number;
+        };
+        /** Format: date-time */
+        created_at: string;
+        files: components["schemas"]["FileMetadata"][];
+        profile: components["schemas"]["TeacherProfile"];
+        roles: string[];
     };
     TeacherOption: {
         /** Format: int64 */
