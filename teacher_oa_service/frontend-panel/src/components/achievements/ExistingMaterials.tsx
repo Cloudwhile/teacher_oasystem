@@ -41,7 +41,8 @@ export function ExistingMaterials({
 				/>
 			) : (
 				<>
-					<ul className="material-list">
+					{/* biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied. */}
+					<ul className="material-list" role="list">
 						{result.data.items.map((file) => (
 							<li key={file.id}>
 								<div className="material-name">

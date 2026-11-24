@@ -27,7 +27,7 @@ export function LoginAppearancePage() {
 					target="_blank"
 					rel="noreferrer"
 				>
-					查看登录页
+					预览登录页
 				</a>
 			</PageHeading>
 			{result.loading && !result.data ? (

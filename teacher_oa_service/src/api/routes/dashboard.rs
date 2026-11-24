@@ -43,16 +43,13 @@ pub async fn dashboard(
             .filter(achievement::Column::Status.eq("pending"))
             .count(db)
             .await?;
-        let mut recent = Vec::new();
-        for row in own
+        let recent_rows = own
             .order_by_desc(achievement::Column::UpdatedAt)
             .order_by_desc(achievement::Column::Id)
             .limit(5)
             .all(db)
-            .await?
-        {
-            recent.push(repo::item(db, &row).await?);
-        }
+            .await?;
+        let recent = repo::items(db, &recent_rows).await?;
         success(
             &request,
             Dashboard {

@@ -140,3 +140,40 @@ it("支持拖拽文件到上传区域并显示拖拽高亮状态", async () => {
 	await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
 	expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }));
 });
+
+it("默认支持最高 20MB 文件上传并在超限时提示 20MB 限制", async () => {
+	const upload = vi.spyOn(achievementApi, "upload").mockResolvedValueOnce({
+		id: 15,
+		filename: "medium.pdf",
+		size_bytes: 15 * 1024 * 1024,
+		mime_type: "application/pdf",
+		sha256: "medium",
+		uploaded_by: 91001,
+		upload_status: "ready",
+		created_at: "2026-10-25T00:00:00Z",
+	});
+	const onAdd = vi.fn();
+	render(
+		<MaterialUpload
+			files={[]}
+			csrf="test"
+			disabled={false}
+			onAdd={onAdd}
+			onRemove={vi.fn()}
+			onBusy={vi.fn()}
+		/>,
+	);
+	const withinLimit = new File(["pdf"], "medium.pdf", {
+		type: "application/pdf",
+	});
+	Object.defineProperty(withinLimit, "size", { value: 15 * 1024 * 1024 });
+	const overLimit = new File(["pdf"], "huge.pdf", { type: "application/pdf" });
+	Object.defineProperty(overLimit, "size", { value: 21 * 1024 * 1024 });
+	fireEvent.change(screen.getByLabelText("选择证明材料"), {
+		target: { files: [withinLimit, overLimit] },
+	});
+	const alert = await screen.findByRole("alert");
+	expect(alert.textContent).toContain("20MB");
+	expect(upload).toHaveBeenCalledTimes(1);
+	expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 15 }));
+});

@@ -10,6 +10,7 @@ import type { AuthResponse } from "@/features/auth/api";
 export const identity: AuthResponse = {
 	must_change_password: false,
 	csrf_token: "csrf",
+	max_upload_bytes: 20 * 1024 * 1024,
 	user: {
 		id: 1,
 		display_name: "原管理员",

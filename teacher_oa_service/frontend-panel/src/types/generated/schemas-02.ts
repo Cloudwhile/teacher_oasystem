@@ -1,6 +1,16 @@
 /** Generated from the Rust OpenAPI contract. Do not edit. */
 import type { components } from "../api.generated";
 export interface SchemasPart2 {
+    DictionaryItem: {
+        code: string;
+        group_code: string;
+        name: string;
+        /** Format: int32 */
+        sort_order: number;
+    };
+    DictionaryItems: components["schemas"]["DictionaryItem"][];
+    /** @description Product error adapter: injects the code/message and retains the stable ErrorResponse schema. */
+    ErrorResponse: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_TupleUnit"];
     Failure: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_ValidationDetails"] & {
         request_id: string;
     };

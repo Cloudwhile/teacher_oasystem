@@ -24,6 +24,7 @@ const account = {
 	role: "admin",
 	active: true,
 	must_change: false,
+	employment_status: "active",
 };
 afterEach(() => {
 	cleanup();
@@ -242,4 +243,45 @@ it("删除公告不会误提交尚未保存的外观草稿", async () => {
 		"value",
 		"未保存新标题",
 	);
+});
+
+it("登录页设置使用预览登录页文案，成员管理支持在职状态展示与提交", async () => {
+	mockHttp((url) => {
+		if (url.endsWith("/auth/me")) return json(identity);
+		if (url.endsWith("/admin/login-page")) return json(defaultLoginPage);
+		throw new Error(`Unexpected ${url}`);
+	});
+	showPage(<LoginAppearancePage />, "/admin/login-page");
+	expect(await screen.findByRole("link", { name: "预览登录页" })).toBeTruthy();
+	cleanup();
+
+	let savedBody: Record<string, unknown> | null = null;
+	const resignedAccount = {
+		...account,
+		id: 2,
+		username: "resigned",
+		name: "离职教师",
+		employment_status: "inactive",
+	};
+	mockHttp((url, init) => {
+		if (url.endsWith("/auth/me")) return json(identity);
+		if (url.endsWith("/admin/accounts") && init?.method === "POST") {
+			savedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+			return json({ items: [{ ...account, employment_status: "inactive" }] });
+		}
+		if (url.endsWith("/admin/accounts")) {
+			return json({ items: [account, resignedAccount] });
+		}
+		throw new Error(`Unexpected ${url}`);
+	});
+	showPage(<AccountsPage />, "/admin/accounts");
+	expect(await screen.findByText("离职")).toBeTruthy();
+	fireEvent.click(screen.getByRole("button", { name: "编辑resigned" }));
+	const statusSelect = screen.getByLabelText(/^在职状态/) as HTMLSelectElement;
+	expect(statusSelect.value).toBe("inactive");
+	fireEvent.change(statusSelect, { target: { value: "active" } });
+	fireEvent.change(statusSelect, { target: { value: "inactive" } });
+	fireEvent.click(screen.getByRole("button", { name: "保存账号" }));
+	await screen.findByText("账号已保存");
+	expect(savedBody).toMatchObject({ employment_status: "inactive" });
 });

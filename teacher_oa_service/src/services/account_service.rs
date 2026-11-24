@@ -57,6 +57,7 @@ pub async fn initialize_admin(
             wecom_userid: None,
             employee_no: None,
             subject_code: None,
+            employment_status: None,
         },
     )
     .await?;
@@ -65,7 +66,7 @@ pub async fn initialize_admin(
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    Set, TransactionTrait, sea_query::Expr,
+    QueryOrder, Set, TransactionTrait, sea_query::Expr,
 };
 use serde::{Deserialize, Serialize};
 
@@ -99,6 +100,8 @@ pub struct AccountInput {
     pub employee_no: Option<String>,
     #[serde(default)]
     pub subject_code: Option<String>,
+    #[serde(default)]
+    pub employment_status: Option<String>,
 }
 #[derive(Serialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
@@ -113,6 +116,7 @@ pub struct AccountItem {
     pub must_change: bool,
     pub employee_no: String,
     pub subject_code: String,
+    pub employment_status: String,
 }
 #[derive(Serialize)]
 #[cfg_attr(all(debug_assertions, feature = "openapi"), derive(utoipa::ToSchema))]
@@ -199,6 +203,7 @@ pub async fn login(
                 )
                 .col_expr(credential::Column::FailedAttempts, Expr::value(0))
                 .filter(credential::Column::Username.eq(&row.username))
+                .filter(credential::Column::FailedAttempts.gte(5))
                 .exec(db)
                 .await?;
         }
@@ -285,7 +290,11 @@ pub async fn accounts_for_corp(db: &DatabaseConnection, corp: &str) -> Result<Ac
         .map(|row| (row.id, row))
         .collect();
     let mut roles: BTreeMap<i64, Vec<String>> = BTreeMap::new();
-    for row in user_role::Entity::find().all(db).await? {
+    for row in user_role::Entity::find()
+        .order_by_asc(user_role::Column::RoleCode)
+        .all(db)
+        .await?
+    {
         roles.entry(row.user_id).or_default().push(row.role_code);
     }
     let credentials: BTreeMap<i64, credential::Model> = credential::Entity::find()
@@ -332,6 +341,7 @@ pub async fn accounts_for_corp(db: &DatabaseConnection, corp: &str) -> Result<Ac
             must_change: cred.is_some_and(|row| row.must_change),
             employee_no: person.employee_no.clone(),
             subject_code: person.subject_code.clone(),
+            employment_status: person.employment_status.clone(),
         });
     }
     items.sort_by(|left, right| {
@@ -394,31 +404,36 @@ pub async fn save(
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty());
-    if let Some(subj) = requested_subject
-        && ![
-            "chinese",
-            "math",
-            "english",
-            "information_technology",
-            "physics",
-            "chemistry",
-            "biology",
-            "history",
-            "geography",
-            "politics",
-            "pe",
-            "music",
-            "art",
-            "education_management",
-            "moral_education",
-            "other",
-        ]
-        .contains(&subj)
-    {
-        return Err(ApiError::Invalid("任教学科无效"));
+    if let Some(subj) = requested_subject {
+        use crate::repositories::achievement_entities::dictionary;
+        let valid_subject = dictionary::Entity::find()
+            .filter(dictionary::Column::GroupCode.eq("subjects"))
+            .filter(dictionary::Column::Code.eq(subj))
+            .filter(dictionary::Column::Enabled.eq(true))
+            .one(db)
+            .await?
+            .is_some();
+        if !valid_subject {
+            return Err(ApiError::Invalid("任教学科无效"));
+        }
     }
-    if input.id.is_some() && input.id == actor && (!input.active || input.role != "admin") {
-        return Err(ApiError::Invalid("不能停用自己或移除自己的管理员角色"));
+    let requested_employment = input
+        .employment_status
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if let Some(status) = requested_employment
+        && !["active", "inactive"].contains(&status)
+    {
+        return Err(ApiError::Invalid("在职状态无效"));
+    }
+    if input.id.is_some()
+        && input.id == actor
+        && (!input.active || input.role != "admin" || requested_employment == Some("inactive"))
+    {
+        return Err(ApiError::Invalid(
+            "不能停用自己、将自己设为离职或移除自己的管理员角色",
+        ));
     }
     let corp = corp.trim();
     let member = input.wecom_userid.as_deref().unwrap_or("").trim();
@@ -511,13 +526,18 @@ pub async fn save(
             teacher_update =
                 teacher_update.col_expr(teacher::Column::SubjectCode, Expr::value(subj));
         }
+        if let Some(status) = requested_employment {
+            teacher_update =
+                teacher_update.col_expr(teacher::Column::EmploymentStatus, Expr::value(status));
+        }
         teacher_update
             .filter(teacher::Column::UserId.eq(id))
             .exec(&txn)
             .await?;
         if current_cred.is_some() {
             // Increment the persisted version atomically; ordinary profile saves leave it alone.
-            if password_hash.is_some() || !input.active {
+            if password_hash.is_some() || !input.active || requested_employment == Some("inactive")
+            {
                 let mut update = credential::Entity::update_many().col_expr(
                     credential::Column::Version,
                     Expr::col(credential::Column::Version).add(1),
@@ -581,7 +601,7 @@ pub async fn save(
             name: Set(input.name.trim().into()),
             department_id: Set(dept.id),
             subject_code: Set(requested_subject.unwrap_or("other").into()),
-            employment_status: Set("active".into()),
+            employment_status: Set(requested_employment.unwrap_or("active").into()),
             created_at: Set(Utc::now()),
             ..Default::default()
         }
@@ -600,29 +620,43 @@ pub async fn save(
         .await?;
         account.id
     };
-    user_role::Entity::delete_many()
+    let existing_roles = user_role::Entity::find()
         .filter(user_role::Column::UserId.eq(id))
-        .exec(&txn)
+        .order_by_asc(user_role::Column::RoleCode)
+        .all(&txn)
         .await?;
-    user_role::ActiveModel {
-        user_id: Set(id),
-        role_code: Set("teacher".into()),
-        data_scope: Set("SELF".into()),
-    }
-    .insert(&txn)
-    .await?;
-    if input.role != "teacher" {
+    let non_teacher_roles: Vec<&str> = existing_roles
+        .iter()
+        .map(|row| row.role_code.as_str())
+        .filter(|code| *code != "teacher")
+        .collect();
+    let preserve_multi_roles = non_teacher_roles.len() > 1
+        && non_teacher_roles.first().copied() == Some(input.role.as_str());
+    if !preserve_multi_roles {
+        user_role::Entity::delete_many()
+            .filter(user_role::Column::UserId.eq(id))
+            .exec(&txn)
+            .await?;
         user_role::ActiveModel {
             user_id: Set(id),
-            role_code: Set(input.role.clone()),
-            data_scope: Set(if input.role == "group_leader" {
-                "DEPARTMENT".into()
-            } else {
-                "ALL".into()
-            }),
+            role_code: Set("teacher".into()),
+            data_scope: Set("SELF".into()),
         }
         .insert(&txn)
         .await?;
+        if input.role != "teacher" {
+            user_role::ActiveModel {
+                user_id: Set(id),
+                role_code: Set(input.role.clone()),
+                data_scope: Set(if input.role == "group_leader" {
+                    "DEPARTMENT".into()
+                } else {
+                    "ALL".into()
+                }),
+            }
+            .insert(&txn)
+            .await?;
+        }
     }
     if !member.is_empty() {
         let taken = identity::Entity::find()

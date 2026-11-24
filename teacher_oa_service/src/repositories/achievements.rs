@@ -17,6 +17,7 @@ use sea_orm::{
     QuerySelect, QueryTrait,
     sea_query::{Expr, Query},
 };
+use std::collections::{BTreeMap, BTreeSet};
 
 pub fn has_permission(user: &CurrentUser, permission: &str) -> bool {
     user.grants.iter().any(|g| g.permission == permission)
@@ -191,63 +192,148 @@ pub async fn file_association(
     user: &CurrentUser,
     id: i64,
 ) -> Result<FileAssociation, ApiError> {
+    let mut associations = file_associations(db, user, &[id]).await?;
+    Ok(associations
+        .remove(&id)
+        .unwrap_or(FileAssociation::Unlinked))
+}
+
+pub async fn file_associations(
+    db: &impl ConnectionTrait,
+    user: &CurrentUser,
+    ids: &[i64],
+) -> Result<BTreeMap<i64, FileAssociation>, ApiError> {
+    if ids.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    use super::achievement_entities::revision_file;
+
+    let unique_ids: Vec<i64> = ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     let visible = achievement::Entity::find()
         .select_only()
         .column(achievement::Column::Id)
         .filter(scope(user))
         .filter(scope_for(user, "files:read"))
         .into_query();
-    if achievement_file::Entity::find()
-        .filter(achievement_file::Column::FileId.eq(id))
+    let linked: BTreeSet<i64> = achievement_file::Entity::find()
+        .select_only()
+        .column(achievement_file::Column::FileId)
+        .filter(achievement_file::Column::FileId.is_in(unique_ids.iter().copied()))
         .filter(achievement_file::Column::AchievementId.in_subquery(visible.clone()))
-        .one(db)
+        .into_tuple::<i64>()
+        .all(db)
         .await?
-        .is_some()
-    {
-        return Ok(FileAssociation::Linked);
-    }
-    use super::achievement_entities::revision_file;
-    if revision_file::Entity::find()
-        .filter(revision_file::Column::FileId.eq(id))
-        .filter(revision_file::Column::AchievementId.in_subquery(visible))
-        .one(db)
-        .await?
-        .is_some()
-    {
-        return Ok(FileAssociation::Historical);
-    }
-    Ok(FileAssociation::Unlinked)
+        .into_iter()
+        .collect();
+    let remaining: Vec<i64> = unique_ids
+        .iter()
+        .copied()
+        .filter(|id| !linked.contains(id))
+        .collect();
+    let historical: BTreeSet<i64> = if remaining.is_empty() {
+        BTreeSet::new()
+    } else {
+        revision_file::Entity::find()
+            .select_only()
+            .column(revision_file::Column::FileId)
+            .filter(revision_file::Column::FileId.is_in(remaining))
+            .filter(revision_file::Column::AchievementId.in_subquery(visible))
+            .into_tuple::<i64>()
+            .all(db)
+            .await?
+            .into_iter()
+            .collect()
+    };
+
+    Ok(unique_ids
+        .into_iter()
+        .map(|id| {
+            let status = if linked.contains(&id) {
+                FileAssociation::Linked
+            } else if historical.contains(&id) {
+                FileAssociation::Historical
+            } else {
+                FileAssociation::Unlinked
+            };
+            (id, status)
+        })
+        .collect())
 }
 
 pub async fn item(
     db: &impl ConnectionTrait,
     r: &achievement::Model,
 ) -> Result<AchievementItem, ApiError> {
-    let person = teacher::Entity::find_by_id(r.teacher_id)
-        .one(db)
+    let mut batch = items(db, std::slice::from_ref(r)).await?;
+    batch.pop().ok_or(ApiError::Internal)
+}
+
+pub async fn items(
+    db: &impl ConnectionTrait,
+    rows: &[achievement::Model],
+) -> Result<Vec<AchievementItem>, ApiError> {
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
+    let teacher_ids: Vec<i64> = rows
+        .iter()
+        .map(|r| r.teacher_id)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let type_codes: Vec<String> = rows
+        .iter()
+        .map(|r| r.type_code.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+
+    let teachers: BTreeMap<i64, String> = teacher::Entity::find()
+        .filter(teacher::Column::Id.is_in(teacher_ids))
+        .all(db)
         .await?
-        .ok_or(ApiError::Internal)?;
-    let kind = achievement_type::Entity::find_by_id(&r.type_code)
-        .one(db)
+        .into_iter()
+        .map(|t| (t.id, t.name))
+        .collect();
+    let kinds: BTreeMap<String, String> = achievement_type::Entity::find()
+        .filter(achievement_type::Column::Code.is_in(type_codes))
+        .all(db)
         .await?
-        .ok_or(ApiError::Internal)?;
-    Ok(AchievementItem {
-        id: r.id,
-        teacher_id: r.teacher_id,
-        teacher_name: person.name,
-        title: r.title.clone(),
-        type_code: r.type_code.clone(),
-        type_name: kind.name,
-        subject_code: r.subject_code.clone(),
-        academic_term_id: r.academic_term_id,
-        occurred_at: r.occurred_at,
-        level_code: r.level_code.clone(),
-        award_grade_code: r.award_grade_code.clone(),
-        status: r.status.clone(),
-        version: r.version,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-    })
+        .into_iter()
+        .map(|k| (k.code, k.name))
+        .collect();
+
+    let mut out = Vec::with_capacity(rows.len());
+    for r in rows {
+        let teacher_name = teachers
+            .get(&r.teacher_id)
+            .cloned()
+            .ok_or(ApiError::Internal)?;
+        let type_name = kinds.get(&r.type_code).cloned().ok_or(ApiError::Internal)?;
+        out.push(AchievementItem {
+            id: r.id,
+            teacher_id: r.teacher_id,
+            teacher_name,
+            title: r.title.clone(),
+            type_code: r.type_code.clone(),
+            type_name,
+            subject_code: r.subject_code.clone(),
+            academic_term_id: r.academic_term_id,
+            occurred_at: r.occurred_at,
+            level_code: r.level_code.clone(),
+            award_grade_code: r.award_grade_code.clone(),
+            status: r.status.clone(),
+            version: r.version,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        });
+    }
+    Ok(out)
 }
 pub async fn teacher_names(
     db: &impl ConnectionTrait,
@@ -328,24 +414,39 @@ pub async fn detail(
         .order_by_asc(review_event::Column::CreatedAt)
         .all(db)
         .await?;
-    let mut events = Vec::new();
-    for e in rows {
-        let reviewer = super::entities::user::Entity::find_by_id(e.reviewer_id)
-            .one(db)
-            .await?;
-        events.push(ReviewEvent {
+    let reviewer_ids: Vec<i64> = rows
+        .iter()
+        .map(|e| e.reviewer_id)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let reviewers: BTreeMap<i64, String> = if reviewer_ids.is_empty() {
+        BTreeMap::new()
+    } else {
+        super::entities::user::Entity::find()
+            .filter(super::entities::user::Column::Id.is_in(reviewer_ids))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|u| (u.id, u.display_name))
+            .collect()
+    };
+    let events = rows
+        .into_iter()
+        .map(|e| ReviewEvent {
             id: e.id,
             reviewer_id: e.reviewer_id,
-            reviewer_name: reviewer
-                .map(|u| u.display_name)
+            reviewer_name: reviewers
+                .get(&e.reviewer_id)
+                .cloned()
                 .unwrap_or_else(|| "原办理人员".into()),
             action: e.action,
             old_status: e.old_status,
             new_status: e.new_status,
             opinion: e.opinion,
             created_at: e.created_at,
-        });
-    }
+        })
+        .collect();
     Ok(AchievementDetail {
         record: item(db, r).await?,
         schema: schema(db, &r.type_code, r.schema_version).await?,

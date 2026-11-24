@@ -7,22 +7,28 @@ use serde::Serialize;
 pub enum ApiError {
     #[error("请先登录")]
     Unauthorized,
+    #[error("请提供有效的管理凭据")]
+    BearerUnauthorized { invalid_token: bool },
     #[error("账号或密码不正确，或账号暂时不可用")]
     InvalidCredentials,
     #[error("尝试次数过多，请稍后重试")]
-    TooManyAttempts,
+    TooManyAttempts { retry_after: u64 },
     #[error("无权访问此内容")]
     Forbidden,
     #[error("当前访问地址未在允许来源中，请使用配置的地址访问或更新 auth.public_origin")]
     OriginMismatch,
     #[error("{0}")]
     Invalid(&'static str),
+    #[error("不支持的请求方法")]
+    MethodNotAllowed { allow: &'static str },
     #[error("服务暂时不可用，请稍后重试")]
     Unavailable,
     #[error("请求处理失败，请稍后重试")]
     Internal,
     #[error("未找到记录")]
     NotFound,
+    #[error("未找到请求的接口")]
+    EndpointNotFound,
     #[error("请检查填写内容")]
     Validation(std::collections::BTreeMap<String, String>),
     #[error("{0}")]
@@ -99,14 +105,16 @@ pub fn success<T: Serialize>(request: &HttpRequest, data: T) -> Result<HttpRespo
 impl ResponseError for RequestError {
     fn status_code(&self) -> StatusCode {
         match self.error {
-            ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
-            ApiError::InvalidCredentials => StatusCode::UNAUTHORIZED,
-            ApiError::TooManyAttempts => StatusCode::TOO_MANY_REQUESTS,
+            ApiError::Unauthorized
+            | ApiError::BearerUnauthorized { .. }
+            | ApiError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+            ApiError::TooManyAttempts { .. } => StatusCode::TOO_MANY_REQUESTS,
             ApiError::Forbidden | ApiError::OriginMismatch => StatusCode::FORBIDDEN,
             ApiError::Invalid(_) => StatusCode::BAD_REQUEST,
+            ApiError::MethodNotAllowed { .. } => StatusCode::METHOD_NOT_ALLOWED,
             ApiError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             ApiError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiError::NotFound => StatusCode::NOT_FOUND,
+            ApiError::NotFound | ApiError::EndpointNotFound => StatusCode::NOT_FOUND,
             ApiError::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ApiError::Conflict(_) => StatusCode::CONFLICT,
             ApiError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
@@ -114,14 +122,16 @@ impl ResponseError for RequestError {
     }
     fn error_response(&self) -> HttpResponse {
         let code = match self.error {
-            ApiError::Unauthorized => ApiErrorCode::Unauthorized,
-            ApiError::InvalidCredentials => ApiErrorCode::Unauthorized,
-            ApiError::TooManyAttempts => ApiErrorCode::Unavailable,
+            ApiError::Unauthorized
+            | ApiError::BearerUnauthorized { .. }
+            | ApiError::InvalidCredentials => ApiErrorCode::Unauthorized,
+            ApiError::TooManyAttempts { .. } => ApiErrorCode::TooManyRequests,
             ApiError::Forbidden | ApiError::OriginMismatch => ApiErrorCode::Forbidden,
             ApiError::Invalid(_) => ApiErrorCode::InvalidRequest,
+            ApiError::MethodNotAllowed { .. } => ApiErrorCode::MethodNotAllowed,
             ApiError::Unavailable => ApiErrorCode::Unavailable,
             ApiError::Internal => ApiErrorCode::InternalError,
-            ApiError::NotFound => ApiErrorCode::EndpointNotFound,
+            ApiError::NotFound | ApiError::EndpointNotFound => ApiErrorCode::EndpointNotFound,
             ApiError::Validation(_) => ApiErrorCode::ValidationFailed,
             ApiError::Conflict(_) => ApiErrorCode::Conflict,
             ApiError::PayloadTooLarge => ApiErrorCode::PayloadTooLarge,
@@ -137,17 +147,52 @@ impl ResponseError for RequestError {
             code,
             self.error.to_string(),
             Some(ApiErrorInfo {
-                retryable: matches!(self.error, ApiError::Unavailable),
+                retryable: matches!(
+                    self.error,
+                    ApiError::Unavailable | ApiError::TooManyAttempts { .. }
+                ),
                 diagnostic,
             }),
         ) {
-            Ok(body) => HttpResponse::build(self.status_code())
-                .insert_header(("Cache-Control", "no-store"))
-                .json(Failure {
+            Ok(body) => {
+                let mut builder = HttpResponse::build(self.status_code());
+                builder.insert_header(("Cache-Control", "no-store"));
+                match &self.error {
+                    ApiError::Unauthorized | ApiError::InvalidCredentials => {
+                        builder.insert_header(("WWW-Authenticate", "Session realm=\"TeacherOA\""));
+                    }
+                    ApiError::BearerUnauthorized {
+                        invalid_token: false,
+                    } => {
+                        builder.insert_header((
+                            "WWW-Authenticate",
+                            "Bearer realm=\"TeacherOA Management\"",
+                        ));
+                    }
+                    ApiError::BearerUnauthorized {
+                        invalid_token: true,
+                    } => {
+                        builder.insert_header((
+                            "WWW-Authenticate",
+                            "Bearer realm=\"TeacherOA Management\", error=\"invalid_token\"",
+                        ));
+                    }
+                    ApiError::TooManyAttempts { retry_after } => {
+                        builder.insert_header(("Retry-After", retry_after.to_string()));
+                    }
+                    ApiError::MethodNotAllowed { allow } => {
+                        builder.insert_header(("Allow", *allow));
+                    }
+                    _ => {}
+                }
+                builder.json(Failure {
                     body,
                     request_id: self.request_id.clone(),
-                }),
-            Err(_) => HttpResponse::InternalServerError().finish(),
+                })
+            }
+            Err(_) => HttpResponse::InternalServerError()
+                .insert_header(("Cache-Control", "no-store"))
+                .finish(),
         }
     }
 }

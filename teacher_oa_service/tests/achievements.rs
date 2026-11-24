@@ -923,3 +923,139 @@ async fn collaboration_picker_file_redaction_and_nulls_last_sorting_work() {
     assert!(redacted.files.is_empty());
     assert!(redacted.data.file_ids.is_empty());
 }
+
+#[actix_web::test]
+async fn file_delete_and_rfc8187_content_disposition_work_end_to_end() {
+    let (state, _db) = setup().await;
+    let app = create_test_app!(state);
+    let (teacher_cookie, teacher_csrf) = login!(app, "teacher");
+    let (reviewer_cookie, reviewer_csrf) = login!(app, "reviewer");
+
+    let upload_spec_name = async |name: &str| -> i64 {
+        let resp = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/api/v1/files/upload")
+                .cookie(teacher_cookie.clone())
+                .insert_header(("Origin", "http://127.0.0.1:3000"))
+                .insert_header(("X-CSRF-Token", teacher_csrf.as_str()))
+                .insert_header(("Content-Type", "multipart/form-data; boundary=proof"))
+                .set_payload(multipart(name, "image/png", &png()))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(resp).await;
+        body["data"]["id"].as_i64().expect("file id")
+    };
+
+    let linked_id = upload_spec_name("报告*100%'名.png").await;
+    let unlinked_id = upload_spec_name("独立证明.png").await;
+
+    let preview = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/api/v1/files/{linked_id}/preview"))
+            .cookie(teacher_cookie.clone())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(preview.status(), StatusCode::OK);
+    let cd = preview
+        .headers()
+        .get("content-disposition")
+        .and_then(|v| v.to_str().ok())
+        .expect("Content-Disposition");
+    assert!(cd.contains(".png\""), "fallback extension: {cd}");
+    assert!(
+        cd.contains("filename*=UTF-8''")
+            && cd.contains("%2A")
+            && cd.contains("%25")
+            && cd.contains("%27"),
+        "RFC 8187 encoding: {cd}"
+    );
+
+    let forbidden_del = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri(&format!("/api/v1/files/{unlinked_id}"))
+            .cookie(reviewer_cookie.clone())
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .insert_header(("X-CSRF-Token", reviewer_csrf.as_str()))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(forbidden_del.status(), StatusCode::FORBIDDEN);
+
+    let mut payload = draft("research_project", vec![linked_id]);
+    payload["title"] = json!("已引用文件成果");
+    let created = mutation!(
+        app,
+        post,
+        "/api/v1/achievements",
+        teacher_cookie,
+        teacher_csrf,
+        &payload
+    );
+    assert_eq!(created.status(), StatusCode::OK);
+
+    let conflict_del = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri(&format!("/api/v1/files/{linked_id}"))
+            .cookie(teacher_cookie.clone())
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .insert_header(("X-CSRF-Token", teacher_csrf.as_str()))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(conflict_del.status(), StatusCode::CONFLICT);
+
+    let ok_del = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri(&format!("/api/v1/files/{unlinked_id}"))
+            .cookie(teacher_cookie.clone())
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .insert_header(("X-CSRF-Token", teacher_csrf.as_str()))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(ok_del.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        ok_del
+            .headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-store")
+    );
+
+    let after_del = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/api/v1/files/{unlinked_id}/download"))
+            .cookie(teacher_cookie.clone())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(after_del.status(), StatusCode::FORBIDDEN);
+
+    let list_after = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/files?mine=true")
+            .cookie(teacher_cookie)
+            .to_request(),
+    )
+    .await;
+    assert_eq!(list_after.status(), StatusCode::OK);
+    let list_body: Value = test::read_body_json(list_after).await;
+    let listed_ids: Vec<i64> = list_body["data"]["items"]
+        .as_array()
+        .expect("items array")
+        .iter()
+        .filter_map(|item| item["id"].as_i64())
+        .collect();
+    assert!(listed_ids.contains(&linked_id));
+    assert!(!listed_ids.contains(&unlinked_id));
+}

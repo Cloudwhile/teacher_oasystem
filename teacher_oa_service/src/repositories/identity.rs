@@ -11,7 +11,7 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter,
-    QueryOrder,
+    QueryOrder, QuerySelect,
     sea_query::{Expr, LikeExpr, Query},
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -160,7 +160,11 @@ pub async fn teacher_directory(
             .push(row.role_code);
     }
 
-    let visible_records = achievement::Entity::find()
+    let visible_records: Vec<(i64, i64, String)> = achievement::Entity::find()
+        .select_only()
+        .column(achievement::Column::Id)
+        .column(achievement::Column::TeacherId)
+        .column(achievement::Column::Status)
         .filter(achievement::Column::Status.ne("draft"))
         .filter(
             Condition::any()
@@ -178,22 +182,20 @@ pub async fn teacher_directory(
                     ),
                 ),
         )
+        .into_tuple()
         .all(db)
         .await?;
 
-    let record_ids: Vec<i64> = visible_records.iter().map(|r| r.id).collect();
+    let record_ids: Vec<i64> = visible_records.iter().map(|(id, _, _)| *id).collect();
     let record_status: BTreeMap<i64, String> = visible_records
         .iter()
-        .map(|r| (r.id, r.status.clone()))
+        .map(|(id, _, status)| (*id, status.clone()))
         .collect();
 
     let mut teacher_records: BTreeMap<i64, BTreeSet<i64>> = BTreeMap::new();
-    for record in &visible_records {
-        if teacher_ids.contains(&record.teacher_id) {
-            teacher_records
-                .entry(record.teacher_id)
-                .or_default()
-                .insert(record.id);
+    for (id, teacher_id, _) in &visible_records {
+        if teacher_ids.contains(teacher_id) {
+            teacher_records.entry(*teacher_id).or_default().insert(*id);
         }
     }
     if !record_ids.is_empty() {
@@ -351,10 +353,8 @@ pub async fn teacher_dossier(
     let achievement_total = u64::try_from(records.len()).map_err(|_| ApiError::Internal)?;
     let record_ids: Vec<i64> = records.iter().map(|r| r.id).collect();
 
-    let mut achievements = Vec::new();
-    for record in records.iter().take(100) {
-        achievements.push(super::achievements::item(db, record).await?);
-    }
+    let preview_end = records.len().min(100);
+    let achievements = super::achievements::items(db, &records[..preview_end]).await?;
 
     let mut files = Vec::new();
     if !record_ids.is_empty() {
@@ -375,10 +375,17 @@ pub async fn teacher_dossier(
                 .order_by_desc(file::Column::Id)
                 .all(db)
                 .await?;
+            let ordered_ids: Vec<i64> = file_rows.iter().map(|f| f.id).collect();
+            let associations =
+                super::achievements::file_associations(db, viewer, &ordered_ids).await?;
             for f in file_rows {
                 let mut meta = super::achievements::metadata(f);
-                meta.association =
-                    Some(super::achievements::file_association(db, viewer, meta.id).await?);
+                meta.association = Some(
+                    associations
+                        .get(&meta.id)
+                        .cloned()
+                        .unwrap_or(crate::domain::achievements::FileAssociation::Unlinked),
+                );
                 files.push(meta);
             }
         }

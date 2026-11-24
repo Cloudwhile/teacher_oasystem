@@ -67,6 +67,75 @@ fn ensure_default_config_exists(path: &Path, default: &super::AppConfig) -> Resu
     Ok(())
 }
 
+fn is_data_prefixed_relative_path(path: &Path) -> bool {
+    matches!(
+        path.components().next(),
+        Some(std::path::Component::Normal(component)) if component == "data"
+    )
+}
+
+fn resolve_external_relative_path(config_dir: &Path, value: &str) -> Result<String> {
+    if value.is_empty() {
+        return Ok(String::new());
+    }
+    let configured = Path::new(value);
+    if configured.is_absolute() {
+        return Ok(aster_forge_utils::paths::normalize_path(configured)
+            .to_string_lossy()
+            .into_owned());
+    }
+    let normalized_config_dir = aster_forge_utils::paths::normalize_path(config_dir);
+    let anchor = if is_data_prefixed_relative_path(configured)
+        && normalized_config_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            == Some("data")
+    {
+        normalized_config_dir
+            .parent()
+            .unwrap_or(normalized_config_dir.as_path())
+    } else {
+        normalized_config_dir.as_path()
+    };
+    let resolved = aster_forge_utils::paths::normalize_path(&anchor.join(configured));
+    if resolved.strip_prefix(&normalized_config_dir).is_err() {
+        return Err(AppError::Config(format!(
+            "configured relative path resolves outside config_dir: config_dir='{}', resolved='{}'",
+            normalized_config_dir.display(),
+            resolved.display()
+        )));
+    }
+    Ok(resolved.to_string_lossy().into_owned())
+}
+
+fn resolve_external_sqlite_url(config_dir: &Path, value: &str) -> Result<String> {
+    if value == "sqlite::memory:" {
+        return Ok(value.to_string());
+    }
+    let Some(path_and_query) = value.strip_prefix("sqlite://") else {
+        return Ok(value.to_string());
+    };
+    let (raw_path, raw_query) = match path_and_query.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (path_and_query, None),
+    };
+    if raw_path.is_empty() || raw_path == ":memory:" {
+        return Ok(value.to_string());
+    }
+    let configured = Path::new(raw_path);
+    let resolved_path = if configured.is_absolute() {
+        aster_forge_utils::paths::normalize_path(configured)
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        resolve_external_relative_path(config_dir, raw_path)?
+    };
+    Ok(match raw_query {
+        Some(query) => format!("sqlite://{resolved_path}?{query}"),
+        None => format!("sqlite://{resolved_path}"),
+    })
+}
+
 fn normalize_paths(config: &mut super::AppConfig, config_path: &Path) -> Result<()> {
     let base_dir = std::env::current_dir()?;
     let raw_config_dir = config_path
@@ -78,36 +147,39 @@ fn normalize_paths(config: &mut super::AppConfig, config_path: &Path) -> Result<
     } else {
         base_dir.join(raw_config_dir)
     };
+    let normalized_base_dir = aster_forge_utils::paths::normalize_path(&base_dir);
+    let normalized_config_dir = aster_forge_utils::paths::normalize_path(&config_dir);
+    let under_cwd = normalized_config_dir
+        .strip_prefix(&normalized_base_dir)
+        .is_ok();
 
-    config.server.temp_dir = aster_forge_utils::paths::resolve_config_relative_path(
-        &base_dir,
-        &config_dir,
-        &config.server.temp_dir,
-    )
-    .map_err(|error| AppError::Config(error.to_string()))?;
+    let resolve_path = |value: &str| -> Result<String> {
+        if under_cwd {
+            aster_forge_utils::paths::resolve_config_relative_path(&base_dir, &config_dir, value)
+                .map_err(|error| AppError::Config(error.to_string()))
+        } else {
+            resolve_external_relative_path(&normalized_config_dir, value)
+        }
+    };
+
+    config.server.temp_dir = resolve_path(&config.server.temp_dir)?;
     config.logging.file = if config.logging.file.is_empty() {
         String::new()
     } else {
-        aster_forge_utils::paths::resolve_config_relative_path(
-            &base_dir,
-            &config_dir,
-            &config.logging.file,
-        )
-        .map_err(|error| AppError::Config(error.to_string()))?
+        resolve_path(&config.logging.file)?
     };
-    config.storage.root = aster_forge_utils::paths::resolve_config_relative_path(
-        &base_dir,
-        &config_dir,
-        &config.storage.root,
-    )
-    .map_err(|error| AppError::Config(error.to_string()))?;
+    config.storage.root = resolve_path(&config.storage.root)?;
     if let Some(database_url) = config.database.url.as_url_mut() {
-        *database_url = aster_forge_utils::paths::resolve_config_relative_sqlite_url(
-            &base_dir,
-            &config_dir,
-            database_url,
-        )
-        .map_err(|error| AppError::Config(error.to_string()))?;
+        *database_url = if under_cwd {
+            aster_forge_utils::paths::resolve_config_relative_sqlite_url(
+                &base_dir,
+                &config_dir,
+                database_url,
+            )
+            .map_err(|error| AppError::Config(error.to_string()))?
+        } else {
+            resolve_external_sqlite_url(&normalized_config_dir, database_url)?
+        };
     }
     Ok(())
 }
@@ -170,5 +242,19 @@ url = { base_url = "postgres://db.example:5432/app", username = "raw-user@exampl
         assert!(!serialized.contains("raw-user@example.com"));
         assert!(!serialized.contains("raw#[]{}secret"));
         assert!(!serialized.contains("raw%23%5B%5D"));
+    }
+
+    #[test]
+    fn external_relative_path_rejects_parent_traversal() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let err = resolve_external_relative_path(dir.path(), "../escape")
+            .expect_err("must reject parent traversal outside config_dir");
+        assert!(err.to_string().contains("outside config_dir"));
+
+        let data_dir = dir.path().join("data");
+        assert_eq!(
+            resolve_external_relative_path(&data_dir, "data/.tmp").expect("data prefix"),
+            data_dir.join(".tmp").to_string_lossy()
+        );
     }
 }

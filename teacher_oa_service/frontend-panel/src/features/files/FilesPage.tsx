@@ -1,15 +1,21 @@
 import { type DragEvent, useCallback, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Camera, Folder, Refresh, Upload } from "reicon-react";
 import { MaterialList } from "@/components/achievements/MaterialList";
 import { ActionButton } from "@/components/common/ActionButton";
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Feedback } from "@/components/common/Feedback";
 import { IconButton } from "@/components/common/IconButton";
 import { PageHeading } from "@/components/common/PageHeading";
 import { Pagination } from "@/components/common/Pagination";
 import { TableSkeleton } from "@/components/common/Skeleton";
-import { maxUploadBytes } from "@/config/app";
-import { achievementApi, errorMessage } from "@/features/achievements/api";
+import { formatUploadLimitMb, maxUploadBytes } from "@/config/app";
+import {
+	achievementApi,
+	errorMessage,
+	type FileMetadata,
+} from "@/features/achievements/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { HttpError } from "@/services/httpClient";
 import { notifySuccess } from "@/services/notify";
@@ -18,15 +24,32 @@ import { useUnsavedChanges } from "@/services/useUnsavedChanges";
 
 export function FilesPage() {
 	const { session, refresh } = useAuth();
-	const [page, setPage] = useState(1);
+	const confirm = useConfirm();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const rawPage = Number(searchParams.get("page") ?? "1");
+	const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+	const rawPageSize = Number(searchParams.get("page_size") ?? "20");
+	const pageSize = [10, 20, 50].includes(rawPageSize) ? rawPageSize : 20;
+	const setPage = useCallback(
+		(nextPage: number, nextPageSize = pageSize) => {
+			const next = new URLSearchParams(searchParams);
+			if (nextPage <= 1) next.delete("page");
+			else next.set("page", String(nextPage));
+			if (nextPageSize === 20) next.delete("page_size");
+			else next.set("page_size", String(nextPageSize));
+			setSearchParams(next);
+		},
+		[pageSize, searchParams, setSearchParams],
+	);
 	const load = useCallback(
-		(signal: AbortSignal) => achievementApi.files(page, signal),
-		[page],
+		(signal: AbortSignal) => achievementApi.files(page, pageSize, signal),
+		[page, pageSize],
 	);
 	const result = useResource(load);
 	const input = useRef<HTMLInputElement>(null);
 	const cameraInput = useRef<HTMLInputElement>(null);
 	const [busy, setBusy] = useState(false);
+	const [deletingId, setDeletingId] = useState<number | null>(null);
 	const [progressText, setProgressText] = useState("");
 	const [dragging, setDragging] = useState(false);
 	const [error, setError] = useState("");
@@ -34,7 +57,43 @@ export function FilesPage() {
 	const canUpload = Boolean(
 		session?.user.grants.some((grant) => grant.permission === "files:write"),
 	);
-	useUnsavedChanges(false, busy);
+	const canManageAll = Boolean(
+		session?.user.grants.some((grant) => grant.permission === "admin:manage"),
+	);
+	const limitBytes = session?.max_upload_bytes ?? maxUploadBytes;
+	const limitLabel = formatUploadLimitMb(limitBytes);
+	useUnsavedChanges(false, busy || deletingId !== null);
+
+	const canDeleteFile = (file: FileMetadata) =>
+		canUpload &&
+		file.association === "unlinked" &&
+		(file.uploaded_by === session?.user.id || canManageAll);
+
+	const handleDeleteFile = async (file: FileMetadata) => {
+		if (!session || busy || deletingId !== null) return;
+		const ok = await confirm({
+			title: "删除证明材料",
+			description: `确认永久删除“${file.filename}”？此操作不可撤销。`,
+			confirmLabel: "确认删除",
+			tone: "danger",
+		});
+		if (!ok) return;
+		setDeletingId(file.id);
+		setError("");
+		try {
+			await achievementApi.deleteFile(file.id, session.csrf_token);
+			result.reload();
+			notifySuccess("材料已删除");
+		} catch (err) {
+			if (err instanceof HttpError && err.status === 401) {
+				void refresh();
+				return;
+			}
+			setError(errorMessage(err));
+		} finally {
+			setDeletingId(null);
+		}
+	};
 
 	const uploadSelection = async (selection: FileList | null | undefined) => {
 		if (!selection?.length || !session || pending.current) return;
@@ -43,8 +102,10 @@ export function FilesPage() {
 		const failures: string[] = [];
 
 		for (const file of files) {
-			if (file.size > maxUploadBytes) {
-				failures.push(`${file.name}：文件超过 10MB 大小限制，请压缩后重试。`);
+			if (file.size > limitBytes) {
+				failures.push(
+					`${file.name}：文件超过 ${limitLabel} 大小限制，请压缩后重试。`,
+				);
 			} else {
 				validFiles.push(file);
 			}
@@ -205,7 +266,14 @@ export function FilesPage() {
 							<span className="section-meta">共 {result.data.total} 份</span>
 						</div>
 						{result.data.items.length ? (
-							<MaterialList files={result.data.items} />
+							<MaterialList
+								files={result.data.items}
+								canDeleteFile={canDeleteFile}
+								onDeleteFile={(file) => {
+									void handleDeleteFile(file);
+								}}
+								deletingId={deletingId}
+							/>
 						) : canUpload ? (
 							// biome-ignore lint/a11y/noStaticElementInteractions: keyboard users activate upload via the labelled button in PageHeading.
 							// biome-ignore lint/a11y/useKeyWithClickEvents: pointer/drag convenience target paired with the accessible upload button above.
@@ -219,7 +287,7 @@ export function FilesPage() {
 								<p className="upload-dropzone-title">暂无可查看的材料。</p>
 								<small className="upload-dropzone-hint">
 									点击此处或拖拽 PDF、JPG、PNG
-									文件上传证明材料（支持多选，单文件 ≤ 10MB）
+									文件上传证明材料（支持多选，单文件 ≤ {limitLabel}）
 								</small>
 							</div>
 						) : (
@@ -233,7 +301,8 @@ export function FilesPage() {
 							page={result.data.page}
 							pageSize={result.data.page_size}
 							total={result.data.total}
-							onChange={setPage}
+							onChange={(nextPage) => setPage(nextPage)}
+							onPageSizeChange={(nextSize) => setPage(1, nextSize)}
 						/>
 					</section>
 				)

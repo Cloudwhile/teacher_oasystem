@@ -2,13 +2,19 @@ use super::business_audit;
 use crate::{
     api::error::ApiError,
     domain::{achievements::FileMetadata, identity::CurrentUser},
-    repositories::{achievement_entities::file, achievements as repo},
+    repositories::{
+        achievement_entities::{achievement_file, file, revision_file},
+        achievements as repo,
+    },
     runtime::AppState,
 };
 use actix_web::web::Bytes;
 use chrono::Utc;
 use object_store::{ObjectStoreExt, path::Path};
-use sea_orm::{ActiveModelTrait, IntoActiveModel, Set, TransactionTrait};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, Set,
+    TransactionTrait,
+};
 use sha2::{Digest, Sha256};
 
 /// Decoded bytes lopdf may produce while loading one PDF (object and xref streams).
@@ -211,4 +217,56 @@ pub async fn read(
     )
     .await?;
     Ok((repo::metadata(row), bytes))
+}
+
+pub async fn delete(state: &AppState, user: &CurrentUser, id: i64) -> Result<(), ApiError> {
+    if !repo::has_permission(user, "files:write") {
+        return Err(ApiError::Forbidden);
+    }
+    let txn = state.db_handles.writer().begin().await?;
+    let row = file::Entity::find_by_id(id)
+        .one(&txn)
+        .await?
+        .ok_or(ApiError::Forbidden)?;
+    if row.upload_status != "ready"
+        || (row.uploaded_by != user.id && !repo::has_permission(user, "admin:manage"))
+    {
+        return Err(ApiError::Forbidden);
+    }
+    let linked = achievement_file::Entity::find()
+        .filter(achievement_file::Column::FileId.eq(id))
+        .count(&txn)
+        .await?;
+    let historical = revision_file::Entity::find()
+        .filter(revision_file::Column::FileId.eq(id))
+        .count(&txn)
+        .await?;
+    if linked > 0 || historical > 0 {
+        return Err(ApiError::Conflict("该材料已被成果或历史修订引用，无法删除"));
+    }
+    let deleted = file::Entity::delete_by_id(id)
+        .filter(file::Column::UploadStatus.eq("ready"))
+        .exec(&txn)
+        .await?;
+    if deleted.rows_affected != 1 {
+        return Err(ApiError::Conflict("该材料状态已变化，请刷新后再试"));
+    }
+    business_audit::write(&txn, user.id, "file.delete", "file", Some(id)).await?;
+    txn.commit().await?;
+
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        state.files.delete(&Path::from(row.object_key)),
+    )
+    .await
+    {
+        Ok(Ok(())) | Ok(Err(object_store::Error::NotFound { .. })) => {}
+        Ok(Err(error)) => {
+            tracing::warn!(file_id = id, %error, "failed removing deleted material object");
+        }
+        Err(_) => {
+            tracing::warn!(file_id = id, "timed out removing deleted material object");
+        }
+    }
+    Ok(())
 }

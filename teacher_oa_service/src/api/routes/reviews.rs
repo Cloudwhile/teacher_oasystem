@@ -105,10 +105,8 @@ pub async fn pending(
         let pager = ordered.paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
         let page = page.min(total.div_ceil(page_size).max(1));
-        let mut items = Vec::new();
-        for row in pager.fetch_page(page - 1).await? {
-            items.push(repo::item(state.db_handles.writer(), &row).await?);
-        }
+        let rows = pager.fetch_page(page - 1).await?;
+        let items = repo::items(state.db_handles.writer(), &rows).await?;
         success(
             &request,
             AchievementPage {
@@ -179,11 +177,13 @@ pub async fn archive(
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/reviews/pending", web::get().to(pending))
-        .route("/achievements/{id}/approve", web::post().to(approve))
-        .route(
+    use crate::api::common::{get_resource, post_resource};
+
+    cfg.service(get_resource("/reviews/pending", pending))
+        .service(post_resource("/achievements/{id}/approve", approve))
+        .service(post_resource(
             "/achievements/{id}/return",
-            web::post().to(return_for_correction),
-        )
-        .route("/achievements/{id}/archive", web::post().to(archive));
+            return_for_correction,
+        ))
+        .service(post_resource("/achievements/{id}/archive", archive));
 }

@@ -160,10 +160,8 @@ pub async fn list(
             .paginate(state.db_handles.writer(), page_size);
         let total = pager.num_items().await?;
         let page = std::cmp::Ord::min(page, std::cmp::Ord::max(total.div_ceil(page_size), 1));
-        let mut items = Vec::new();
-        for row in pager.fetch_page(page - 1).await? {
-            items.push(repo::item(state.db_handles.writer(), &row).await?);
-        }
+        let rows = pager.fetch_page(page - 1).await?;
+        let items = repo::items(state.db_handles.writer(), &rows).await?;
         business_audit::write(
             state.db_handles.writer(),
             user.id,
@@ -334,10 +332,22 @@ pub async fn revisions(
     result.map_err(|e: ApiError| e.at(&request))
 }
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/achievements", web::get().to(list))
-        .route("/achievements", web::post().to(create))
-        .route("/achievements/{id}", web::get().to(detail))
-        .route("/achievements/{id}", web::patch().to(update))
-        .route("/achievements/{id}/submit", web::post().to(submit))
-        .route("/achievements/{id}/revisions", web::get().to(revisions));
+    use crate::api::common::{get_resource, method_not_allowed, post_resource};
+
+    cfg.service(
+        web::resource("/achievements")
+            .route(web::get().to(list))
+            .route(web::head().to(list))
+            .route(web::post().to(create))
+            .default_service(method_not_allowed("GET, HEAD, POST")),
+    )
+    .service(
+        web::resource("/achievements/{id}")
+            .route(web::get().to(detail))
+            .route(web::head().to(detail))
+            .route(web::patch().to(update))
+            .default_service(method_not_allowed("GET, HEAD, PATCH")),
+    )
+    .service(post_resource("/achievements/{id}/submit", submit))
+    .service(get_resource("/achievements/{id}/revisions", revisions));
 }

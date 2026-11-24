@@ -82,4 +82,25 @@ describe("ErrorPage & RouteErrorPage", () => {
 		).toBeTruthy();
 		expect(screen.getByRole("button", { name: "刷新页面" })).toBeTruthy();
 	});
+
+	it("404 仅当历史记录存在应用内上一页 idx 时显示返回上一页按钮并同步独立页标题", () => {
+		vi.spyOn(window.history, "length", "get").mockReturnValue(4);
+		window.history.replaceState({ idx: 0 }, "", "/unknown-a");
+		const initialRouter = createMemoryRouter(
+			[{ path: "*", element: <ErrorPage /> }],
+			{ initialEntries: ["/unknown-a"] },
+		);
+		render(<RouterProvider router={initialRouter} />);
+		expect(screen.queryByRole("button", { name: "返回上一页" })).toBeNull();
+		expect(document.title).toContain("未找到您访问的页面");
+		cleanup();
+
+		window.history.replaceState({ idx: 2 }, "", "/unknown-b");
+		const nestedRouter = createMemoryRouter(
+			[{ path: "*", element: <ErrorPage inShell /> }],
+			{ initialEntries: ["/unknown-b"] },
+		);
+		render(<RouterProvider router={nestedRouter} />);
+		expect(screen.getByRole("button", { name: "返回上一页" })).toBeTruthy();
+	});
 });

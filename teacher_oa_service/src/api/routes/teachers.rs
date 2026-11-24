@@ -136,8 +136,10 @@ pub async fn detail(
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/teachers/me", web::get().to(me))
-        .route("/teachers/directory", web::get().to(directory))
-        .route("/teachers/{id}/dossier", web::get().to(dossier))
-        .route("/teachers/{id}", web::get().to(detail));
+    use crate::api::common::get_resource;
+
+    cfg.service(get_resource("/teachers/me", me))
+        .service(get_resource("/teachers/directory", directory))
+        .service(get_resource("/teachers/{id}/dossier", dossier))
+        .service(get_resource("/teachers/{id}", detail));
 }

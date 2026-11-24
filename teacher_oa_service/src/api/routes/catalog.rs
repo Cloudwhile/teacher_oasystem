@@ -219,14 +219,16 @@ pub async fn departments(
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/achievement-types", web::get().to(types))
-        .route("/achievement-types/{code}/schema", web::get().to(schema))
-        .route("/academic-terms", web::get().to(terms))
-        .route("/dictionaries", web::get().to(dictionaries))
-        .route("/departments", web::get().to(departments))
-        .route("/teachers", web::get().to(teachers))
-        .route(
+    use crate::api::common::get_resource;
+
+    cfg.service(get_resource("/achievement-types", types))
+        .service(get_resource("/achievement-types/{code}/schema", schema))
+        .service(get_resource("/academic-terms", terms))
+        .service(get_resource("/dictionaries", dictionaries))
+        .service(get_resource("/departments", departments))
+        .service(get_resource("/teachers", teachers))
+        .service(get_resource(
             "/collaboration-teachers",
-            web::get().to(collaboration_teachers),
-        );
+            collaboration_teachers,
+        ));
 }

@@ -17,7 +17,7 @@ impl Default for StorageConfig {
             endpoint: "http://127.0.0.1:59000".into(),
             bucket: "teacheroa-private".into(),
             region: "us-east-1".into(),
-            max_upload_bytes: 10 * 1024 * 1024,
+            max_upload_bytes: 20 * 1024 * 1024,
         }
     }
 }

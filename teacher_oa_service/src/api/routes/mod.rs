@@ -46,7 +46,10 @@ pub fn configure_api(cfg: &mut web::ServiceConfig) {
         .configure(admin::configure)
         .configure(login_page::configure)
         .configure(management::configure)
-        .route("/dashboard", web::get().to(dashboard::dashboard))
+        .service(crate::api::common::get_resource(
+            "/dashboard",
+            dashboard::dashboard,
+        ))
         .configure(teachers::configure)
         .configure(catalog::configure)
         .configure(achievements::configure)

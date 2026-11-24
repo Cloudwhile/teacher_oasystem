@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, Refresh, ShieldAlert } from "reicon-react";
 import { ActionButton } from "@/components/common/ActionButton";
@@ -12,6 +13,14 @@ export function ProtectedRoute() {
 	const { status, session, sessionExpired, refresh, logout } = useAuth();
 	const location = useLocation();
 	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (status === "forbidden") {
+			document.title = "访问受限 · 教师发展与成果管理系统";
+		} else if (status === "error") {
+			document.title = "连接异常 · 教师发展与成果管理系统";
+		}
+	}, [status]);
 
 	if (status === "loading") {
 		return <StandaloneStatusShell loading loadingLabel="正在读取身份…" />;

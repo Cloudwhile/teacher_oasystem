@@ -19,6 +19,7 @@ export interface SchemasPart1 {
         active: boolean;
         department: string;
         employee_no?: string | null;
+        employment_status?: string | null;
         /** Format: int64 */
         id?: number | null;
         name: string;
@@ -32,6 +33,7 @@ export interface SchemasPart1 {
         active: boolean;
         department: string;
         employee_no: string;
+        employment_status: string;
         /** Format: int64 */
         id: number;
         must_change: boolean;
@@ -133,7 +135,7 @@ export interface SchemasPart1 {
      * @description Product codes; Forge only checks the success/failure classification.
      * @enum {string}
      */
-    ApiErrorCode: "success" | "endpoint_not_found" | "unauthorized" | "forbidden" | "invalid_request" | "unavailable" | "internal_error" | "validation_failed" | "conflict" | "payload_too_large";
+    ApiErrorCode: "success" | "endpoint_not_found" | "method_not_allowed" | "unauthorized" | "forbidden" | "invalid_request" | "too_many_requests" | "unavailable" | "internal_error" | "validation_failed" | "conflict" | "payload_too_large";
     ApiErrorInfo_TupleUnit: {
         diagnostic?: null;
         retryable: boolean;
@@ -215,6 +217,8 @@ export interface SchemasPart1 {
         code: components["schemas"]["ApiErrorCode"];
         data?: {
             csrf_token: string;
+            /** Format: int64 */
+            max_upload_bytes?: number | null;
             must_change_password: boolean;
             user: components["schemas"]["CurrentUser"];
         };
@@ -412,6 +416,8 @@ export interface SchemasPart1 {
     };
     AuthResponse: {
         csrf_token: string;
+        /** Format: int64 */
+        max_upload_bytes?: number | null;
         must_change_password: boolean;
         user: components["schemas"]["CurrentUser"];
     };
@@ -439,14 +445,4 @@ export interface SchemasPart1 {
         name: string;
     };
     DepartmentOptions: components["schemas"]["DepartmentOption"][];
-    DictionaryItem: {
-        code: string;
-        group_code: string;
-        name: string;
-        /** Format: int32 */
-        sort_order: number;
-    };
-    DictionaryItems: components["schemas"]["DictionaryItem"][];
-    /** @description Product error adapter: injects the code/message and retains the stable ErrorResponse schema. */
-    ErrorResponse: components["schemas"]["ApiResponse_TupleUnit_ApiErrorCode_TupleUnit"];
 }

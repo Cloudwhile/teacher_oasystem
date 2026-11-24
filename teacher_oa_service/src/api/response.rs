@@ -20,9 +20,11 @@ pub struct StatusResponse {
 pub enum ApiErrorCode {
     Success,
     EndpointNotFound,
+    MethodNotAllowed,
     Unauthorized,
     Forbidden,
     InvalidRequest,
+    TooManyRequests,
     Unavailable,
     InternalError,
     ValidationFailed,
@@ -51,6 +53,6 @@ impl ErrorResponse {
     /// # Errors
     /// Returns the shared state error if the product code classification is inconsistent.
     pub fn endpoint_not_found() -> Result<Self, ResponseEnvelopeError> {
-        ApiResponse::error(ApiErrorCode::EndpointNotFound, "endpoint not found").map(Self)
+        ApiResponse::error(ApiErrorCode::EndpointNotFound, "未找到请求的接口").map(Self)
     }
 }

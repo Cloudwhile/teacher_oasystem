@@ -237,6 +237,9 @@ export function ReviewListPage() {
 					<IconButton type="submit" label="搜索审核记录">
 						<Search />
 					</IconButton>
+					<span className="filter-input-prefix" aria-hidden="true">
+						成果
+					</span>
 					<input
 						name="search"
 						aria-label="成果名称"
@@ -263,17 +266,36 @@ export function ReviewListPage() {
 						</IconButton>
 					)}
 				</div>
-				<input
-					name="teacher"
-					aria-label="填报教师"
-					placeholder="填报教师"
-					value={teacherInput}
-					maxLength={100}
-					onChange={(event) => {
-						setTeacherInput(event.target.value);
-						scheduleTextSync(searchInput, event.target.value);
-					}}
-				/>
+				<div className="filter-prefix-field">
+					<span className="filter-input-prefix" aria-hidden="true">
+						教师
+					</span>
+					<input
+						name="teacher"
+						aria-label="填报教师"
+						placeholder="填报教师"
+						value={teacherInput}
+						maxLength={100}
+						onChange={(event) => {
+							setTeacherInput(event.target.value);
+							scheduleTextSync(searchInput, event.target.value);
+						}}
+					/>
+					{teacherInput && (
+						<IconButton
+							label="清空填报教师筛选"
+							onClick={() => {
+								setTeacherInput("");
+								commitParams((next) => {
+									next.delete("teacher");
+									next.delete("page");
+								});
+							}}
+						>
+							<X />
+						</IconButton>
+					)}
+				</div>
 				<select
 					aria-label="办理状态"
 					value={currentStatus}

@@ -9,6 +9,7 @@ import type { components } from "@/types/api.generated";
 export function AchievementTable({
 	items,
 	hideTeacher = false,
+	contextTeacherId,
 	selectable = false,
 	selectedIds,
 	onToggleSelect,
@@ -16,6 +17,7 @@ export function AchievementTable({
 }: {
 	items: components["schemas"]["AchievementItem"][];
 	hideTeacher?: boolean;
+	contextTeacherId?: number;
 	selectable?: boolean;
 	selectedIds?: Set<number>;
 	onToggleSelect?: (id: number) => void;
@@ -91,6 +93,19 @@ export function AchievementTable({
 									>
 										{item.title}
 									</Link>
+									{hideTeacher &&
+										contextTeacherId !== undefined &&
+										item.teacher_id !== contextTeacherId && (
+											<>
+												{" "}
+												<span
+													className="status-badge"
+													title={`第一申报人：${item.teacher_name}`}
+												>
+													参与 · {item.teacher_name}
+												</span>
+											</>
+										)}
 								</td>
 								<td data-label="类型">{item.type_name}</td>
 								{!hideTeacher && (
@@ -123,7 +138,7 @@ export function AchievementTable({
 												className="action-button action-button-secondary action-button-sm"
 												to={`/achievements/${item.id}/edit`}
 												state={{ from }}
-												aria-label={`修改${item.title}`}
+												aria-label={`去修改：${item.title}`}
 											>
 												<Pen aria-hidden="true" />
 												去修改

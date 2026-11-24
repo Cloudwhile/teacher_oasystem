@@ -2,12 +2,13 @@ import { type DragEvent, useRef, useState } from "react";
 import { Camera, FolderOpen, Upload } from "reicon-react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { IconButton } from "@/components/common/IconButton";
-import { maxUploadBytes } from "@/config/app";
+import { formatUploadLimitMb, maxUploadBytes } from "@/config/app";
 import {
 	achievementApi,
 	errorMessage,
 	type FileMetadata,
 } from "@/features/achievements/api";
+import { useOptionalAuth } from "@/features/auth/AuthProvider";
 import { HttpError } from "@/services/httpClient";
 import { ExistingMaterials } from "./ExistingMaterials";
 import { MaterialList } from "./MaterialList";
@@ -31,6 +32,9 @@ export function MaterialUpload({
 	fieldError?: string;
 	onSessionExpired?: () => void;
 }) {
+	const auth = useOptionalAuth();
+	const limitBytes = auth?.session?.max_upload_bytes ?? maxUploadBytes;
+	const limitLabel = formatUploadLimitMb(limitBytes);
 	const input = useRef<HTMLInputElement>(null);
 	const cameraInput = useRef<HTMLInputElement>(null);
 	const [error, setError] = useState("");
@@ -55,8 +59,10 @@ export function MaterialUpload({
 		const validFiles: File[] = [];
 		const failures: string[] = [];
 		for (const file of chosen) {
-			if (file.size > maxUploadBytes) {
-				failures.push(`${file.name}：文件超过 10MB 大小限制，请压缩后重试。`);
+			if (file.size > limitBytes) {
+				failures.push(
+					`${file.name}：文件超过 ${limitLabel} 大小限制，请压缩后重试。`,
+				);
 			} else {
 				validFiles.push(file);
 			}
@@ -225,7 +231,8 @@ export function MaterialUpload({
 						>
 							<Upload aria-hidden="true" />
 							<span>
-								继续点击或拖拽补充材料（支持 PDF、JPG、PNG，单份 ≤ 10MB）
+								继续点击或拖拽补充材料（支持 PDF、JPG、PNG，单份 ≤ {limitLabel}
+								）
 							</span>
 						</div>
 					)}
@@ -242,8 +249,8 @@ export function MaterialUpload({
 					</span>
 					<p className="upload-dropzone-title">尚未关联证明材料</p>
 					<small className="upload-dropzone-hint">
-						点击此处、右上角相机拍照或拖拽 PDF、JPG、PNG 文件上传（单份 ≤
-						10MB，最多 20 份）
+						点击此处、右上角相机拍照或拖拽 PDF、JPG、PNG 文件上传（单份 ≤{" "}
+						{limitLabel}，最多 20 份）
 					</small>
 				</div>
 			) : (

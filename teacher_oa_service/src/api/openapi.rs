@@ -60,6 +60,7 @@ use utoipa::OpenApi;
         crate::api::routes::files::list,
         crate::api::routes::files::preview,
         crate::api::routes::files::download,
+        crate::api::routes::files::delete,
     ),
     components(
         schemas(

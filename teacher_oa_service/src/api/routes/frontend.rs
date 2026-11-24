@@ -23,6 +23,7 @@ const PWA_CACHE_CONTROL: &str = "no-cache";
 const FRONTEND_TITLE: &str = "TeacherOA";
 const FRONTEND_DESCRIPTION: &str = "TeacherOA";
 const FRONTEND_FAVICON_URL: &str = "/favicon.svg";
+const FALLBACK_FAVICON_SVG: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>TeacherOA</title><rect width="64" height="64" rx="14" fill="#1b56c4"/><path d="M32 13 8 25l24 12 18-9v13h4V26l2-1L32 13Zm-14 20.5v11C18 49.2 24.3 52 32 52s14-2.8 14-7.5v-11l-14 7-14-7Z" fill="#ffffff"/></svg>"##;
 
 pub const FRONTEND_CSP_HEADER: &str = concat!(
     "default-src 'self'; ",
@@ -181,7 +182,7 @@ impl FrontendService {
             None => HttpResponse::Ok()
                 .insert_header(("Cache-Control", STATIC_ASSET_CACHE_CONTROL))
                 .content_type("image/svg+xml")
-                .body(Vec::new()),
+                .body(FALLBACK_FAVICON_SVG),
         }
     }
 
@@ -214,36 +215,38 @@ impl FrontendService {
 
 /// Frontend routes mounted at `/`; this scope must be registered last.
 pub fn routes() -> Scope {
+    use crate::api::common::get_resource;
+
     web::scope("")
-        .route("/", web::get().to(FrontendService::handle_index))
-        .route("/index.html", web::get().to(FrontendService::handle_index))
-        .route(
+        .service(get_resource("/", FrontendService::handle_index))
+        .service(get_resource("/index.html", FrontendService::handle_index))
+        .service(get_resource(
             "/assets/{path:.*}",
-            web::get().to(FrontendService::handle_assets),
-        )
-        .route(
+            FrontendService::handle_assets,
+        ))
+        .service(get_resource(
             "/static/{path:.*}",
-            web::get().to(FrontendService::handle_static),
-        )
-        .route(
+            FrontendService::handle_static,
+        ))
+        .service(get_resource(
             "/favicon.svg",
-            web::get().to(FrontendService::handle_favicon),
-        )
-        .route(
+            FrontendService::handle_favicon,
+        ))
+        .service(get_resource(
             "/registerSW.js",
-            web::get().to(FrontendService::handle_pwa_file),
-        )
-        .route(
+            FrontendService::handle_pwa_file,
+        ))
+        .service(get_resource(
             "/manifest.webmanifest",
-            web::get().to(FrontendService::handle_pwa_file),
-        )
-        .route("/sw.js", web::get().to(FrontendService::handle_pwa_file))
-        .route(
+            FrontendService::handle_pwa_file,
+        ))
+        .service(get_resource("/sw.js", FrontendService::handle_pwa_file))
+        .service(get_resource(
             "/{filename:workbox-[^/]*}",
-            web::get().to(FrontendService::handle_pwa_file),
-        )
-        .route(
+            FrontendService::handle_pwa_file,
+        ))
+        .service(get_resource(
             "/{path:.*}",
-            web::get().to(FrontendService::handle_spa_fallback),
-        )
+            FrontendService::handle_spa_fallback,
+        ))
 }

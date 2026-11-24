@@ -317,6 +317,9 @@ export function AchievementListPage() {
 			{catalog.error && (
 				<Feedback message="筛选项暂时无法读取。" onRetry={catalog.reload} />
 			)}
+			{canFilterPeople && people.error && (
+				<Feedback message="人员筛选项暂时无法读取。" onRetry={people.reload} />
+			)}
 			{result.loading && !result.data ? (
 				<TableSkeleton message="正在读取成果…" />
 			) : result.error ? (
@@ -335,6 +338,9 @@ export function AchievementListPage() {
 							<AchievementTable
 								items={result.data.items}
 								hideTeacher={!isAllScope}
+								contextTeacherId={
+									!isAllScope ? session?.user.teacher?.id : undefined
+								}
 							/>
 						) : (
 							<EmptyState

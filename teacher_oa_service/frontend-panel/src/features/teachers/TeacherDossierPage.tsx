@@ -175,7 +175,11 @@ export function TeacherDossierPage() {
 						</span>
 					</div>
 					{achievements.length ? (
-						<AchievementTable items={achievements} hideTeacher />
+						<AchievementTable
+							items={achievements}
+							hideTeacher
+							contextTeacherId={profile.id}
+						/>
 					) : (
 						<EmptyState
 							icon={<FileText />}

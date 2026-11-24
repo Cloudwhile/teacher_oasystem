@@ -95,8 +95,20 @@ pub async fn save_wecom(
     result.map_err(|e: ApiError| e.at(&request))
 }
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/admin/accounts", web::get().to(accounts))
-        .route("/admin/accounts", web::post().to(save_account))
-        .route("/admin/wecom", web::get().to(wecom_settings))
-        .route("/admin/wecom", web::put().to(save_wecom));
+    use crate::api::common::method_not_allowed;
+
+    cfg.service(
+        web::resource("/admin/accounts")
+            .route(web::get().to(accounts))
+            .route(web::head().to(accounts))
+            .route(web::post().to(save_account))
+            .default_service(method_not_allowed("GET, HEAD, POST")),
+    )
+    .service(
+        web::resource("/admin/wecom")
+            .route(web::get().to(wecom_settings))
+            .route(web::head().to(wecom_settings))
+            .route(web::put().to(save_wecom))
+            .default_service(method_not_allowed("GET, HEAD, PUT")),
+    );
 }

@@ -14,7 +14,8 @@
 		background-color 120ms ease-out,
 		box-shadow 120ms ease-out;
 }
-.input-control > input {
+.input-control > input,
+.form-field .input-control > input {
 	flex: 1;
 	min-width: 0;
 	width: 0;
@@ -27,10 +28,16 @@
 	color: var(--color-text);
 	box-shadow: none;
 }
-.input-control > input:focus {
+.input-control > input:is(:focus, :focus-visible, [aria-invalid="true"]),
+.form-field
+	.input-control
+	> input:is(:focus, :focus-visible, [aria-invalid="true"]) {
+	border: 0;
+	box-shadow: none;
 	outline: none;
 }
-.input-control:has(input:focus) {
+.input-control:has(input:focus),
+.input-control:has(input:focus-visible) {
 	border-color: var(--color-focus-ring);
 	background: var(--color-surface-raised);
 	box-shadow: var(--oa-ring);
@@ -38,6 +45,16 @@
 .input-control:has(input[aria-invalid="true"]) {
 	border-color: var(--color-danger-fg);
 	box-shadow: var(--ring-danger);
+}
+@media (forced-colors: active) {
+	.input-control:has(input:focus-visible) {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+	.input-control > input:focus-visible,
+	.form-field .input-control > input:focus-visible {
+		outline: none;
+	}
 }
 .input-control:has(input:disabled),
 .input-control > input:disabled {

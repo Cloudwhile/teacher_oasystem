@@ -64,3 +64,58 @@ it("切换下拉筛选时保留已输入的搜索词", async () => {
 	expect(nextParams.get("search")).toBe("人工智能教学");
 	expect(nextParams.get("status")).toBe("approved");
 });
+
+it("个人视图标注参与成果的第一申报人，并使去修改按钮无障碍名称包含可见文案", async () => {
+	mockHttp((url) => {
+		if (url.endsWith("/auth/me")) return json(identity);
+		if (url.startsWith("/api/v1/achievements?")) {
+			return json({
+				items: [
+					{
+						id: 11,
+						teacher_id: 2,
+						teacher_name: "李四",
+						title: "协作教学课题",
+						type_code: "research_project",
+						type_name: "教科研项目",
+						subject_code: "math",
+						academic_term_id: 1,
+						occurred_at: "2026-10-01",
+						level_code: "city",
+						award_grade_code: "first",
+						status: "approved",
+						version: 1,
+						created_at: "2026-10-01T00:00:00Z",
+						updated_at: "2026-10-02T00:00:00Z",
+					},
+					{
+						id: 12,
+						teacher_id: 1,
+						teacher_name: "原管理员",
+						title: "退回修改成果",
+						type_code: "research_project",
+						type_name: "教科研项目",
+						subject_code: "math",
+						academic_term_id: 1,
+						occurred_at: "2026-10-01",
+						level_code: "city",
+						award_grade_code: "first",
+						status: "returned",
+						version: 1,
+						created_at: "2026-10-01T00:00:00Z",
+						updated_at: "2026-10-02T00:00:00Z",
+					},
+				],
+				page: 1,
+				page_size: 20,
+				total: 2,
+			});
+		}
+		return json([]);
+	});
+	showPage(<Page />, "/achievements?scope=mine");
+	expect(await screen.findByText("参与 · 李四")).toBeTruthy();
+	expect(
+		screen.getByRole("link", { name: "去修改：退回修改成果" }),
+	).toBeTruthy();
+});

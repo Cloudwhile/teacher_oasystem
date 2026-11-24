@@ -537,3 +537,84 @@ async fn development_loopback_and_same_origin_hosts_succeed_while_production_is_
         .to_http_request();
     assert!(auth_service::ensure_origin(&prod_mismatch, &prod_auth).is_err());
 }
+
+#[actix_web::test]
+async fn unauthenticated_requests_emit_www_authenticate_and_405_sets_allow() {
+    let (state, _database) = setup_auth().await;
+    let app = create_test_app!(state);
+
+    let unauthorized = test::call_service(
+        &app,
+        test::TestRequest::get().uri("/api/v1/auth/me").to_request(),
+    )
+    .await;
+    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        unauthorized
+            .headers()
+            .get("www-authenticate")
+            .and_then(|v| v.to_str().ok()),
+        Some("Session realm=\"TeacherOA\"")
+    );
+
+    let wrong_method = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri("/api/v1/auth/me")
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(wrong_method.status(), StatusCode::METHOD_NOT_ALLOWED);
+    let allow = wrong_method
+        .headers()
+        .get("allow")
+        .and_then(|v| v.to_str().ok())
+        .expect("allow header");
+    assert!(allow.contains("GET") && allow.contains("HEAD"), "{allow}");
+}
+
+#[actix_web::test]
+async fn login_rate_limit_emits_retry_after_and_retryable_flag() {
+    let (state, _database) = setup_auth().await;
+    let app = create_test_app!(state);
+    let peer: std::net::SocketAddr = "203.0.113.10:1234".parse().expect("peer addr");
+
+    for _ in 0..10 {
+        let resp = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/api/v1/auth/login")
+                .peer_addr(peer)
+                .insert_header(("Origin", "http://127.0.0.1:3000"))
+                .insert_header(("X-Forwarded-For", "198.51.100.1"))
+                .set_json(json!({"username": "ratelimit_probe", "password": "wrong-password-1"}))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let throttled = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/api/v1/auth/login")
+            .peer_addr(peer)
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .insert_header(("X-Forwarded-For", "198.51.100.2"))
+            .set_json(json!({"username": "ratelimit_probe", "password": "wrong-password-1"}))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(throttled.status(), StatusCode::TOO_MANY_REQUESTS);
+    let retry_after: u64 = throttled
+        .headers()
+        .get("retry-after")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok())
+        .expect("numeric Retry-After header");
+    assert!(retry_after >= 1);
+    let body: Value = test::read_body_json(throttled).await;
+    assert_eq!(body["code"], "too_many_requests");
+    assert_eq!(body["error"]["retryable"], true);
+}

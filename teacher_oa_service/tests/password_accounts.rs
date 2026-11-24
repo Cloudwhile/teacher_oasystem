@@ -21,6 +21,7 @@ fn account(username: &str, role: &str) -> accounts::AccountInput {
         wecom_userid: None,
         employee_no: None,
         subject_code: None,
+        employment_status: None,
     }
 }
 
@@ -533,4 +534,167 @@ async fn sso_sessions_skip_initial_password_wall_and_corp_changes_filter_binding
     let mut bad = account("badnull", "teacher");
     bad.name = "张\0三".into();
     assert!(accounts::save(db, Some(admin_id), "", bad).await.is_err());
+}
+
+#[actix_web::test]
+async fn employment_status_deactivation_preserves_multi_roles_and_validates_subjects() {
+    use sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter, Set};
+    use teacher_oa_service::repositories::entities::user_role;
+
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    let admin_id = accounts::save(db, None, "", account("sec_admin", "admin"))
+        .await
+        .unwrap();
+
+    let mut invalid_subject = account("subj_bad", "teacher");
+    invalid_subject.subject_code = Some("invalid_subject".into());
+    assert!(
+        accounts::save(db, Some(admin_id), "", invalid_subject)
+            .await
+            .is_err()
+    );
+
+    let mut teacher_input = account("multi_role_teacher", "group_leader");
+    teacher_input.subject_code = Some("chinese".into());
+    teacher_input.employment_status = Some("active".into());
+    let uid = accounts::save(db, Some(admin_id), "", teacher_input)
+        .await
+        .unwrap();
+
+    user_role::ActiveModel {
+        user_id: Set(uid),
+        role_code: Set("reviewer".into()),
+        data_scope: Set("ALL".into()),
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let current = teacher_oa_service::repositories::identity::current_user(db, uid)
+        .await
+        .unwrap();
+    let req = test::TestRequest::default().to_http_request();
+    let (cookie, _) = auth_service::create_session(&req, &state, current)
+        .await
+        .unwrap();
+    let app = create_test_app!(state.clone());
+    assert_eq!(
+        test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/auth/me")
+                .cookie(cookie.clone())
+                .to_request(),
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+
+    let mut keep_roles = account("multi_role_teacher", "group_leader");
+    keep_roles.id = Some(uid);
+    keep_roles.password = None;
+    keep_roles.subject_code = Some("chinese".into());
+    keep_roles.employment_status = Some("inactive".into());
+    accounts::save(db, Some(admin_id), "", keep_roles)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/auth/me")
+                .cookie(cookie.clone())
+                .to_request(),
+        )
+        .await
+        .status(),
+        StatusCode::FORBIDDEN
+    );
+
+    let roles: Vec<String> = user_role::Entity::find()
+        .filter(user_role::Column::UserId.eq(uid))
+        .all(db)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|r| r.role_code)
+        .collect();
+    assert!(roles.contains(&"teacher".to_string()));
+    assert!(roles.contains(&"group_leader".to_string()));
+    assert!(roles.contains(&"reviewer".to_string()));
+
+    let listing = accounts::accounts_for_corp(db, "").await.unwrap();
+    let item = listing.items.iter().find(|a| a.id == uid).unwrap();
+    assert_eq!(item.employment_status, "inactive");
+
+    let mut reactivate = account("multi_role_teacher", "group_leader");
+    reactivate.id = Some(uid);
+    reactivate.password = None;
+    reactivate.subject_code = Some("chinese".into());
+    reactivate.employment_status = Some("active".into());
+    accounts::save(db, Some(admin_id), "", reactivate)
+        .await
+        .unwrap();
+    assert_eq!(
+        test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/auth/me")
+                .cookie(cookie)
+                .to_request(),
+        )
+        .await
+        .status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let mut self_deactivate = account("sec_admin", "admin");
+    self_deactivate.id = Some(admin_id);
+    self_deactivate.password = None;
+    self_deactivate.employment_status = Some("inactive".into());
+    assert!(
+        accounts::save(db, Some(admin_id), "", self_deactivate)
+            .await
+            .is_err()
+    );
+}
+
+#[actix_web::test]
+async fn five_failed_password_attempts_lock_the_account() {
+    let (state, _database) = common::setup().await;
+    let db = state.db_handles.writer();
+    let admin_id = accounts::save(db, None, "", account("lock_admin", "admin"))
+        .await
+        .unwrap();
+    let mut u = account("locked_teacher", "teacher");
+    u.password = Some("Correct-pass-123".into());
+    accounts::save(db, Some(admin_id), "", u).await.unwrap();
+
+    let app = create_test_app!(state);
+    for _ in 0..5 {
+        let wrong = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/api/v1/auth/login")
+                .insert_header(("Origin", "http://127.0.0.1:3000"))
+                .set_json(json!({"username": "locked_teacher", "password": "Wrong-pass-123"}))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let locked = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/api/v1/auth/login")
+            .insert_header(("Origin", "http://127.0.0.1:3000"))
+            .set_json(json!({"username": "locked_teacher", "password": "Correct-pass-123"}))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(locked.status(), StatusCode::UNAUTHORIZED);
 }

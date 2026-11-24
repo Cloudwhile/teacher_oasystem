@@ -148,6 +148,7 @@ export function AccountsPage() {
 							wecom_userid: target.wecom_userid ?? "",
 							employee_no: target.employee_no ?? "",
 							subject_code: target.subject_code ?? "other",
+							employment_status: target.employment_status,
 						},
 						session.csrf_token,
 					);
@@ -423,6 +424,9 @@ export function AccountsPage() {
 															>
 																{account.active ? "启用" : "停用"}
 															</span>
+															{account.employment_status === "inactive" && (
+																<span className="status-badge">离职</span>
+															)}
 															{account.must_change && (
 																<span className="status-badge status-badge-warning">
 																	待改密

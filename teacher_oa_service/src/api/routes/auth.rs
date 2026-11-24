@@ -44,38 +44,101 @@ const IP_ATTEMPTS: u32 = 300;
 /// Attempts allowed per minute against one account.
 const ACCOUNT_ATTEMPTS: u32 = 10;
 
-fn peer_ip(request: &HttpRequest) -> String {
-    request
-        .peer_addr()
-        .map(|p| p.ip().to_string())
-        .unwrap_or_default()
+fn parse_forwarded_for_value(value: &str) -> Option<std::net::IpAddr> {
+    let trimmed = value.trim().trim_matches('"');
+    if let Some(rest) = trimmed.strip_prefix('[') {
+        let (ip_part, _) = rest.split_once(']')?;
+        return ip_part.parse().ok();
+    }
+    trimmed
+        .parse()
+        .ok()
+        .or_else(|| trimmed.rsplit_once(':').and_then(|(ip, _)| ip.parse().ok()))
 }
 
-/// Counts attempts in one-minute windows per `bucket:key`.
-fn throttle(bucket: &str, key: &str, limit: u32) -> Result<(), ApiError> {
-    use std::{
-        collections::BTreeMap,
-        sync::{Mutex, OnceLock},
-    };
-    static ATTEMPTS: OnceLock<Mutex<BTreeMap<String, (i64, u32)>>> = OnceLock::new();
-    let mut attempts = ATTEMPTS
-        .get_or_init(|| Mutex::new(BTreeMap::new()))
-        .lock()
-        .map_err(|_| ApiError::Internal)?;
-    let now = chrono::Utc::now().timestamp();
-    attempts.retain(|_, (start, _)| now - *start < 60);
-    let key = format!("{bucket}:{key}");
-    if !attempts.contains_key(&key) && attempts.len() >= 50_000 {
-        return Err(ApiError::TooManyAttempts);
+fn extract_ip_from_chain<'a>(
+    candidates: impl Iterator<Item = &'a str>,
+    auth: &crate::config::AuthConfig,
+) -> Option<std::net::IpAddr> {
+    let mut last_trusted = None;
+    for raw in candidates {
+        let Ok(ip) = raw.trim().parse::<std::net::IpAddr>() else {
+            return None;
+        };
+        if !auth.is_trusted_proxy(ip) {
+            return Some(ip);
+        }
+        last_trusted = Some(ip);
     }
-    let entry = attempts.entry(key).or_insert((now, 0));
-    entry.1 += 1;
-    if entry.1 > limit {
-        return Err(ApiError::TooManyAttempts);
-    }
-    Ok(())
+    last_trusted
 }
-#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/login",operation_id="auth_password_login",request_body=crate::services::account_service::PasswordLogin,responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=429,body=Failure),(status=500,body=Failure)))]
+
+fn client_ip(request: &HttpRequest, auth: &crate::config::AuthConfig) -> String {
+    let Some(peer) = request.peer_addr().map(|p| p.ip()) else {
+        return String::new();
+    };
+    if !auth.is_trusted_proxy(peer) {
+        return peer.to_string();
+    }
+    if let Some(xff) = request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        && let Some(ip) = extract_ip_from_chain(xff.rsplit(','), auth)
+    {
+        return ip.to_string();
+    }
+    if let Some(forwarded) = request
+        .headers()
+        .get("forwarded")
+        .and_then(|v| v.to_str().ok())
+    {
+        let mut last_trusted = None;
+        let mut valid = true;
+        for element in forwarded.rsplit(',') {
+            let Some(for_val) = element.split(';').find_map(|param| {
+                let (name, value) = param.split_once('=')?;
+                name.trim().eq_ignore_ascii_case("for").then_some(value)
+            }) else {
+                valid = false;
+                break;
+            };
+            let Some(ip) = parse_forwarded_for_value(for_val) else {
+                valid = false;
+                break;
+            };
+            if !auth.is_trusted_proxy(ip) {
+                return ip.to_string();
+            }
+            last_trusted = Some(ip);
+        }
+        if valid && let Some(ip) = last_trusted {
+            return ip.to_string();
+        }
+    }
+    if let Some(real_ip) = request
+        .headers()
+        .get("x-real-ip")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.trim().parse::<std::net::IpAddr>().ok())
+    {
+        return real_ip.to_string();
+    }
+    peer.to_string()
+}
+
+/// Counts attempts in one-minute windows per `bucket:key` in the configured auth store.
+async fn throttle(state: &AppState, bucket: &str, key: &str, limit: u32) -> Result<(), ApiError> {
+    let key = format!("teacher_oa:rl:{bucket}:{key}");
+    match state.auth_store.check_rate_limit(&key, limit, 60).await? {
+        Ok(()) => Ok(()),
+        Err(retry_after) => Err(ApiError::TooManyAttempts { retry_after }),
+    }
+}
+fn max_upload_bytes(state: &AppState) -> Option<u64> {
+    Some(u64::try_from(state.config.storage.max_upload_bytes).unwrap_or(20 * 1024 * 1024))
+}
+#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/login",operation_id="auth_password_login",request_body=crate::services::account_service::PasswordLogin,responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=429,body=Failure),(status=503,body=Failure),(status=500,body=Failure)))]
 pub async fn password_login(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -83,7 +146,13 @@ pub async fn password_login(
 ) -> Result<HttpResponse, RequestError> {
     let result = async {
         auth::ensure_origin(&request, &state.config.auth)?;
-        throttle("login-ip", &peer_ip(&request), IP_ATTEMPTS)?;
+        throttle(
+            &state,
+            "login-ip",
+            &client_ip(&request, &state.config.auth),
+            IP_ATTEMPTS,
+        )
+        .await?;
         let account: String = body
             .username
             .trim()
@@ -91,7 +160,7 @@ pub async fn password_login(
             .chars()
             .take(64)
             .collect();
-        throttle("login-account", &account, ACCOUNT_ATTEMPTS)?;
+        throttle(&state, "login-account", &account, ACCOUNT_ATTEMPTS).await?;
         let (user, verified_version) =
             crate::services::account_service::login(state.db_handles.writer(), body.into_inner())
                 .await?;
@@ -114,6 +183,7 @@ pub async fn password_login(
                 user,
                 csrf_token: session.csrf_token,
                 must_change_password,
+                max_upload_bytes: max_upload_bytes(&state),
             },
         )?;
         response
@@ -124,7 +194,7 @@ pub async fn password_login(
     .await;
     result.map_err(|e: ApiError| e.at(&request))
 }
-#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/password",operation_id="auth_change_password",request_body=crate::services::account_service::PasswordChange,security(("session"=[],"csrf"=[])),responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=409,body=Failure),(status=500,body=Failure)))]
+#[aster_forge_api_docs_macros::path(post,path="/api/v1/auth/password",operation_id="auth_change_password",request_body=crate::services::account_service::PasswordChange,security(("session"=[],"csrf"=[])),responses((status=200,body=Success<AuthResponse>),(status=400,body=Failure),(status=401,body=Failure),(status=403,body=Failure),(status=409,body=Failure),(status=429,body=Failure),(status=503,body=Failure),(status=500,body=Failure)))]
 pub async fn change_password(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -133,7 +203,13 @@ pub async fn change_password(
     let result = async {
         let (session, user) = auth::authenticate(&request, &state).await?;
         auth::ensure_csrf(&request, &state.config.auth, &session)?;
-        throttle("password-user", &user.id.to_string(), ACCOUNT_ATTEMPTS)?;
+        throttle(
+            &state,
+            "password-user",
+            &user.id.to_string(),
+            ACCOUNT_ATTEMPTS,
+        )
+        .await?;
         let verified_version = crate::services::account_service::change(
             state.db_handles.writer(),
             user.id,
@@ -155,6 +231,7 @@ pub async fn change_password(
                 user,
                 csrf_token: session.csrf_token,
                 must_change_password: false,
+                max_upload_bytes: max_upload_bytes(&state),
             },
         )?;
         response
@@ -187,6 +264,8 @@ pub struct AuthResponse {
     pub user: CurrentUser,
     pub csrf_token: String,
     pub must_change_password: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_upload_bytes: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -251,6 +330,7 @@ pub async fn mock_login(
                 user,
                 csrf_token: session.csrf_token,
                 must_change_password: false,
+                max_upload_bytes: max_upload_bytes(&state),
             },
         )?;
         response
@@ -281,6 +361,7 @@ pub async fn me(
                     .is_some_and(|c| c.must_change),
                 user,
                 csrf_token: session.csrf_token,
+                max_upload_bytes: max_upload_bytes(&state),
             },
         )
     }
@@ -332,7 +413,7 @@ pub async fn logout(
     result.map_err(|error: ApiError| error.at(&request))
 }
 
-#[aster_forge_api_docs_macros::path(get, path = "/api/v1/auth/wecom/login", operation_id = "auth_wecom_login", params(("mode" = Option<String>, Query, description = "web 或 h5")), responses((status = 302), (status = 400, body = Failure), (status = 503, body = Failure), (status = 500, body = Failure)))]
+#[aster_forge_api_docs_macros::path(get, path = "/api/v1/auth/wecom/login", operation_id = "auth_wecom_login", params(("mode" = Option<String>, Query, description = "web 或 h5")), responses((status = 302), (status = 400, body = Failure), (status = 429, body = Failure), (status = 503, body = Failure), (status = 500, body = Failure)))]
 pub async fn wecom_login(
     request: HttpRequest,
     state: web::Data<AppState>,
@@ -340,7 +421,13 @@ pub async fn wecom_login(
 ) -> Result<HttpResponse, RequestError> {
     let result = async {
         // Each call stores two state records for OAUTH_TTL; bound how fast one client adds them.
-        throttle("wecom-ip", &peer_ip(&request), IP_ATTEMPTS)?;
+        throttle(
+            &state,
+            "wecom-ip",
+            &client_ip(&request, &state.config.auth),
+            IP_ATTEMPTS,
+        )
+        .await?;
         let value = auth::random_token();
         let binding = auth::random_token();
         let (adapter, _) = crate::services::settings_service::adapter(&state).await?;
@@ -383,14 +470,31 @@ pub async fn wecom_callback(
     query: web::Query<CallbackQuery>,
 ) -> HttpResponse {
     let result = async {
+        let value = query.state.as_deref();
         if query.error.is_some() {
+            if let (Some(value), Some(binding)) = (value, request.cookie(auth::OAUTH_COOKIE))
+                && auth::consume_state(&state, value, binding.value())
+                    .await
+                    .is_ok()
+            {
+                let _ = state
+                    .auth_store
+                    .delete(&format!("teacher_oa:oauth-next:{value}"))
+                    .await;
+            }
             return Err(ApiError::Unauthorized);
         }
-        let value = query.state.as_deref().ok_or(ApiError::Unauthorized)?;
+        let value = value.ok_or(ApiError::Unauthorized)?;
         let binding = request
             .cookie(auth::OAUTH_COOKIE)
             .ok_or(ApiError::Unauthorized)?;
         auth::consume_state(&state, value, binding.value()).await?;
+        let next = state
+            .auth_store
+            .take(&format!("teacher_oa:oauth-next:{value}"))
+            .await?
+            .and_then(|v| String::from_utf8(v).ok())
+            .unwrap_or_else(|| "/dashboard".into());
         let code = query
             .code
             .as_deref()
@@ -409,12 +513,6 @@ pub async fn wecom_callback(
         )
         .await?;
         let (cookie, _) = auth::create_session(&request, &state, user).await?;
-        let next = state
-            .auth_store
-            .take(&format!("teacher_oa:oauth-next:{value}"))
-            .await?
-            .and_then(|v| String::from_utf8(v).ok())
-            .unwrap_or_else(|| "/dashboard".into());
         Ok((cookie, safe_next(Some(&next))))
     }
     .await;
@@ -434,13 +532,15 @@ pub async fn wecom_callback(
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/auth/options", web::get().to(options))
-        .route("/auth/login", web::post().to(password_login))
-        .route("/auth/password", web::post().to(change_password))
-        .route("/auth/mock/login", web::post().to(mock_login))
-        .route("/auth/me", web::get().to(me))
-        .route("/auth/permissions", web::get().to(permissions))
-        .route("/auth/logout", web::post().to(logout))
-        .route("/auth/wecom/login", web::get().to(wecom_login))
-        .route("/auth/wecom/callback", web::get().to(wecom_callback));
+    use crate::api::common::{get_resource, post_resource};
+
+    cfg.service(get_resource("/auth/options", options))
+        .service(post_resource("/auth/login", password_login))
+        .service(post_resource("/auth/password", change_password))
+        .service(post_resource("/auth/mock/login", mock_login))
+        .service(get_resource("/auth/me", me))
+        .service(get_resource("/auth/permissions", permissions))
+        .service(post_resource("/auth/logout", logout))
+        .service(get_resource("/auth/wecom/login", wecom_login))
+        .service(get_resource("/auth/wecom/callback", wecom_callback));
 }

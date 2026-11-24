@@ -8,10 +8,8 @@ use crate::api::response::StatusResponse;
 /// Returns the health route scope.
 pub fn routes() -> Scope {
     let scope = web::scope("/health")
-        .route("", web::get().to(health))
-        .route("", web::head().to(health))
-        .route("/ready", web::get().to(ready))
-        .route("/ready", web::head().to(ready));
+        .service(crate::api::common::get_resource("", health))
+        .service(crate::api::common::get_resource("/ready", ready));
 
     #[cfg(feature = "metrics")]
     let scope = scope.service(aster_forge_observability::actix::prometheus_resource(
@@ -29,10 +27,12 @@ pub fn routes() -> Scope {
     )
 )]
 pub async fn health() -> HttpResponse {
-    HttpResponse::Ok().json(StatusResponse {
-        service: env!("CARGO_PKG_NAME"),
-        status: "ok",
-    })
+    HttpResponse::Ok()
+        .insert_header(("Cache-Control", "no-store"))
+        .json(StatusResponse {
+            service: env!("CARGO_PKG_NAME"),
+            status: "ok",
+        })
 }
 
 #[aster_forge_api_docs_macros::path(
@@ -68,9 +68,13 @@ pub async fn ready(state: web::Data<crate::runtime::AppState>) -> HttpResponse {
     };
 
     if ready {
-        HttpResponse::Ok().json(response)
+        HttpResponse::Ok()
+            .insert_header(("Cache-Control", "no-store"))
+            .json(response)
     } else {
-        HttpResponse::ServiceUnavailable().json(response)
+        HttpResponse::ServiceUnavailable()
+            .insert_header(("Cache-Control", "no-store"))
+            .json(response)
     }
 }
 

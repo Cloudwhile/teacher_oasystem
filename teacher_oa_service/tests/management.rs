@@ -249,3 +249,99 @@ async fn invalid_management_credentials_fail_closed() {
     std::fs::write(&path, CONFIG).unwrap();
     assert!(Management::new("short".into(), path).is_err());
 }
+
+#[actix_web::test]
+async fn management_bearer_challenges_case_insensitive_scheme_and_404_when_disabled() {
+    let (mut state, _db) = common::setup().await;
+    let shutdown = CancellationToken::new();
+
+    let disabled_app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(shutdown.clone()))
+            .configure(teacher_oa_service::api::configure),
+    )
+    .await;
+    let disabled = test::call_service(
+        &disabled_app,
+        test::TestRequest::post()
+            .uri("/api/v1/management/status")
+            .peer_addr("127.0.0.1:9000".parse().unwrap())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(disabled.status(), StatusCode::NOT_FOUND);
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("service.toml");
+    std::fs::write(&path, CONFIG).unwrap();
+    state.management = Some(Arc::new(Management::new(TOKEN.into(), path).unwrap()));
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::Data::new(shutdown))
+            .configure(teacher_oa_service::api::configure),
+    )
+    .await;
+
+    let missing = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/management/status")
+            .peer_addr("127.0.0.1:9000".parse().unwrap())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        missing
+            .headers()
+            .get("www-authenticate")
+            .and_then(|v| v.to_str().ok()),
+        Some("Bearer realm=\"TeacherOA Management\"")
+    );
+
+    let bad = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/management/status")
+            .peer_addr("127.0.0.1:9000".parse().unwrap())
+            .insert_header(("Authorization", "Bearer invalid-token"))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(bad.status(), StatusCode::UNAUTHORIZED);
+    let challenge = bad
+        .headers()
+        .get("www-authenticate")
+        .and_then(|v| v.to_str().ok())
+        .unwrap();
+    assert!(challenge.contains("error=\"invalid_token\""), "{challenge}");
+
+    let lowercase = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/management/status")
+            .peer_addr("127.0.0.1:9000".parse().unwrap())
+            .insert_header(("Authorization", format!("bearer {TOKEN}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(lowercase.status(), StatusCode::OK);
+
+    let method_not_allowed = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri("/api/v1/management/status")
+            .peer_addr("127.0.0.1:9000".parse().unwrap())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(method_not_allowed.status(), StatusCode::METHOD_NOT_ALLOWED);
+    let allow = method_not_allowed
+        .headers()
+        .get("allow")
+        .and_then(|v| v.to_str().ok())
+        .unwrap();
+    assert!(allow.contains("GET") && allow.contains("HEAD"), "{allow}");
+}

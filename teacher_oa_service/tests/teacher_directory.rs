@@ -36,6 +36,7 @@ async fn admin_and_school_leader_can_view_all_teachers_dossiers_and_filter_achie
             wecom_userid: None,
             employee_no: Some("ADM-0001".into()),
             subject_code: Some("education_management".into()),
+            employment_status: None,
         },
     )
     .await

@@ -117,12 +117,70 @@ async fn api_scope_returns_json_404_instead_of_frontend_fallback() {
         Some("application/json")
     );
 
+    assert_eq!(
+        response
+            .headers()
+            .get("cache-control")
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store")
+    );
+    let expected_request_id = response
+        .headers()
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+
     let body: serde_json::Value = test::read_body_json(response).await;
     assert_eq!(body["code"], "endpoint_not_found");
-    assert_eq!(body["msg"], "endpoint not found");
+    assert_eq!(body["msg"], "未找到请求的接口");
+    assert_eq!(body["request_id"], expected_request_id.unwrap_or_default());
     assert_eq!(body["error"]["retryable"], false);
     assert!(body.get("data").is_none());
     assert!(body["error"].get("diagnostic").is_none());
+}
+
+#[actix_web::test]
+async fn unsupported_methods_return_405_with_allow_header_and_get_routes_support_head() {
+    let (state, _database) = common::setup().await;
+    let app = create_test_app!(state);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/api/v1/auth/login")
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(
+        response
+            .headers()
+            .get("allow")
+            .and_then(|value| value.to_str().ok()),
+        Some("POST")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("cache-control")
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store")
+    );
+    let body: serde_json::Value = test::read_body_json(response).await;
+    assert_eq!(body["code"], "method_not_allowed");
+    assert!(body["request_id"].is_string());
+
+    for path in ["/", "/favicon.svg", "/api/v1/login-page"] {
+        let head = test::call_service(
+            &app,
+            test::TestRequest::default()
+                .method(actix_web::http::Method::HEAD)
+                .uri(path)
+                .to_request(),
+        )
+        .await;
+        assert_eq!(head.status(), StatusCode::OK, "HEAD {path}");
+    }
 }
 
 #[actix_web::test]

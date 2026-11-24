@@ -1,3 +1,4 @@
+import { formatUploadLimitMb } from "@/config/app";
 import { HttpError, requestJson } from "@/services/httpClient";
 import type {
 	OperationData,
@@ -99,8 +100,16 @@ export const achievementApi = {
 			`/api/v1/achievements/${id}/submit`,
 			write("POST", csrf, { version }),
 		),
-	files: (page: number, signal?: AbortSignal) =>
-		call<"files_list">(`/api/v1/files?page=${page}&page_size=20`, { signal }),
+	files: (page: number, pageSize = 20, signal?: AbortSignal) =>
+		call<"files_list">(`/api/v1/files?page=${page}&page_size=${pageSize}`, {
+			signal,
+		}),
+	deleteFile: async (id: number, csrf: string) => {
+		await requestJson<null>(`/api/v1/files/${id}`, {
+			method: "DELETE",
+			headers: { "X-CSRF-Token": csrf },
+		});
+	},
 	upload: (file: File, csrf: string) => {
 		const body = new FormData();
 		body.append("file", file);
@@ -124,7 +133,7 @@ export function errorMessage(
 		if (error.status === 404) return "请求的记录不存在或已被移除。";
 		if (error.status === 409) return "记录已被更新，请重新加载后再试。";
 		if (error.status === 413)
-			return "上传文件超过大小限制（单文件最大 10MB）。";
+			return `上传文件超过大小限制（单文件最大 ${formatUploadLimitMb()}）。`;
 		if (error.status >= 500) return "服务暂时异常，请稍后重试。";
 		return fallback;
 	}

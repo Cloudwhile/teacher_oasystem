@@ -39,6 +39,7 @@ export function AccountEditor({
 		wecom_userid: account?.wecom_userid ?? "",
 		employee_no: account?.employee_no ?? "",
 		subject_code: account?.subject_code || "other",
+		employment_status: account?.employment_status ?? "active",
 	};
 	const [data, setData] = useState(initial);
 	const [busy, setBusy] = useState(false);
@@ -158,6 +159,19 @@ export function AccountEditor({
 						<option value="reviewer">审核人员</option>
 						<option value="school_leader">校级行政</option>
 						<option value="admin">管理员</option>
+					</select>
+				</FormField>
+				<FormField id="employment_status" label="在职状态">
+					<select
+						id="employment_status"
+						value={data.employment_status ?? "active"}
+						disabled={busy || self}
+						onChange={(e) =>
+							setData({ ...data, employment_status: e.target.value })
+						}
+					>
+						<option value="active">在职</option>
+						<option value="inactive">离职</option>
 					</select>
 				</FormField>
 				{!self && (

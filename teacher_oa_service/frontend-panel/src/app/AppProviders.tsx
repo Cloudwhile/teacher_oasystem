@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from "react";
 import { Toaster } from "sonner";
 import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import { useMediaQuery } from "@/services/useMediaQuery";
 import {
 	applyThemeToDocument,
 	themeStorageKey,
@@ -10,6 +11,9 @@ import {
 
 export function AppProviders({ children }: { children: ReactNode }) {
 	const theme = useUiPreferencesStore((state) => state.theme);
+	const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+	const resolvedTheme =
+		theme === "system" ? (prefersDark ? "dark" : "light") : theme;
 	const syncFromStorage = useUiPreferencesStore(
 		(state) => state.syncFromStorage,
 	);
@@ -35,7 +39,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 				<Toaster
 					position="bottom-right"
 					closeButton
-					theme={theme}
+					theme={resolvedTheme}
 					containerAriaLabel="系统通知"
 					style={{
 						zIndex: "var(--z-toast)",

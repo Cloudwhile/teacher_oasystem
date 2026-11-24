@@ -179,7 +179,7 @@ Copy-Item .env.example .env
 cargo run -- --init-admin
 ```
 
-命令执行成功后，终端会输出初始凭据文件路径（开发环境默认为 `data/private-files/bootstrap-admin.txt`）。
+命令执行成功后，终端会输出初始凭据文件路径（开发环境默认为 `data/private-files/initial-admin.txt`）。
 
 ### 4. 启动服务并完成首次登录
 
@@ -189,7 +189,7 @@ cargo run --features openapi,metrics
 
 启动后可访问以下入口：
 
-- **Web 工作台**：`http://127.0.0.1:3000`（使用初始管理员凭据登录，按引导修改强密码后**立即删除** `bootstrap-admin.txt`）
+- **Web 工作台**：`http://127.0.0.1:3000`（使用初始管理员凭据登录，按引导修改强密码后**立即删除** `initial-admin.txt`）
 - **存活与就绪探针**：`http://127.0.0.1:3000/health` · `http://127.0.0.1:3000/health/ready`
 - **Prometheus 指标**（启用 `metrics` Feature 时）：`http://127.0.0.1:3000/health/metrics`
 - **Swagger UI 与 OpenAPI 文档**（仅限 Debug 构建且启用 `openapi` Feature 时）：`http://127.0.0.1:3000/swagger-ui/` · `/api-docs/openapi.json`
@@ -214,7 +214,7 @@ cargo run --features openapi,metrics
 | 检查项 | 生产环境强制要求 |
 | --- | --- |
 | **HTTPS 与同源配置** | 前置反向代理终止 TLS，设置 `[auth] environment = "production"`、`cookie_secure = true`，并将 `public_origin` 精确设为对外访问的 `https://域名`；严禁开启 `mock_enabled` 或 `mock_seed` |
-| **会话与限流后端** | 单实例可使用 `ASTER__AUTH__STORE=memory`（需确保反代正确传递真实客户端 IP 以避免全体用户共享同一限流桶）；多实例水平扩展**必须**设为 `redis` 并配置 `AUTH_REDIS_URL`，Redis 故障时系统拒绝静默降级至内存 |
+| **会话与限流后端** | 单实例可使用 `ASTER__AUTH__STORE=memory`；若前置反向代理，须配置 `[auth] trusted_proxies`（如 `["127.0.0.1", "::1"]`）以便正确读取 `Forwarded` / `X-Forwarded-For` 中的真实客户端 IP；多实例水平扩展**必须**设为 `redis` 并配置 `AUTH_REDIS_URL`，Redis 故障时系统拒绝静默降级至内存 |
 | **文件与对象存储** | 单实例可将 `[storage]` 指向非公开本地目录；多实例部署**必须**统一配置 S3 兼容对象存储，确保各节点共享证明材料与门户图片 |
 | **敏感设置主密钥** | 管理后台保存的企业微信密钥等敏感项由存储根目录下的 `.settings-key` 加密保护；严禁提交至代码库，亦严禁在运行期删除或覆盖 |
 | **企业微信回调域名** | 配置 `ASTER__AUTH__WECOM_CORP_ID`、`ASTER__AUTH__WECOM_AGENT_ID`、`WECOM_ALLOWED_CORP_ID`、`WECOM_CORP_SECRET` 及 `https://域名/api/v1/auth/wecom/callback`，并在企业微信后台登记可信域名 |

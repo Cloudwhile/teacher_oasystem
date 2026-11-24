@@ -110,13 +110,21 @@ pub async fn list(
         let total = pager.num_items().await?;
         let page = page.min(total.div_ceil(page_size).max(1));
         let rows = pager.fetch_page(page - 1).await?;
-        let mut items = Vec::new();
-        for row in rows {
-            let mut item = repo::metadata(row);
-            item.association =
-                Some(repo::file_association(state.db_handles.writer(), &user, item.id).await?);
-            items.push(item);
-        }
+        let ids: Vec<i64> = rows.iter().map(|row| row.id).collect();
+        let associations = repo::file_associations(state.db_handles.writer(), &user, &ids).await?;
+        let items = rows
+            .into_iter()
+            .map(|row| {
+                let mut item = repo::metadata(row);
+                item.association = Some(
+                    associations
+                        .get(&item.id)
+                        .cloned()
+                        .unwrap_or(crate::domain::achievements::FileAssociation::Unlinked),
+                );
+                item
+            })
+            .collect();
         business_audit::write(
             state.db_handles.writer(),
             user.id,
@@ -138,6 +146,64 @@ pub async fn list(
     .await;
     result.map_err(|e: ApiError| e.at(&request))
 }
+fn is_rfc8187_attr_char(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+        || matches!(
+            byte,
+            b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~'
+        )
+}
+
+fn encode_rfc8187_attr_chars(value: &str) -> String {
+    use std::fmt::Write;
+    let mut encoded = String::with_capacity(value.len());
+    for &byte in value.as_bytes() {
+        if is_rfc8187_attr_char(byte) {
+            encoded.push(char::from(byte));
+        } else {
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
+}
+
+fn ascii_fallback_filename(filename: &str, mime_type: &str) -> String {
+    let (raw_stem, raw_ext) = match filename.rsplit_once('.') {
+        Some((stem, ext)) => (stem, Some(ext)),
+        None => (filename, None),
+    };
+    let ext = raw_ext
+        .map(str::trim)
+        .filter(|ext| {
+            (1..=10).contains(&ext.len()) && ext.bytes().all(|b| b.is_ascii_alphanumeric())
+        })
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_else(|| match mime_type {
+            "application/pdf" => "pdf".into(),
+            "image/png" => "png".into(),
+            "image/jpeg" => "jpg".into(),
+            _ => "bin".into(),
+        });
+    let mut stem = String::new();
+    for ch in raw_stem.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+            stem.push(ch);
+        } else if ch.is_whitespace() && !stem.ends_with('_') && !stem.is_empty() {
+            stem.push('_');
+        }
+        if stem.len() >= 64 {
+            break;
+        }
+    }
+    let trimmed = stem.trim_matches(|c| c == '_' || c == '-');
+    let stem = if trimmed.chars().any(|c| c.is_ascii_alphanumeric()) {
+        trimmed
+    } else {
+        "material"
+    };
+    format!("{stem}.{ext}")
+}
+
 async fn read(
     request: &HttpRequest,
     state: &AppState,
@@ -146,15 +212,14 @@ async fn read(
 ) -> Result<HttpResponse, ApiError> {
     let (_, user) = auth::authenticate(request, state).await?;
     let (meta, bytes) = file_service::read(state, &user, id).await?;
-    let filename = url::form_urlencoded::byte_serialize(meta.filename.as_bytes())
-        .collect::<String>()
-        .replace('+', "%20");
+    let encoded = encode_rfc8187_attr_chars(&meta.filename);
+    let fallback = ascii_fallback_filename(&meta.filename, &meta.mime_type);
     let mode = if inline { "inline" } else { "attachment" };
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", meta.mime_type))
         .insert_header((
             "Content-Disposition",
-            format!("{mode}; filename=\"material\"; filename*=UTF-8''{filename}"),
+            format!("{mode}; filename=\"{fallback}\"; filename*=UTF-8''{encoded}"),
         ))
         .insert_header(("Cache-Control", "no-store"))
         .insert_header(("X-Content-Type-Options", "nosniff"))
@@ -184,9 +249,33 @@ pub async fn download(
         .await
         .map_err(|e| e.at(&request))
 }
+#[aster_forge_api_docs_macros::path(delete,path="/api/v1/files/{id}",operation_id="file_delete",params(("id"=i64,Path)),security(("session"=[],"csrf"=[])),responses((status=204),(status=401,body=Failure),(status=403,body=Failure),(status=409,body=Failure),(status=500,body=Failure)))]
+pub async fn delete(
+    request: HttpRequest,
+    state: web::Data<AppState>,
+    id: web::Path<i64>,
+) -> Result<HttpResponse, RequestError> {
+    let result = async {
+        let (session, user) = auth::authenticate(&request, &state).await?;
+        auth::ensure_csrf(&request, &state.config.auth, &session)?;
+        file_service::delete(&state, &user, *id).await?;
+        Ok(HttpResponse::NoContent()
+            .insert_header(("Cache-Control", "no-store"))
+            .finish())
+    }
+    .await;
+    result.map_err(|e: ApiError| e.at(&request))
+}
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/files", web::get().to(list))
-        .route("/files/upload", web::post().to(upload))
-        .route("/files/{id}/preview", web::get().to(preview))
-        .route("/files/{id}/download", web::get().to(download));
+    use crate::api::common::{get_resource, method_not_allowed, post_resource};
+
+    cfg.service(get_resource("/files", list))
+        .service(post_resource("/files/upload", upload))
+        .service(
+            web::resource("/files/{id}")
+                .route(web::delete().to(delete))
+                .default_service(method_not_allowed("DELETE")),
+        )
+        .service(get_resource("/files/{id}/preview", preview))
+        .service(get_resource("/files/{id}/download", download));
 }

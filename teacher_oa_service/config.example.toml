@@ -49,6 +49,8 @@ cookie_secure = true
 public_origin = "https://oa.example.edu.cn"
 session_ttl_seconds = 28800
 store = "memory"
+# Trusted reverse-proxy IPs or CIDRs when reading Forwarded / X-Forwarded-For headers:
+# trusted_proxies = ["127.0.0.1", "::1"]
 wecom_corp_id = ""
 wecom_agent_id = ""
 wecom_redirect_uri = "https://oa.example.edu.cn/api/v1/auth/wecom/callback"

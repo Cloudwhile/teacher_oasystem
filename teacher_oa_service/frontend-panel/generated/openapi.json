@@ -1611,6 +1611,15 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
           }
         }
       }
@@ -1874,7 +1883,25 @@
               }
             }
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
           "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "503": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2012,6 +2039,15 @@
         "responses": {
           "302": {},
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {
@@ -2407,6 +2443,70 @@
             }
           },
           "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrf": [],
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/files/{id}": {
+      "delete": {
+        "tags": [
+          "crate::api::routes::files"
+        ],
+        "operationId": "file_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {},
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "500": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3264,6 +3364,12 @@
               "null"
             ]
           },
+          "employment_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": [
               "integer",
@@ -3312,7 +3418,8 @@
           "active",
           "must_change",
           "employee_no",
-          "subject_code"
+          "subject_code",
+          "employment_status"
         ],
         "properties": {
           "active": {
@@ -3322,6 +3429,9 @@
             "type": "string"
           },
           "employee_no": {
+            "type": "string"
+          },
+          "employment_status": {
             "type": "string"
           },
           "id": {
@@ -3695,9 +3805,11 @@
         "enum": [
           "success",
           "endpoint_not_found",
+          "method_not_allowed",
           "unauthorized",
           "forbidden",
           "invalid_request",
+          "too_many_requests",
           "unavailable",
           "internal_error",
           "validation_failed",
@@ -4021,6 +4133,14 @@
             "properties": {
               "csrf_token": {
                 "type": "string"
+              },
+              "max_upload_bytes": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
               },
               "must_change_password": {
                 "type": "boolean"
@@ -4719,6 +4839,14 @@
         "properties": {
           "csrf_token": {
             "type": "string"
+          },
+          "max_upload_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
           },
           "must_change_password": {
             "type": "boolean"

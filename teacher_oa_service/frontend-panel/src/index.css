@@ -840,6 +840,14 @@ tbody tr:not(:last-child) td {
 	color: var(--color-text);
 	box-shadow: var(--shadow-lg);
 }
+[data-sonner-toaster] [data-sonner-toast].oa-toast [data-description] {
+	color: var(--color-text-secondary);
+}
+[data-sonner-toaster] [data-sonner-toast].oa-toast [data-close-button] {
+	background: var(--color-surface-raised);
+	color: var(--color-text-secondary);
+	border-color: var(--color-border-strong);
+}
 
 @keyframes spin {
 	to {

@@ -24,7 +24,10 @@ const auth = vi.hoisted(() => ({
 	},
 	refresh: vi.fn(),
 }));
-vi.mock("@/features/auth/AuthProvider", () => ({ useAuth: () => auth }));
+vi.mock("@/features/auth/AuthProvider", () => ({
+	useAuth: () => auth,
+	useOptionalAuth: () => auth,
+}));
 
 afterEach(() => {
 	cleanup();

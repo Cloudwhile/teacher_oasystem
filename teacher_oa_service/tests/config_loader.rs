@@ -117,6 +117,57 @@ fn environment_overrides_static_config() {
     assert_eq!(loaded.server.host, "0.0.0.0");
 }
 
+#[test]
+fn external_aster_config_resolves_relative_paths_from_config_dir() {
+    let _guard = EnvGuard::capture();
+    let dir = tempfile::tempdir().expect("create external temp dir");
+    let config_path = dir.path().join("config.toml");
+    fs::write(
+        &config_path,
+        r#"
+[server]
+temp_dir = ".tmp"
+
+[storage]
+root = "private-files"
+
+[database]
+url = "sqlite://external.db?mode=rwc"
+
+[logging]
+file = "service.log"
+"#,
+    )
+    .expect("write external config");
+
+    unsafe {
+        std::env::set_var(service::config::CONFIG_ENV_VAR, &config_path);
+    }
+    let loaded = service::config::load().expect("load external config");
+    assert_eq!(
+        loaded.server.temp_dir,
+        dir.path().join(".tmp").to_string_lossy()
+    );
+    assert_eq!(
+        loaded.storage.root,
+        dir.path().join("private-files").to_string_lossy()
+    );
+    assert_eq!(
+        loaded.logging.file,
+        dir.path().join("service.log").to_string_lossy()
+    );
+    assert_eq!(
+        loaded.database.url.as_url(),
+        Some(
+            format!(
+                "sqlite://{}?mode=rwc",
+                dir.path().join("external.db").to_string_lossy()
+            )
+            .as_str()
+        )
+    );
+}
+
 struct EnvGuard {
     _lock: MutexGuard<'static, ()>,
     config_path: Option<std::ffi::OsString>,

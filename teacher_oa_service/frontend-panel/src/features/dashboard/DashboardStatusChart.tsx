@@ -35,7 +35,7 @@ export default function DashboardStatusChart({
 				<h2>状态分布概览</h2>
 				<span className="section-meta">共 {totalCount} 项个人成果</span>
 			</div>
-			<div className="status-chart-box">
+			<div className="status-chart-box" aria-hidden="true">
 				<ResponsiveContainer width="100%" height="100%">
 					<BarChart
 						data={data}
@@ -76,6 +76,13 @@ export default function DashboardStatusChart({
 					</BarChart>
 				</ResponsiveContainer>
 			</div>
+			<ul className="visually-hidden">
+				{data.map((entry) => (
+					<li key={entry.status}>
+						{entry.name}：{entry.count} 项
+					</li>
+				))}
+			</ul>
 		</section>
 	);
 }

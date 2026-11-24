@@ -361,6 +361,14 @@ export interface OperationsPart3 {
                     "application/json": components["schemas"]["Failure"];
                 };
             };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Failure"];
+                };
+            };
         };
     };
     auth_logout: {

@@ -259,7 +259,11 @@ export function DashboardPage() {
 								)}
 							</div>
 							{hasRecent ? (
-								<AchievementTable items={result.data.recent} hideTeacher />
+								<AchievementTable
+									items={result.data.recent}
+									hideTeacher
+									contextTeacherId={session?.user.teacher?.id}
+								/>
 							) : (
 								<EmptyState
 									icon={<FileText />}

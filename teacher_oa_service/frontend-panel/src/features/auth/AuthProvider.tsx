@@ -119,3 +119,7 @@ export function useAuth() {
 	if (!context) throw new Error("AuthProvider is missing");
 	return context;
 }
+
+export function useOptionalAuth() {
+	return useContext(AuthContext);
+}

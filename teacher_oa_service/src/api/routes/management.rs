@@ -21,14 +21,28 @@ fn authorize(
     {
         return Err(ApiError::Forbidden);
     }
-    let token = request
+    let header = request
         .headers()
         .get("authorization")
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("Bearer "))
-        .ok_or(ApiError::Unauthorized)?;
+        .ok_or(ApiError::BearerUnauthorized {
+            invalid_token: false,
+        })?;
+    let mut parts = header.split_whitespace();
+    let (Some(scheme), Some(token), None) = (parts.next(), parts.next(), parts.next()) else {
+        return Err(ApiError::BearerUnauthorized {
+            invalid_token: false,
+        });
+    };
+    if !scheme.eq_ignore_ascii_case("bearer") {
+        return Err(ApiError::BearerUnauthorized {
+            invalid_token: false,
+        });
+    }
     if !management.matches(token) {
-        return Err(ApiError::Unauthorized);
+        return Err(ApiError::BearerUnauthorized {
+            invalid_token: true,
+        });
     }
     Ok(management)
 }
@@ -130,12 +144,41 @@ async fn shutdown(
     result.map_err(|error: ApiError| error.at(&request))
 }
 
+fn management_method_not_allowed(allow: &'static str) -> actix_web::Route {
+    use actix_web::ResponseError;
+    web::to(
+        move |request: HttpRequest, state: web::Data<AppState>| async move {
+            if state.management.is_none() {
+                ApiError::EndpointNotFound.at(&request).error_response()
+            } else {
+                ApiError::MethodNotAllowed { allow }
+                    .at(&request)
+                    .error_response()
+            }
+        },
+    )
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/management")
-            .route("/status", web::get().to(status))
-            .route("/config", web::get().to(config))
-            .route("/config", web::put().to(save_config))
-            .route("/shutdown", web::post().to(shutdown)),
+            .service(
+                web::resource("/status")
+                    .route(web::get().to(status))
+                    .route(web::head().to(status))
+                    .default_service(management_method_not_allowed("GET, HEAD")),
+            )
+            .service(
+                web::resource("/config")
+                    .route(web::get().to(config))
+                    .route(web::head().to(config))
+                    .route(web::put().to(save_config))
+                    .default_service(management_method_not_allowed("GET, HEAD, PUT")),
+            )
+            .service(
+                web::resource("/shutdown")
+                    .route(web::post().to(shutdown))
+                    .default_service(management_method_not_allowed("POST")),
+            ),
     );
 }

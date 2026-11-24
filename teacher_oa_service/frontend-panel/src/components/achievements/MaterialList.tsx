@@ -6,9 +6,15 @@ import { MaterialAssociation } from "./MaterialAssociation";
 export function MaterialList({
 	files,
 	onRemove,
+	canDeleteFile,
+	onDeleteFile,
+	deletingId,
 }: {
 	files: FileMetadata[];
 	onRemove?: (id: number) => void;
+	canDeleteFile?: (file: FileMetadata) => boolean;
+	onDeleteFile?: (file: FileMetadata) => void;
+	deletingId?: number | null;
 }) {
 	return (
 		// biome-ignore lint/a11y/noRedundantRoles: Safari removes list semantics when list-style: none is applied.
@@ -44,13 +50,24 @@ export function MaterialList({
 						>
 							<Download />
 						</a>
-						{onRemove && (
+						{onRemove ? (
 							<IconButton
 								label={`移除${file.filename}`}
 								onClick={() => onRemove(file.id)}
 							>
 								<Trash />
 							</IconButton>
+						) : (
+							onDeleteFile &&
+							canDeleteFile?.(file) && (
+								<IconButton
+									label={`删除${file.filename}`}
+									disabled={deletingId === file.id}
+									onClick={() => onDeleteFile(file)}
+								>
+									<Trash />
+								</IconButton>
+							)
 						)}
 					</div>
 				</li>

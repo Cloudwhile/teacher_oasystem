@@ -138,7 +138,11 @@
 	height: var(--space-4);
 }
 /* §8.6 Integrate submit & clear icon buttons seamlessly inside the filter search input box. */
-:where(.achievement-filters) .search-control {
+:where(.achievement-filters) .search-control,
+:where(.achievement-filters) .filter-prefix-field {
+	display: flex;
+	align-items: center;
+	min-width: 0;
 	gap: var(--space-1);
 	padding-inline: 2px;
 	border: var(--border-thin) solid var(--color-border-strong);
@@ -149,12 +153,23 @@
 		border-color 120ms ease-out,
 		box-shadow 120ms ease-out;
 }
-:where(.achievement-filters) .search-control:focus-within {
+:where(.achievement-filters) .search-control:focus-within,
+:where(.achievement-filters) .filter-prefix-field:focus-within {
 	border-color: var(--color-focus-ring);
 	box-shadow: var(--oa-ring);
 }
+.filter-input-prefix {
+	font-size: var(--text-xs);
+	font-weight: var(--weight-medium);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+	flex-shrink: 0;
+	padding-left: var(--space-2);
+	user-select: none;
+}
 :where(.account-search) .icon-button,
-:where(.achievement-filters) .search-control .icon-button {
+:where(.achievement-filters) .search-control .icon-button,
+:where(.achievement-filters) .filter-prefix-field .icon-button {
 	width: 34px;
 	height: 34px;
 	border: 0;
@@ -162,22 +177,33 @@
 	background: transparent;
 	color: var(--color-icon);
 }
-:where(.achievement-filters) .search-control input {
+:where(.achievement-filters) .search-control input,
+:where(.achievement-filters) .filter-prefix-field input {
+	flex: 1;
+	min-width: 0;
 	border: 0;
+	background: transparent;
 	box-shadow: none;
+	padding-inline: var(--space-2);
 	padding-left: var(--space-1);
 	min-height: 36px;
 }
-:where(.achievement-filters) .search-control input:focus-visible {
+:where(.achievement-filters) .search-control input:focus-visible,
+:where(.achievement-filters) .filter-prefix-field input:focus-visible {
 	box-shadow: none;
+	outline: none;
 }
 @media (hover: hover) {
-	:where(.achievement-filters) .search-control:hover:not(:focus-within) {
+	:where(.achievement-filters) .search-control:hover:not(:focus-within),
+	:where(.achievement-filters) .filter-prefix-field:hover:not(:focus-within) {
 		border-color: var(--color-neutral-400);
 	}
 	:where(.account-search) .icon-button:hover:not(:disabled),
 	:where(.achievement-filters)
 		.search-control
+		.icon-button:hover:not(:disabled),
+	:where(.achievement-filters)
+		.filter-prefix-field
 		.icon-button:hover:not(:disabled) {
 		background: var(--color-surface);
 		color: var(--color-text);
@@ -588,8 +614,8 @@ td.col-select {
 }
 .form-field input.participant-filter-input {
 	max-width: 152px;
-	min-height: 22px;
-	height: 22px;
+	min-height: 28px;
+	height: 28px;
 	font-size: var(--text-xs);
 	padding: 0 var(--space-2);
 	border-radius: var(--radius-sm);
@@ -902,12 +928,20 @@ td.col-select {
 	white-space: nowrap;
 }
 /* Container-driven toolbar & row breakpoints inside .page-content (Systemic #1, P0-6, P1-6). */
+@container workspace (max-width: 1120px) {
+	.achievement-filters.with-scope {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+	.achievement-filters.with-scope .search-control {
+		grid-column: span 2;
+	}
+}
 @container workspace (max-width: 960px) {
 	.achievement-filters.with-scope {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
-	.achievement-filters:not(.with-scope):not(.with-people):not(
-		.directory-filters
+	.achievement-filters:where(
+		:not(.with-scope):not(.with-people):not(.directory-filters)
 	) {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
@@ -952,14 +986,6 @@ td.col-select {
 		grid-area: 1 / 2 / 3 / 3;
 	}
 }
-@container workspace (max-width: 300px) {
-	.achievement-filters,
-	.achievement-filters.with-scope,
-	.achievement-filters.directory-filters,
-	.achievement-filters.with-people {
-		grid-template-columns: 1fr;
-	}
-}
 @media (max-width: 1100px) {
 	.achievement-filters,
 	.achievement-filters.with-scope,
@@ -986,6 +1012,22 @@ td.col-select {
 		margin-top: 0;
 	}
 }
+@container workspace (max-width: 320px) {
+	.achievement-filters,
+	.achievement-filters.with-scope,
+	.achievement-filters.directory-filters,
+	.achievement-filters.with-people {
+		grid-template-columns: 1fr;
+	}
+}
+@media (max-width: 360px) {
+	.achievement-filters,
+	.achievement-filters.with-scope,
+	.achievement-filters.directory-filters,
+	.achievement-filters.with-people {
+		grid-template-columns: 1fr;
+	}
+}
 @media (pointer: coarse) {
 	.achievement-filters select,
 	.achievement-filters input,
@@ -999,14 +1041,15 @@ td.col-select {
 		font-size: max(1rem, 1em);
 	}
 	.form-field input.participant-filter-input {
-		min-height: 36px;
-		height: auto;
+		min-height: 44px;
+		height: 44px;
 	}
 	.pagination-page,
 	.account-search .icon-button,
 	.participant-row .icon-button,
 	.material-list .icon-button,
-	.achievement-filters .search-control .icon-button {
+	.achievement-filters .search-control .icon-button,
+	.achievement-filters .filter-prefix-field .icon-button {
 		min-width: 44px;
 		height: 44px;
 	}
@@ -1024,13 +1067,14 @@ td.col-select {
 		font-size: max(1rem, 1em);
 	}
 	.form-field input.participant-filter-input {
-		min-height: 36px;
-		height: auto;
+		min-height: 44px;
+		height: 44px;
 	}
 	.account-search .icon-button,
 	.participant-row .icon-button,
 	.material-list .icon-button,
-	.achievement-filters .search-control .icon-button {
+	.achievement-filters .search-control .icon-button,
+	.achievement-filters .filter-prefix-field .icon-button {
 		width: 44px;
 		height: 44px;
 	}

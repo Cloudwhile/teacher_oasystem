@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
 	isRouteErrorResponse,
 	Link,
@@ -33,7 +34,11 @@ function NotFoundOrErrorContent({
 	const isLoginPath = location.pathname.startsWith(appPaths.login);
 	const homePath = isLoginPath ? appPaths.login : appPaths.dashboard;
 	const homeLabel = isLoginPath ? "返回登录页" : "返回工作台";
-	const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+	const historyIdx =
+		typeof window !== "undefined"
+			? (window.history.state as { idx?: number } | null)?.idx
+			: undefined;
+	const canGoBack = typeof historyIdx === "number" && historyIdx > 0;
 
 	const meta: Record<
 		"not-found" | "chunk" | "crash",
@@ -67,6 +72,11 @@ function NotFoundOrErrorContent({
 	};
 
 	const current = meta[kind];
+	useEffect(() => {
+		if (!inShell) {
+			document.title = `${current.title} · 教师发展与成果管理系统`;
+		}
+	}, [current.title, inShell]);
 	const actions =
 		kind === "not-found" ? (
 			<>

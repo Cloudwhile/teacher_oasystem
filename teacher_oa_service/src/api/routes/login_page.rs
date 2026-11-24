@@ -189,9 +189,16 @@ pub async fn asset(
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.route("/login-page", web::get().to(public))
-        .route("/login-page/assets/{key}", web::get().to(asset))
-        .route("/admin/login-page", web::get().to(read))
-        .route("/admin/login-page", web::put().to(save))
-        .route("/admin/login-page/assets", web::post().to(upload));
+    use crate::api::common::{get_resource, method_not_allowed, post_resource};
+
+    cfg.service(get_resource("/login-page", public))
+        .service(get_resource("/login-page/assets/{key}", asset))
+        .service(
+            web::resource("/admin/login-page")
+                .route(web::get().to(read))
+                .route(web::head().to(read))
+                .route(web::put().to(save))
+                .default_service(method_not_allowed("GET, HEAD, PUT")),
+        )
+        .service(post_resource("/admin/login-page/assets", upload));
 }

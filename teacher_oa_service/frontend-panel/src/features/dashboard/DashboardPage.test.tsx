@@ -69,7 +69,9 @@ it("展示待补正与草稿待办行，新建成果携带上次列表筛选地�
 	expect(await screen.findByText(/需要您处理/)).toBeTruthy();
 	expect(screen.getByText(/1 项成果被退回待补正/)).toBeTruthy();
 	expect(screen.getByText(/2 项草稿尚未提交审核/)).toBeTruthy();
-	expect(screen.getByRole("link", { name: "修改退回的示范课" })).toBeTruthy();
+	expect(
+		screen.getByRole("link", { name: "去修改：退回的示范课" }),
+	).toBeTruthy();
 
 	fireEvent.click(screen.getByRole("link", { name: "新建成果" }));
 	expect(router.state.location.pathname).toBe("/achievements/new");
