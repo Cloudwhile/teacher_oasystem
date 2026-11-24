@@ -63,7 +63,14 @@ fn feedback(events: &SyncSender<Event>, result: Result<(), String>, success: &st
 }
 
 pub fn run(settings: LauncherSettings, commands: Receiver<Command>, events: SyncSender<Event>) {
-    let mut supervisor = Supervisor::new(settings);
+    run_with_supervisor(Supervisor::new(settings), commands, events);
+}
+
+fn run_with_supervisor(
+    mut supervisor: Supervisor,
+    commands: Receiver<Command>,
+    events: SyncSender<Event>,
+) {
     let mut next_poll = Instant::now();
     let mut generation = u64::MAX;
     let mut restart = false;
@@ -177,9 +184,23 @@ pub fn run(settings: LauncherSettings, commands: Receiver<Command>, events: Sync
                 next_poll = Instant::now();
             }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                // Event loop closed unexpectedly. Ask only our own child to stop, without force.
-                if supervisor.connected {
-                    let _ = supervisor.stop();
+                // Event loop closed unexpectedly. Ask only our own child to stop gracefully first,
+                // then force-stop it if unconnected or if graceful stop exceeds the grace window.
+                if supervisor.pid().is_some() {
+                    if supervisor.connected {
+                        let _ = supervisor.stop();
+                        let deadline = Instant::now() + Duration::from_secs(5);
+                        while supervisor.pid().is_some() && Instant::now() < deadline {
+                            let _ = supervisor.poll();
+                            if supervisor.pid().is_none() {
+                                break;
+                            }
+                            std::thread::sleep(Duration::from_millis(100));
+                        }
+                    }
+                    if supervisor.pid().is_some() {
+                        let _ = supervisor.force_stop();
+                    }
                 }
                 return;
             }
@@ -310,5 +331,29 @@ fn view(supervisor: &Supervisor) -> View {
                 || supervisor
                     .stopping
                     .is_some_and(|started| started.elapsed() > Duration::from_secs(20))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn disconnected_command_channel_stops_unconnected_child_process() {
+        let (child, mut stdout) = crate::process::spawn_sleeping_child_for_test();
+        let mut supervisor = Supervisor::new(LauncherSettings::default());
+        supervisor.attach_test_child(child);
+        let (commands, receiver) = std::sync::mpsc::channel();
+        let (events, _responses) = std::sync::mpsc::sync_channel(8);
+
+        let handle = std::thread::spawn(move || run_with_supervisor(supervisor, receiver, events));
+        drop(commands);
+        handle.join().expect("worker joins after disconnect");
+
+        let mut output = Vec::new();
+        stdout
+            .read_to_end(&mut output)
+            .expect("read EOF after worker disconnect");
     }
 }

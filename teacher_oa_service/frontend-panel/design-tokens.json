@@ -8,7 +8,7 @@
 			"density": "comfortable-dense",
 			"grey-temperature": "cool-slate"
 		},
-		"pairs-note": "Every light and dark foreground/background pair verified against WCAG AA (4.5:1 normal, 3:1 large). Decorative 1px borders and dividers are excluded per §2.7.2 and reinforced under prefers-contrast: more."
+		"pairs-note": "Every light and dark foreground/background pair verified against WCAG AA (4.5:1 normal, 3:1 large). border-strong meets WCAG 1.4.11 (>= 3:1 non-text contrast) on control surfaces in both modes."
 	},
 	"primitive": {
 		"color": {
@@ -27,8 +27,8 @@
 				"50": "#fafbfc",
 				"100": "#f5f6f7",
 				"200": "#e3e5e8",
-				"300": "#c6cbd2",
-				"400": "#949aa4",
+				"300": "#868d99",
+				"400": "#79808c",
 				"500": "#737882",
 				"600": "#5c6069",
 				"700": "#43464e",
@@ -222,7 +222,7 @@
 			"text-disabled": "#6b7384",
 			"icon": "#848d9d",
 			"border": "#2a303d",
-			"border-strong": "#3b4354",
+			"border-strong": "#6e778a",
 			"focus-ring": "#60a5fa",
 			"action": "#2563eb",
 			"action-hover": "#1d4ed8",
@@ -364,6 +364,30 @@
 		{ "name": "dark: focus ring on overlay", "fg": "#60a5fa", "bg": "#222735" },
 		{ "name": "dark: focus ring on sunken", "fg": "#60a5fa", "bg": "#252b38" },
 		{ "name": "dark: success badge/notice", "fg": "#8ce0ba", "bg": "#11281f" },
-		{ "name": "dark: info badge", "fg": "#93cbe3", "bg": "#132430" }
+		{ "name": "dark: info badge", "fg": "#93cbe3", "bg": "#132430" },
+		{
+			"name": "light: control border-strong on white",
+			"fg": "#868d99",
+			"bg": "#ffffff",
+			"size": "large"
+		},
+		{
+			"name": "light: control border-strong on canvas",
+			"fg": "#868d99",
+			"bg": "#f5f6f7",
+			"size": "large"
+		},
+		{
+			"name": "dark: control border-strong on raised card",
+			"fg": "#6e778a",
+			"bg": "#1b1f29",
+			"size": "large"
+		},
+		{
+			"name": "dark: control border-strong on overlay",
+			"fg": "#6e778a",
+			"bg": "#222735",
+			"size": "large"
+		}
 	]
 }

@@ -20,9 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .spawn(move || teacher_oa_desktop::worker::run(initial, receiver, events))?;
     interface::bind(&ui, commands, responses);
     ui.run()?;
-    // The UI requests graceful shutdown before it exits; join only that completed worker.
-    if worker.is_finished() {
-        let _ = worker.join();
-    }
+    interface::cleanup_timer();
+    drop(ui);
+    let _ = worker.join();
     Ok(())
 }

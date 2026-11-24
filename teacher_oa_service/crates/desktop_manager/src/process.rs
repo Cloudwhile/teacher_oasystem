@@ -168,4 +168,58 @@ impl Supervisor {
         logs::record(&self.logs, "已结束当前管理器启动的服务进程");
         Ok(())
     }
+    #[cfg(test)]
+    pub(crate) fn attach_test_child(&mut self, child: Child) {
+        self.child = Some(child);
+    }
+}
+
+impl Drop for Supervisor {
+    fn drop(&mut self) {
+        if self.child.is_some() {
+            let _ = self.force_stop();
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn spawn_sleeping_child_for_test() -> (Child, std::process::ChildStdout) {
+    let mut command = if cfg!(windows) {
+        let mut cmd = Command::new("ping");
+        cmd.args(["-n", "30", "127.0.0.1"]);
+        cmd
+    } else {
+        let mut cmd = Command::new("sleep");
+        cmd.arg("30");
+        cmd
+    };
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn sleeping test child");
+    let stdout = child.stdout.take().expect("piped test stdout");
+    (child, stdout)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn dropping_supervisor_stops_spawned_child_process() {
+        let (child, mut stdout) = spawn_sleeping_child_for_test();
+        let mut supervisor = Supervisor::new(LauncherSettings::default());
+        supervisor.attach_test_child(child);
+        assert!(supervisor.pid().is_some());
+
+        drop(supervisor);
+
+        let mut output = Vec::new();
+        stdout
+            .read_to_end(&mut output)
+            .expect("read EOF after drop");
+    }
 }

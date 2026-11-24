@@ -79,6 +79,7 @@ export component AppWindow inherits Window {
     callback confirm-action(int);
     callback minimize-window;
     callback toggle-maximize;
+    callback request-close;
 
     VerticalLayout {
         padding: 0px;
@@ -138,7 +139,7 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     CaptionButton { kind: 0; label: "最小化"; clicked => { root.minimize-window(); } }
                     CaptionButton { kind: 1; maximized: root.is-maximized; label: root.is-maximized ? "向下还原" : "最大化"; clicked => { root.toggle-maximize(); } }
-                    CaptionButton { kind: 2; label: "关闭"; clicked => { root.close(); } }
+                    CaptionButton { kind: 2; label: "关闭"; clicked => { root.request-close(); } }
                 }
             }
         }
@@ -312,7 +313,7 @@ export component AppWindow inherits Window {
                                 border-radius: Theme.radius-md;
                                 clip: true;
                                 recent-log-view := ScrollView {
-                                    content-height: recent-log-text.preferred-height + 24px;
+                                    content-height: root.logs == "" ? self.visible-height : recent-log-text.preferred-height + 24px;
                                     content-width: self.visible-width;
                                     if root.logs == "": Text {
                                         x: Theme.space-3;
@@ -327,6 +328,8 @@ export component AppWindow inherits Window {
                                         y: Theme.space-3;
                                         width: parent.width - 24px;
                                         text: root.logs;
+                                        visible: root.logs != "";
+                                        enabled: root.logs != "";
                                         color: Theme.text;
                                         font-family: "Consolas";
                                         font-size: Theme.text-xs;
@@ -379,7 +382,7 @@ export component AppWindow inherits Window {
                                 clip: true;
                                 log-view := ScrollView {
                                     changed content-height => { if root.follow-logs { self.content-y = min(0px, self.visible-height - self.content-height); } }
-                                    content-height: log-text.preferred-height + 24px;
+                                    content-height: root.logs == "" ? self.visible-height : log-text.preferred-height + 24px;
                                     content-width: self.visible-width;
                                     if root.logs == "": Text {
                                         x: Theme.space-3;
@@ -394,6 +397,8 @@ export component AppWindow inherits Window {
                                         y: Theme.space-3;
                                         width: parent.width - 24px;
                                         text: root.logs;
+                                        visible: root.logs != "";
+                                        enabled: root.logs != "";
                                         color: Theme.text;
                                         font-family: "Consolas";
                                         font-size: Theme.text-xs;
@@ -410,7 +415,7 @@ export component AppWindow inherits Window {
                 if root.page == 2: ScrollView {
                     VerticalLayout {
                         alignment: start;
-                        spacing: Theme.space-4;
+                        spacing: Theme.space-6;
                         padding-right: Theme.space-3;
                         // Card 1: Launcher settings
                         Rectangle {
@@ -465,7 +470,7 @@ export component AppWindow inherits Window {
                                     Text { text: "服务配置"; font-size: Theme.text-base; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                                     Rectangle { horizontal-stretch: 1; }
                                     Button { text: "重新读取"; enabled: root.connected && !root.busy; clicked => { if root.config-dirty { root.confirm-action(5); } else { root.read-config(); } } }
-                                    Button { text: "保存服务配置"; primary: root.connected; enabled: root.connected && root.config-loaded && !root.busy; clicked => { root.save-config(); } }
+                                    Button { text: "保存服务配置"; primary: root.connected && root.config-dirty; enabled: root.connected && root.config-loaded && !root.busy; clicked => { root.save-config(); } }
                                 }
                                 if !root.connected: Rectangle {
                                     background: Theme.surface-subtle;

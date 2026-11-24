@@ -140,6 +140,33 @@ fn send(ui: &AppWindow, sender: &Sender<Command>, command: Command) {
     }
 }
 
+fn handle_close_request(ui: &AppWindow, sender: &Sender<Command>) -> slint::CloseRequestResponse {
+    if ui.get_busy() {
+        show_feedback(ui, "请等待当前操作完成", true);
+        return slint::CloseRequestResponse::KeepWindowShown;
+    }
+    let running = ui.get_running();
+    let connected = ui.get_connected();
+    if (!running && !ui.get_launcher_dirty() && !ui.get_config_dirty())
+        || confirm(4, running, connected)
+    {
+        send(
+            ui,
+            sender,
+            if running && !connected {
+                Command::ForceExit
+            } else {
+                Command::Exit
+            },
+        );
+    }
+    slint::CloseRequestResponse::KeepWindowShown
+}
+
+pub fn cleanup_timer() {
+    TIMER.with(|stored| *stored.borrow_mut() = None);
+}
+
 pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event>) {
     let snapshot: Rc<RefCell<Option<ConfigSnapshot>>> = Default::default();
     let log_state = Rc::new(RefCell::new(LogViewState::default()));
@@ -320,31 +347,19 @@ pub fn bind(ui: &AppWindow, commands: Sender<Command>, responses: Receiver<Event
         }
     });
     let weak = ui.as_weak();
+    let close_sender = commands.clone();
+    ui.on_request_close(move || {
+        if let Some(ui) = weak.upgrade() {
+            let _ = handle_close_request(&ui, &close_sender);
+        }
+    });
+    let weak = ui.as_weak();
     let sender = commands;
     ui.window().on_close_requested(move || {
         let Some(ui) = weak.upgrade() else {
             return slint::CloseRequestResponse::HideWindow;
         };
-        if ui.get_busy() {
-            show_feedback(&ui, "请等待当前操作完成", true);
-            return slint::CloseRequestResponse::KeepWindowShown;
-        }
-        let running = ui.get_running();
-        let connected = ui.get_connected();
-        if (!running && !ui.get_launcher_dirty() && !ui.get_config_dirty())
-            || confirm(4, running, connected)
-        {
-            send(
-                &ui,
-                &sender,
-                if running && !connected {
-                    Command::ForceExit
-                } else {
-                    Command::Exit
-                },
-            );
-        }
-        slint::CloseRequestResponse::KeepWindowShown
+        handle_close_request(&ui, &sender)
     });
     let weak = ui.as_weak();
     let timer = slint::Timer::default();
